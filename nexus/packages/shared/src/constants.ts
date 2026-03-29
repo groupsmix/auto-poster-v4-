@@ -35,6 +35,26 @@ export const CACHE_TTL_MAP: Record<TaskType, number> = {
   humanizer: 86400, // 24 hours (same as writing)
 };
 
+// --- Runtime Constants ---
+
+/** Rate limit sleep duration (1 hour) */
+export const RATE_LIMIT_SLEEP_MS = 3_600_000;
+
+/** Maximum time to wait for a single workflow to complete (10 minutes) */
+export const WORKFLOW_TIMEOUT_MS = 600_000;
+
+/** Polling interval when waiting for workflow completion (5 seconds) */
+export const BATCH_POLL_INTERVAL_MS = 5_000;
+
+/** Maximum number of products in a single batch */
+export const MAX_BATCH_SIZE = 10;
+
+/** Default page size for paginated queries */
+export const DEFAULT_PAGE_SIZE = 50;
+
+/** KV list operation limit per call */
+export const KV_LIST_LIMIT = 1000;
+
 // --- Default Settings ---
 
 /** Default settings values */

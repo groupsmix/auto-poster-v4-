@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
-import { generateId, slugify, now } from "@nexus/shared";
+import { generateId, slugify, now, DEFAULT_PAGE_SIZE } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { storageQuery, storageCleanup, errorResponse } from "../helpers";
 
@@ -14,7 +14,7 @@ products.get("/", async (c) => {
     const status = c.req.query("status");
     const batch = c.req.query("batch");
     const page = parseInt(c.req.query("page") ?? "1", 10);
-    const pageSize = parseInt(c.req.query("pageSize") ?? "50", 10);
+    const pageSize = parseInt(c.req.query("pageSize") ?? String(DEFAULT_PAGE_SIZE), 10);
     const offset = (page - 1) * pageSize;
 
     let where = "1=1";

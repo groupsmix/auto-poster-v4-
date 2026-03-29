@@ -204,16 +204,15 @@ export class WorkflowEngine {
       [runId, productId, now(), WORKFLOW_STEPS[0], totalSteps]
     );
 
-    // Create step records in D1 for all 9 steps
-    for (let i = 0; i < WORKFLOW_STEPS.length; i++) {
-      const stepId = generateId();
-      await storageQuery(
-        this.env,
-        `INSERT INTO workflow_steps (id, run_id, step_name, step_order, status, cost, cached)
-         VALUES (?, ?, ?, ?, 'waiting', 0, 0)`,
-        [stepId, runId, WORKFLOW_STEPS[i], i + 1]
-      );
-    }
+    // Create step records in D1 for all 9 steps (batched single INSERT — 8.2)
+    const stepValues = WORKFLOW_STEPS.map((step, i) =>
+      `('${generateId()}', '${runId}', '${step}', ${i + 1}, 'waiting', 0, 0)`
+    ).join(", ");
+    await storageQuery(
+      this.env,
+      `INSERT INTO workflow_steps (id, run_id, step_name, step_order, status, cost, cached)
+       VALUES ${stepValues}`
+    );
 
     // Update product status to running
     await storageQuery(

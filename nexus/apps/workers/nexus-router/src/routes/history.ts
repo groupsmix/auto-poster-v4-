@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
+import { DEFAULT_PAGE_SIZE } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { storageQuery, errorResponse } from "../helpers";
 
@@ -9,7 +10,7 @@ const history = new Hono<{ Bindings: RouterEnv }>();
 history.get("/", async (c) => {
   try {
     const page = parseInt(c.req.query("page") ?? "1", 10);
-    const pageSize = parseInt(c.req.query("pageSize") ?? "50", 10);
+    const pageSize = parseInt(c.req.query("pageSize") ?? String(DEFAULT_PAGE_SIZE), 10);
     const offset = (page - 1) * pageSize;
 
     const countResult = (await storageQuery(

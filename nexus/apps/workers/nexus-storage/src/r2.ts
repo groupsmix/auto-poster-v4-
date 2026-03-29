@@ -109,15 +109,11 @@ export class R2Storage {
   }
 
   /**
-   * Generate a presigned URL for an R2 object.
-   * Note: R2 presigned URLs require the S3 API compatibility.
-   * This returns a direct R2 public URL if the bucket has public access,
-   * otherwise it returns the key for use with a Worker-based proxy.
+   * Get the Worker proxy path for an R2 object.
+   * R2 doesn't have a native presigned URL API in the Workers binding.
+   * Files are served through the GET /r2/:key Worker endpoint.
    */
-  async getSignedUrl(key: string): Promise<string> {
-    // R2 doesn't have a native presigned URL API in the Workers binding.
-    // The standard approach is to serve files through a Worker endpoint.
-    // Return the key to be used with the GET /r2/:key route.
+  getProxyPath(key: string): string {
     return `/r2/${encodeURIComponent(key)}`;
   }
 

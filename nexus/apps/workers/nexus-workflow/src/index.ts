@@ -415,4 +415,80 @@ app.post("/workflow/revise/:runId", async (c) => {
   }
 });
 
+// ============================================================
+// POST /workflow/retry-from-step/:runId — Retry from a specific step (7.2)
+// Re-runs only from the given step forward, using cached outputs from prior steps
+// ============================================================
+
+app.post("/workflow/retry-from-step/:runId", async (c) => {
+  try {
+    const runId = c.req.param("runId");
+
+    if (!runId) {
+      return c.json<ApiResponse>(
+        { success: false, error: "Missing runId parameter" },
+        400
+      );
+    }
+
+    const body = await c.req.json<{ step_name: string }>();
+
+    if (!body.step_name) {
+      return c.json<ApiResponse>(
+        { success: false, error: "Missing step_name in request body" },
+        400
+      );
+    }
+
+    const engine = new WorkflowEngine(c.env);
+
+    // Get the workflow status to determine which steps to re-run
+    const status = await engine.getWorkflowStatus(runId);
+    if (!status) {
+      return c.json<ApiResponse>(
+        { success: false, error: `Workflow run ${runId} not found` },
+        404
+      );
+    }
+
+    // Find the step index and build the list of steps from that point forward
+    const allSteps = status.steps.map((s) => s.step_name as StepName);
+    const startIndex = allSteps.indexOf(body.step_name as StepName);
+
+    if (startIndex === -1) {
+      return c.json<ApiResponse>(
+        { success: false, error: `Step ${body.step_name} not found in workflow` },
+        400
+      );
+    }
+
+    // Steps to re-run: from the specified step to the end
+    const stepsToRetry = allSteps.slice(startIndex);
+
+    // Use the existing revise mechanism with empty feedback
+    const result = await engine.reviseWorkflow(
+      runId,
+      `Retrying from step: ${body.step_name}`,
+      stepsToRetry
+    );
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: {
+        run_id: result.runId,
+        retrying_from: body.step_name,
+        steps_to_retry: stepsToRetry,
+        status: "in_revision",
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[WORKFLOW] Retry-from-step failed:", message);
+    return c.json<ApiResponse>(
+      { success: false, error: message },
+      500
+    );
+  }
+});
+
 export default app;

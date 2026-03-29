@@ -30,6 +30,7 @@ import assets from "./routes/assets";
 import analytics from "./routes/analytics";
 import history from "./routes/history";
 import settings from "./routes/settings";
+import exportRoutes from "./routes/export";
 
 const app = new Hono<{ Bindings: RouterEnv }>();
 
@@ -39,6 +40,55 @@ const app = new Hono<{ Bindings: RouterEnv }>();
 
 // CORS — allow dashboard origin
 app.use("*", cors());
+
+// Request/response logging middleware (7.4)
+app.use("/api/*", async (c, next) => {
+  const start = Date.now();
+  await next();
+  const duration = Date.now() - start;
+  console.log(
+    `${c.req.method} ${c.req.path} ${c.res.status} ${duration}ms`
+  );
+});
+
+// Rate limiting middleware (7.3)
+// 100 requests per minute per IP using KV counter
+app.use("/api/*", async (c, next) => {
+  const storage = c.env.NEXUS_STORAGE;
+  if (!storage) {
+    // If storage service is unavailable, skip rate limiting
+    await next();
+    return;
+  }
+
+  const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
+  const minute = Math.floor(Date.now() / 60000);
+  const key = `ratelimit:${ip}:${minute}`;
+
+  try {
+    const resp = await storage.fetch(`http://nexus-storage/kv/${encodeURIComponent(key)}`);
+    const json = (await resp.json()) as { success: boolean; data?: string };
+    const count = json.success && json.data ? parseInt(json.data as string, 10) : 0;
+
+    if (count >= 100) {
+      return c.json<ApiResponse>(
+        { success: false, error: "Rate limit exceeded. Try again in a minute." },
+        429
+      );
+    }
+
+    // Increment counter (fire-and-forget, don't block the request)
+    storage.fetch(`http://nexus-storage/kv/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: String(count + 1), ttl: 120 }),
+    }).catch(() => { /* ignore rate limit write failures */ });
+  } catch {
+    // If rate limit check fails, allow the request through
+  }
+
+  await next();
+});
 
 // Auth middleware — protects all /api/* routes
 app.use("/api/*", async (c, next) => {
@@ -82,8 +132,25 @@ app.get("/", (c) => {
   });
 });
 
-app.get("/health", (c) => {
-  return c.json({ status: "healthy" });
+app.get("/health", async (c) => {
+  const checks = await Promise.allSettled([
+    c.env.NEXUS_STORAGE.fetch("http://nexus-storage/health"),
+    c.env.NEXUS_AI.fetch("http://nexus-ai/health"),
+    c.env.NEXUS_WORKFLOW.fetch("http://nexus-workflow/health"),
+  ]);
+
+  const results = {
+    storage: checks[0].status === "fulfilled" ? "ok" : "unreachable",
+    ai: checks[1].status === "fulfilled" ? "ok" : "unreachable",
+    workflow: checks[2].status === "fulfilled" ? "ok" : "unreachable",
+  };
+
+  const allHealthy = Object.values(results).every((s) => s === "ok");
+
+  return c.json({
+    status: allHealthy ? "healthy" : "degraded",
+    services: results,
+  });
 });
 
 // ============================================================
@@ -104,6 +171,7 @@ app.route("/api/assets", assets);
 app.route("/api/analytics", analytics);
 app.route("/api/history", history);
 app.route("/api/settings", settings);
+app.route("/api/export", exportRoutes);
 
 // ============================================================
 // 404 catch-all
