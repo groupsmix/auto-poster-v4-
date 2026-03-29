@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useReviewCounts } from "@/lib/ReviewCountContext";
@@ -164,6 +164,14 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const { pendingReviewCount, publishableCount } = useReviewCounts();
+
+  // Close mobile sidebar on any route change
+  const currentPathname = pathname;
+  useEffect(() => {
+    return () => {
+      setIsOpen(false);
+    };
+  }, [currentPathname]);
 
   // Build nav sections with dynamic badge counts
   const dynamicNavSections = navSections.map((section) => ({
