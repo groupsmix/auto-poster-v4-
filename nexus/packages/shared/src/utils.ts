@@ -2,8 +2,11 @@
 // NEXUS Shared Utilities
 // ============================================================
 
+import { CACHE_TTL_MAP } from "./constants";
+import type { TaskType } from "./types";
+
 /**
- * Generate a unique ID (uses crypto.randomUUID when available)
+ * Generate a unique ID (UUID v4)
  */
 export function generateId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -18,7 +21,7 @@ export function generateId(): string {
 }
 
 /**
- * Create a slug from a string
+ * Create a URL-safe slug from a string
  */
 export function slugify(text: string): string {
   return text
@@ -31,13 +34,48 @@ export function slugify(text: string): string {
 }
 
 /**
- * SHA-256 hash for AI response cache keys
+ * SHA-256 hash for AI response cache keys.
+ * Returns the full cache key in format: cache:ai:{hex}
  */
-export async function hashPrompt(prompt: string, taskType: string): Promise<string> {
+export async function hashPrompt(
+  prompt: string,
+  taskType: string
+): Promise<string> {
   const data = new TextEncoder().encode(prompt + taskType);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  const hex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `cache:ai:${hex}`;
+}
+
+/**
+ * Get cache TTL for a given task type (in seconds).
+ * Returns 0 for unknown task types (no caching).
+ */
+export function getCacheTTL(taskType: string): number {
+  return CACHE_TTL_MAP[taskType as TaskType] ?? 0;
+}
+
+/**
+ * Calculate AI model health score (0-100) based on call history.
+ * Returns 100 if no calls have been made yet.
+ */
+export function calculateHealthScore(
+  totalCalls: number,
+  totalFailures: number
+): number {
+  if (totalCalls === 0) return 100;
+  return Math.round(((totalCalls - totalFailures) / totalCalls) * 100);
+}
+
+/**
+ * Get unix timestamp (ms) for the next midnight UTC.
+ * Used for daily AI rate limit resets.
+ */
+export function getMidnightTimestamp(): number {
+  const midnight = new Date();
+  midnight.setUTCHours(24, 0, 0, 0);
+  return midnight.getTime();
 }
 
 /**
