@@ -30,6 +30,7 @@ import assets from "./routes/assets";
 import analytics from "./routes/analytics";
 import history from "./routes/history";
 import settings from "./routes/settings";
+import exportRoutes from "./routes/export";
 
 const app = new Hono<{ Bindings: RouterEnv }>();
 
@@ -131,8 +132,25 @@ app.get("/", (c) => {
   });
 });
 
-app.get("/health", (c) => {
-  return c.json({ status: "healthy" });
+app.get("/health", async (c) => {
+  const checks = await Promise.allSettled([
+    c.env.NEXUS_STORAGE.fetch("http://nexus-storage/health"),
+    c.env.NEXUS_AI.fetch("http://nexus-ai/health"),
+    c.env.NEXUS_WORKFLOW.fetch("http://nexus-workflow/health"),
+  ]);
+
+  const results = {
+    storage: checks[0].status === "fulfilled" ? "ok" : "unreachable",
+    ai: checks[1].status === "fulfilled" ? "ok" : "unreachable",
+    workflow: checks[2].status === "fulfilled" ? "ok" : "unreachable",
+  };
+
+  const allHealthy = Object.values(results).every((s) => s === "ok");
+
+  return c.json({
+    status: allHealthy ? "healthy" : "degraded",
+    services: results,
+  });
 });
 
 // ============================================================
@@ -153,6 +171,7 @@ app.route("/api/assets", assets);
 app.route("/api/analytics", analytics);
 app.route("/api/history", history);
 app.route("/api/settings", settings);
+app.route("/api/export", exportRoutes);
 
 // ============================================================
 // 404 catch-all

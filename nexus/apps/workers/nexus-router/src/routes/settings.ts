@@ -36,19 +36,28 @@ settings.put("/", async (c) => {
     }
 
     const ts = now();
-    const updated: string[] = [];
+    const entries = Object.entries(body).filter(
+      ([, value]) => typeof value === "string"
+    );
 
-    for (const [key, value] of Object.entries(body)) {
-      if (typeof value !== "string") continue;
-
-      await storageQuery(
-        c.env,
-        `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
-         ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = ?`,
-        [key, value, ts, value, ts]
+    if (entries.length === 0) {
+      return c.json<ApiResponse>(
+        { success: false, error: "No valid string values provided" },
+        400
       );
-      updated.push(key);
     }
+
+    // Batch all settings into a single INSERT with ON CONFLICT (8.3)
+    const placeholders = entries.map(() => "(?, ?, ?)").join(", ");
+    const params = entries.flatMap(([key, value]) => [key, value, ts]);
+    await storageQuery(
+      c.env,
+      `INSERT INTO settings (key, value, updated_at) VALUES ${placeholders}
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      params
+    );
+
+    const updated = entries.map(([key]) => key);
 
     return c.json<ApiResponse>({
       success: true,

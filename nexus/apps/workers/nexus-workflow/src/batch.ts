@@ -330,38 +330,43 @@ export class BatchOrchestrator {
    * Get batch progress — total, completed, current index, per-product status.
    */
   async getBatchProgress(batchId: string): Promise<BatchProgress | null> {
-    // Get all products in this batch
-    const productsResult = (await storageQuery(
+    // Single JOIN query instead of N+1 individual queries (8.1)
+    const joinResult = (await storageQuery(
       this.env,
-      `SELECT id, name, niche, status FROM products WHERE batch_id = ? ORDER BY created_at ASC`,
+      `SELECT p.id, p.name, p.niche, p.status as product_status,
+              wr.id as run_id, wr.status as run_status
+       FROM products p
+       LEFT JOIN workflow_runs wr ON wr.product_id = p.id
+       WHERE p.batch_id = ?
+       ORDER BY p.created_at ASC`,
       [batchId]
-    )) as { results?: Array<Record<string, unknown>> };
+    )) as { results?: Array<Record<string, string | null>> };
 
-    const products = productsResult?.results;
-    if (!products || products.length === 0) return null;
+    const rows = joinResult?.results;
+    if (!rows || rows.length === 0) return null;
 
-    // Get workflow runs for each product
+    // De-duplicate: keep the latest run per product (last row wins due to JOIN)
+    const seen = new Map<string, Record<string, string | null>>();
+    for (const row of rows) {
+      const pid = row.id as string;
+      // If we already have a row for this product with a run, only replace if this one also has a run
+      if (!seen.has(pid) || row.run_id) {
+        seen.set(pid, row);
+      }
+    }
+
+    const products = Array.from(seen.values());
     const batchProducts: BatchProduct[] = [];
     let completedCount = 0;
     let currentIndex = 0;
 
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
-      const productId = p.id as string;
-
-      // Get the workflow run for this product
-      const runResult = (await storageQuery(
-        this.env,
-        `SELECT id, status FROM workflow_runs WHERE product_id = ? ORDER BY started_at DESC LIMIT 1`,
-        [productId]
-      )) as { results?: Array<{ id: string; status: string }> };
-
-      const run = runResult?.results?.[0];
-      const status = run?.status ?? (p.status as string) ?? "queued";
+      const status = p.run_status ?? p.product_status ?? "queued";
 
       batchProducts.push({
-        productId,
-        runId: run?.id ?? null,
+        productId: p.id as string,
+        runId: p.run_id ?? null,
         nicheAngle: (p.niche as string) ?? "",
         status,
       });

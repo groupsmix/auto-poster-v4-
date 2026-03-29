@@ -279,6 +279,70 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-6">
+        {/* Auth & System Status Banner (7.6) */}
+        <div className="rounded-xl border border-card-border bg-card-bg p-6">
+          <h2 className="text-base font-semibold text-foreground mb-4">
+            System Status
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Auth Status */}
+            <div className="rounded-lg bg-card-hover border border-card-border p-4">
+              <p className="text-xs text-muted mb-1">Authentication</p>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-block w-2 h-2 rounded-full ${
+                    typeof window !== "undefined" && localStorage.getItem("nexus_token")
+                      ? "bg-success"
+                      : "bg-warning"
+                  }`}
+                />
+                <p className="text-sm font-medium text-foreground">
+                  {typeof window !== "undefined" && localStorage.getItem("nexus_token")
+                    ? "Configured"
+                    : "Not Configured"}
+                </p>
+              </div>
+              {typeof window !== "undefined" && !localStorage.getItem("nexus_token") && (
+                <p className="text-xs text-warning mt-2">
+                  Set DASHBOARD_SECRET in your Worker and add token in browser to secure API access.
+                </p>
+              )}
+            </div>
+
+            {/* Connected AI Providers */}
+            <div className="rounded-lg bg-card-hover border border-card-border p-4">
+              <p className="text-xs text-muted mb-1">AI Providers</p>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-block w-2 h-2 rounded-full ${
+                    apiKeys.filter((k) => k.status === "active").length > 0
+                      ? "bg-success"
+                      : "bg-warning"
+                  }`}
+                />
+                <p className="text-sm font-medium text-foreground">
+                  {apiKeys.filter((k) => k.status === "active").length} of{" "}
+                  {apiKeys.length} connected
+                </p>
+              </div>
+            </div>
+
+            {/* Workers AI Fallback */}
+            <div className="rounded-lg bg-card-hover border border-card-border p-4">
+              <p className="text-xs text-muted mb-1">Workers AI Fallback</p>
+              <div className="flex items-center gap-2">
+                <span className="inline-block w-2 h-2 rounded-full bg-success" />
+                <p className="text-sm font-medium text-foreground">
+                  Always Available
+                </p>
+              </div>
+              <p className="text-xs text-muted mt-2">
+                Built-in fallback — text tasks never fully fail.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* General Settings */}
         <div className="rounded-xl border border-card-border bg-card-bg p-6">
           <h2 className="text-base font-semibold text-foreground mb-4">

@@ -21,12 +21,24 @@ async function request<T>(
 ): Promise<ApiResponse<T>> {
   const { method = "GET", body, headers = {} } = options;
 
+  // Add auth token if available (8.4)
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("nexus_token")
+      : process.env.DASHBOARD_SECRET;
+
+  const authHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...headers,
+  };
+
+  if (token) {
+    authHeaders["Authorization"] = `Bearer ${token}`;
+  }
+
   const config: RequestInit = {
     method,
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    },
+    headers: authHeaders,
   };
 
   if (body) {
