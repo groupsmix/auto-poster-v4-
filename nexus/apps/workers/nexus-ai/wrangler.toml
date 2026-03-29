@@ -1,0 +1,5 @@
+name = "nexus-ai"
+main = "src/index.ts"
+compatibility_date = "2024-12-30"
+
+# AI Gateway, KV bindings, Workers AI — filled in during Task 16
