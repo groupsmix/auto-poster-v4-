@@ -95,7 +95,7 @@ async function callVariation(
 
 // --- Helper: call nexus-storage D1 queries ---
 
-async function storageQuery(
+export async function storageQuery(
   env: Env,
   sql: string,
   params: unknown[] = []
@@ -118,6 +118,16 @@ async function storageQuery(
 
 // --- Helper: update workflow run in D1 ---
 
+const ALLOWED_RUN_COLUMNS = new Set([
+  "status",
+  "current_step",
+  "total_tokens",
+  "total_cost",
+  "cache_hits",
+  "completed_at",
+  "error",
+]);
+
 async function updateWorkflowRun(
   env: Env,
   runId: string,
@@ -127,9 +137,12 @@ async function updateWorkflowRun(
   const values: unknown[] = [];
 
   for (const [key, value] of Object.entries(fields)) {
+    if (!ALLOWED_RUN_COLUMNS.has(key)) continue;
     setClauses.push(`${key} = ?`);
     values.push(value);
   }
+
+  if (setClauses.length === 0) return;
 
   values.push(runId);
 
@@ -210,8 +223,23 @@ export class WorkflowEngine {
     );
 
     // Run the pipeline (non-blocking — CF Workflows handles persistence)
-    this.runPipeline(runId, input).catch((err) => {
+    this.runPipeline(runId, input).catch(async (err) => {
       console.error(`[WORKFLOW] Pipeline failed for run ${runId}:`, err);
+      try {
+        const message = err instanceof Error ? err.message : String(err);
+        await updateWorkflowRun(this.env, runId, {
+          status: "failed",
+          completed_at: now(),
+          error: `Unhandled pipeline error: ${message}`,
+        });
+        await storageQuery(
+          this.env,
+          `UPDATE products SET status = 'failed', updated_at = ? WHERE id = ?`,
+          [now(), input.productId]
+        );
+      } catch (updateErr) {
+        console.error(`[WORKFLOW] Failed to update status after pipeline error for run ${runId}:`, updateErr);
+      }
     });
 
     return { runId };
@@ -576,8 +604,23 @@ export class WorkflowEngine {
       revisionSteps: failedSteps,
     };
 
-    this.runPipeline(runId, input).catch((err) => {
+    this.runPipeline(runId, input).catch(async (err) => {
       console.error(`[WORKFLOW] Revision pipeline failed for run ${runId}:`, err);
+      try {
+        const message = err instanceof Error ? err.message : String(err);
+        await updateWorkflowRun(this.env, runId, {
+          status: "failed",
+          completed_at: now(),
+          error: `Unhandled revision pipeline error: ${message}`,
+        });
+        await storageQuery(
+          this.env,
+          `UPDATE products SET status = 'failed', updated_at = ? WHERE id = ?`,
+          [now(), productId]
+        );
+      } catch (updateErr) {
+        console.error(`[WORKFLOW] Failed to update status after revision pipeline error for run ${runId}:`, updateErr);
+      }
     });
 
     return { runId };
@@ -598,6 +641,19 @@ export class WorkflowEngine {
     return result?.results?.[0]?.status === "cancelled";
   }
 
+  private static readonly ALLOWED_STEP_COLUMNS = new Set([
+    "status",
+    "ai_used",
+    "ai_tried",
+    "output",
+    "tokens_used",
+    "cost",
+    "cached",
+    "latency_ms",
+    "started_at",
+    "completed_at",
+  ]);
+
   /**
    * Update a step record by step name (within a run).
    */
@@ -610,9 +666,12 @@ export class WorkflowEngine {
     const values: unknown[] = [];
 
     for (const [key, value] of Object.entries(fields)) {
+      if (!WorkflowEngine.ALLOWED_STEP_COLUMNS.has(key)) continue;
       setClauses.push(`${key} = ?`);
       values.push(value);
     }
+
+    if (setClauses.length === 0) return;
 
     values.push(runId, stepName);
 

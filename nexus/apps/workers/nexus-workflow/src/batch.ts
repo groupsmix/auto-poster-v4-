@@ -7,7 +7,7 @@
 
 import type { Env, ApiResponse } from "@nexus/shared";
 import { generateId, slugify, now } from "@nexus/shared";
-import { WorkflowEngine, type WorkflowInput } from "./engine";
+import { WorkflowEngine, type WorkflowInput, storageQuery } from "./engine";
 import type { ProductContext, PromptTemplates } from "./steps";
 
 // --- Types ---
@@ -50,28 +50,7 @@ export interface BatchProgress {
   products: BatchProduct[];
 }
 
-// --- Helper: call nexus-storage D1 queries ---
-
-async function storageQuery(
-  env: Env,
-  sql: string,
-  params: unknown[] = []
-): Promise<unknown> {
-  const response = await env.NEXUS_STORAGE.fetch(
-    "http://nexus-storage/d1/query",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sql, params }),
-    }
-  );
-
-  const json = (await response.json()) as ApiResponse;
-  if (!json.success) {
-    throw new Error(`Storage query failed: ${json.error ?? "Unknown error"}`);
-  }
-  return json.data;
-}
+// storageQuery is imported from ./engine (single source of truth)
 
 // --- Helper: generate unique niche angles via AI ---
 
@@ -224,8 +203,18 @@ export class BatchOrchestrator {
 
     // Start sequential execution (non-blocking)
     this.runBatchSequentially(batchId, products, input, promptTemplates).catch(
-      (err) => {
+      async (err) => {
         console.error(`[BATCH] Batch ${batchId} failed:`, err);
+        // Mark any queued/running products in this batch as failed
+        try {
+          await storageQuery(
+            this.env,
+            `UPDATE products SET status = 'failed', updated_at = ? WHERE batch_id = ? AND status IN ('queued', 'running')`,
+            [now(), batchId]
+          );
+        } catch (updateErr) {
+          console.error(`[BATCH] Failed to update product statuses after batch error for ${batchId}:`, updateErr);
+        }
       }
     );
 

@@ -1,0 +1,184 @@
+import { Hono } from "hono";
+import type { ApiResponse } from "@nexus/shared";
+import { generateId, slugify, now } from "@nexus/shared";
+import type { RouterEnv } from "../helpers";
+import { storageQuery, storageCleanup, errorResponse } from "../helpers";
+
+const products = new Hono<{ Bindings: RouterEnv }>();
+
+// GET /api/products — list all products (with filters)
+products.get("/", async (c) => {
+  try {
+    const domain = c.req.query("domain");
+    const category = c.req.query("category");
+    const status = c.req.query("status");
+    const batch = c.req.query("batch");
+    const page = parseInt(c.req.query("page") ?? "1", 10);
+    const pageSize = parseInt(c.req.query("pageSize") ?? "50", 10);
+    const offset = (page - 1) * pageSize;
+
+    let where = "1=1";
+    const params: unknown[] = [];
+
+    if (domain) {
+      where += " AND domain_id = ?";
+      params.push(domain);
+    }
+    if (category) {
+      where += " AND category_id = ?";
+      params.push(category);
+    }
+    if (status) {
+      where += " AND status = ?";
+      params.push(status);
+    }
+    if (batch) {
+      where += " AND batch_id = ?";
+      params.push(batch);
+    }
+
+    const countResult = (await storageQuery(
+      c.env,
+      `SELECT COUNT(*) as total FROM products WHERE ${where}`,
+      params
+    )) as Array<{ total: number }>;
+
+    const total = countResult?.[0]?.total ?? 0;
+
+    const data = await storageQuery(
+      c.env,
+      `SELECT * FROM products WHERE ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      [...params, pageSize, offset]
+    );
+
+    return c.json({
+      success: true,
+      data,
+      total,
+      page,
+      pageSize,
+    });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// GET /api/products/:id — get product detail + variants
+products.get("/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+
+    const rows = (await storageQuery(
+      c.env,
+      "SELECT * FROM products WHERE id = ?",
+      [id]
+    )) as Array<Record<string, unknown>>;
+
+    if (!rows || (rows as unknown[]).length === 0) {
+      return c.json<ApiResponse>(
+        { success: false, error: "Product not found" },
+        404
+      );
+    }
+
+    const product = rows[0];
+
+    // Fetch platform variants, social variants, and assets in parallel
+    const [platformVariants, socialVariants, assets] = await Promise.all([
+      storageQuery(
+        c.env,
+        "SELECT * FROM platform_variants WHERE product_id = ?",
+        [id]
+      ),
+      storageQuery(
+        c.env,
+        "SELECT * FROM social_variants WHERE product_id = ?",
+        [id]
+      ),
+      storageQuery(c.env, "SELECT * FROM assets WHERE product_id = ?", [id]),
+    ]);
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: {
+        ...product,
+        platform_variants: platformVariants,
+        social_variants: socialVariants,
+        assets,
+      },
+    });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// POST /api/products — create product draft
+products.post("/", async (c) => {
+  try {
+    const body = await c.req.json<{
+      domain_id?: string;
+      category_id?: string;
+      name?: string;
+      niche?: string;
+      language?: string;
+      description?: string;
+      keywords?: string;
+    }>();
+
+    if (!body.domain_id || !body.category_id) {
+      return c.json<ApiResponse>(
+        { success: false, error: "domain_id and category_id are required" },
+        400
+      );
+    }
+
+    const id = generateId();
+    const productName = body.name ?? body.niche ?? "Untitled";
+    const slug = slugify(productName);
+    const ts = now();
+
+    await storageQuery(
+      c.env,
+      `INSERT INTO products (id, domain_id, category_id, name, slug, niche, language, status, user_input, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)`,
+      [
+        id,
+        body.domain_id,
+        body.category_id,
+        productName,
+        slug,
+        body.niche ?? null,
+        body.language ?? "en",
+        JSON.stringify({
+          description: body.description,
+          keywords: body.keywords,
+        }),
+        ts,
+        ts,
+      ]
+    );
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: { id, name: productName, slug, status: "draft" },
+      },
+      201
+    );
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// DELETE /api/products/:id — delete product (triggers synced cleanup)
+products.delete("/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const result = await storageCleanup(c.env, "product", id);
+    return c.json<ApiResponse>(result);
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+export default products;

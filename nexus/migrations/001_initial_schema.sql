@@ -60,6 +60,7 @@ CREATE TABLE products (
   domain_id     TEXT REFERENCES domains(id),
   category_id   TEXT REFERENCES categories(id),
   name          TEXT,
+  slug          TEXT,
   niche         TEXT,
   language      TEXT DEFAULT 'en',
   user_input    JSON,

@@ -62,8 +62,11 @@ export default function HomePage() {
     // Optimistically add to local state
     setDomains((prev) => [...prev, { name: data.name, slug, icon: data.icon }]);
 
-    // Fire API call (best-effort)
-    api.domains.create({ name: data.name, icon: data.icon });
+    // Fire API call with error handling
+    api.domains.create({ name: data.name, icon: data.icon }).catch(() => {
+      setDomains((prev) => prev.filter((d) => d.slug !== slug));
+      setError("Failed to create domain");
+    });
   };
 
   if (loading) {
