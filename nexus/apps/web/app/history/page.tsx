@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
+import MockDataBanner from "@/components/MockDataBanner";
 import type { WorkflowRun, WorkflowStep, RevisionEntry } from "@/lib/api";
 import CacheIndicator from "@/components/CacheIndicator";
 
@@ -144,6 +145,7 @@ function formatDate(d: string) {
 export default function HistoryPage() {
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUsingMock, setIsUsingMock] = useState(false);
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const [steps, setSteps] = useState<Record<string, WorkflowStep[]>>({});
   const [stepsLoading, setStepsLoading] = useState<Record<string, boolean>>({});
@@ -159,11 +161,14 @@ export default function HistoryPage() {
       const response = await api.history.listRuns(params);
       if (response.success && response.data) {
         setRuns(response.data);
+        setIsUsingMock(false);
       } else {
         setRuns(MOCK_RUNS);
+        setIsUsingMock(true);
       }
     } catch {
       setRuns(MOCK_RUNS);
+      setIsUsingMock(true);
     } finally {
       setLoading(false);
     }
@@ -231,6 +236,8 @@ export default function HistoryPage() {
           Past workflow runs and revision history
         </p>
       </div>
+
+      {isUsingMock && <MockDataBanner />}
 
       {/* Filters */}
       <div className="rounded-xl border border-card-border bg-card-bg p-4 mb-6">

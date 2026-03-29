@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
+import MockDataBanner from "@/components/MockDataBanner";
 import type { PromptTemplate, PromptVersion } from "@/lib/api";
 
 // Prompt layer configuration matching the architecture doc (Layers A-I)
@@ -358,6 +359,7 @@ function LayerIcon({ layer }: { layer: string }) {
 export default function PromptsPage() {
   const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUsingMock, setIsUsingMock] = useState(false);
   const [activeLayer, setActiveLayer] = useState<string>("master");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
@@ -374,11 +376,14 @@ export default function PromptsPage() {
       const response = await api.prompts.list();
       if (response.success && response.data) {
         setPrompts(response.data);
+        setIsUsingMock(false);
       } else {
         setPrompts(MOCK_PROMPTS);
+        setIsUsingMock(true);
       }
     } catch {
       setPrompts(MOCK_PROMPTS);
+      setIsUsingMock(true);
     } finally {
       setLoading(false);
     }
@@ -522,6 +527,8 @@ export default function PromptsPage() {
           Edit prompts across all 9 layers (A-I) of the layered prompt architecture
         </p>
       </div>
+
+      {isUsingMock && <MockDataBanner />}
 
       {/* Layer Tabs */}
       <div className="mb-6 flex flex-wrap gap-2">

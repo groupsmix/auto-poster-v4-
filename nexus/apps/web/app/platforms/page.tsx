@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
+import MockDataBanner from "@/components/MockDataBanner";
 import type { PlatformFull } from "@/lib/api";
 
 // Mock data matching the architecture doc (Part 7)
@@ -108,6 +109,7 @@ function generateSlug(name: string): string {
 export default function PlatformsPage() {
   const [platforms, setPlatforms] = useState<PlatformFull[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUsingMock, setIsUsingMock] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<PlatformFull | null>(null);
   const [saving, setSaving] = useState(false);
@@ -121,11 +123,14 @@ export default function PlatformsPage() {
       const response = await api.platforms.list();
       if (response.success && response.data) {
         setPlatforms(response.data);
+        setIsUsingMock(false);
       } else {
         setPlatforms(MOCK_PLATFORMS);
+        setIsUsingMock(true);
       }
     } catch {
       setPlatforms(MOCK_PLATFORMS);
+      setIsUsingMock(true);
     } finally {
       setLoading(false);
     }
@@ -245,6 +250,8 @@ export default function PlatformsPage() {
           + Add New Platform
         </button>
       </div>
+
+      {isUsingMock && <MockDataBanner />}
 
       {showAddForm && (
         <div className="rounded-xl border border-accent/30 bg-card-bg p-6 mb-6">

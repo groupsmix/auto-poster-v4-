@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
+import MockDataBanner from "@/components/MockDataBanner";
 import type { PublishableProduct } from "@/lib/api";
 
 // Mock data for when API is not available
@@ -110,6 +111,7 @@ interface ProductPublishState {
 export default function PublishPage() {
   const [products, setProducts] = useState<PublishableProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUsingMock, setIsUsingMock] = useState(false);
   const [publishStates, setPublishStates] = useState<
     Record<string, ProductPublishState>
   >({});
@@ -121,11 +123,14 @@ export default function PublishPage() {
       const response = await api.publishing.ready();
       if (response.success && response.data) {
         setProducts(response.data);
+        setIsUsingMock(false);
       } else {
         setProducts(MOCK_PUBLISHABLE);
+        setIsUsingMock(true);
       }
     } catch {
       setProducts(MOCK_PUBLISHABLE);
+      setIsUsingMock(true);
     } finally {
       setLoading(false);
     }
@@ -302,6 +307,8 @@ export default function PublishPage() {
           </button>
         </div>
       </div>
+
+      {isUsingMock && <MockDataBanner />}
 
       {loading ? (
         <div className="space-y-4">

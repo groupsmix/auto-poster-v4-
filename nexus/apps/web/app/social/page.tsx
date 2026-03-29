@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
+import MockDataBanner from "@/components/MockDataBanner";
 import type { SocialChannelFull } from "@/lib/api";
 
 // Mock data matching the architecture doc (Part 8)
@@ -100,6 +101,7 @@ function generateSlug(name: string): string {
 export default function SocialPage() {
   const [channels, setChannels] = useState<SocialChannelFull[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUsingMock, setIsUsingMock] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<SocialChannelFull | null>(null);
   const [saving, setSaving] = useState(false);
@@ -110,15 +112,18 @@ export default function SocialPage() {
 
   const fetchChannels = useCallback(async () => {
     setLoading(true);
+    let usingMock = false;
     try {
       const response = await api.socialChannels.list();
       if (response.success && response.data) {
         setChannels(response.data);
       } else {
         setChannels(MOCK_CHANNELS);
+        usingMock = true;
       }
     } catch {
       setChannels(MOCK_CHANNELS);
+      usingMock = true;
     }
     // Fetch posting mode setting
     try {
@@ -129,6 +134,7 @@ export default function SocialPage() {
     } catch {
       // keep default
     }
+    setIsUsingMock(usingMock);
     setLoading(false);
   }, []);
 
@@ -265,6 +271,8 @@ export default function SocialPage() {
           </button>
         </div>
       </div>
+
+      {isUsingMock && <MockDataBanner />}
 
       {/* Global posting mode toggle */}
       <div className="rounded-xl border border-card-border bg-card-bg px-6 py-4 mb-6 flex items-center justify-between">
