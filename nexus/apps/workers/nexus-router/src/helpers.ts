@@ -27,6 +27,16 @@ export async function storageQuery(
   return json.data;
 }
 
+/** Typed wrapper — returns rows from a SELECT query */
+export async function storageQueryRows<T>(
+  env: RouterEnv,
+  sql: string,
+  params: unknown[] = []
+): Promise<T[]> {
+  const result = await storageQuery(env, sql, params);
+  return (result ?? []) as T[];
+}
+
 /** Forward a fetch to nexus-storage for synced cleanup */
 export async function storageCleanup(
   env: RouterEnv,

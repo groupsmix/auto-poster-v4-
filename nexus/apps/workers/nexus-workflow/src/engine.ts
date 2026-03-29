@@ -116,6 +116,16 @@ export async function storageQuery(
   return json.data;
 }
 
+/** Typed wrapper — returns rows from a SELECT query */
+export async function storageQueryRows<T>(
+  env: Env,
+  sql: string,
+  params: unknown[] = []
+): Promise<T[]> {
+  const result = await storageQuery(env, sql, params);
+  return (result ?? []) as T[];
+}
+
 // --- Helper: update workflow run in D1 ---
 
 const ALLOWED_RUN_COLUMNS = new Set([
@@ -155,6 +165,52 @@ async function updateWorkflowRun(
 
 // --- Helper: parse AI response as JSON ---
 
+// --- Helper: load prompt templates from KV via nexus-storage ---
+
+export async function loadPromptTemplates(
+  env: Env,
+  logPrefix = "[WORKFLOW]"
+): Promise<PromptTemplates> {
+  const templates: PromptTemplates = {};
+
+  try {
+    const masterResp = await env.NEXUS_STORAGE.fetch(
+      "http://nexus-storage/kv/prompt:master"
+    );
+    const masterJson = (await masterResp.json()) as ApiResponse<string>;
+    if (masterJson.success && masterJson.data) {
+      templates.master =
+        typeof masterJson.data === "string"
+          ? masterJson.data
+          : JSON.stringify(masterJson.data);
+    }
+  } catch {
+    console.warn(`${logPrefix} Failed to load master prompt from KV`);
+  }
+
+  try {
+    const roleNames = ["researcher", "copywriter", "seo", "reviewer"];
+    const roles: Record<string, string> = {};
+    for (const role of roleNames) {
+      const resp = await env.NEXUS_STORAGE.fetch(
+        `http://nexus-storage/kv/prompt:role:${role}`
+      );
+      const json = (await resp.json()) as ApiResponse<string>;
+      if (json.success && json.data) {
+        roles[role] =
+          typeof json.data === "string"
+            ? json.data
+            : JSON.stringify(json.data);
+      }
+    }
+    templates.roles = roles;
+  } catch {
+    console.warn(`${logPrefix} Failed to load role prompts from KV`);
+  }
+
+  return templates;
+}
+
 function parseAIResponse(raw: string): Record<string, unknown> {
   // Try direct parse first
   try {
@@ -166,7 +222,7 @@ function parseAIResponse(raw: string): Record<string, unknown> {
       return JSON.parse(jsonMatch[1].trim()) as Record<string, unknown>;
     }
     // Try to find JSON object in the response
-    const objectMatch = raw.match(/\{[\s\S]*\}/);
+    const objectMatch = raw.match(/\{[\s\S]*?\}/);
     if (objectMatch) {
       return JSON.parse(objectMatch[0]) as Record<string, unknown>;
     }
@@ -715,43 +771,6 @@ export class WorkflowEngine {
    * Load prompt templates from KV via nexus-storage.
    */
   private async loadPromptTemplates(): Promise<PromptTemplates> {
-    const templates: PromptTemplates = {};
-
-    try {
-      // Load master prompt
-      const masterResp = await this.env.NEXUS_STORAGE.fetch(
-        "http://nexus-storage/kv/prompt:master"
-      );
-      const masterJson = (await masterResp.json()) as ApiResponse<string>;
-      if (masterJson.success && masterJson.data) {
-        templates.master = typeof masterJson.data === "string"
-          ? masterJson.data
-          : JSON.stringify(masterJson.data);
-      }
-    } catch {
-      console.warn("[WORKFLOW] Failed to load master prompt from KV");
-    }
-
-    try {
-      // Load role prompts
-      const roleNames = ["researcher", "copywriter", "seo", "reviewer"];
-      const roles: Record<string, string> = {};
-      for (const role of roleNames) {
-        const resp = await this.env.NEXUS_STORAGE.fetch(
-          `http://nexus-storage/kv/prompt:role:${role}`
-        );
-        const json = (await resp.json()) as ApiResponse<string>;
-        if (json.success && json.data) {
-          roles[role] = typeof json.data === "string"
-            ? json.data
-            : JSON.stringify(json.data);
-        }
-      }
-      templates.roles = roles;
-    } catch {
-      console.warn("[WORKFLOW] Failed to load role prompts from KV");
-    }
-
-    return templates;
+    return loadPromptTemplates(this.env, "[WORKFLOW]");
   }
 }

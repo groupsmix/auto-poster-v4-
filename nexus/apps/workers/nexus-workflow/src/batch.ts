@@ -7,7 +7,7 @@
 
 import type { Env, ApiResponse } from "@nexus/shared";
 import { generateId, slugify, now } from "@nexus/shared";
-import { WorkflowEngine, type WorkflowInput, storageQuery } from "./engine";
+import { WorkflowEngine, type WorkflowInput, storageQuery, loadPromptTemplates } from "./engine";
 import type { ProductContext, PromptTemplates } from "./steps";
 
 // --- Types ---
@@ -408,43 +408,6 @@ export class BatchOrchestrator {
    * Load prompt templates from KV via nexus-storage.
    */
   private async loadPromptTemplates(): Promise<PromptTemplates> {
-    const templates: PromptTemplates = {};
-
-    try {
-      const masterResp = await this.env.NEXUS_STORAGE.fetch(
-        "http://nexus-storage/kv/prompt:master"
-      );
-      const masterJson = (await masterResp.json()) as ApiResponse<string>;
-      if (masterJson.success && masterJson.data) {
-        templates.master =
-          typeof masterJson.data === "string"
-            ? masterJson.data
-            : JSON.stringify(masterJson.data);
-      }
-    } catch {
-      console.warn("[BATCH] Failed to load master prompt from KV");
-    }
-
-    try {
-      const roleNames = ["researcher", "copywriter", "seo", "reviewer"];
-      const roles: Record<string, string> = {};
-      for (const role of roleNames) {
-        const resp = await this.env.NEXUS_STORAGE.fetch(
-          `http://nexus-storage/kv/prompt:role:${role}`
-        );
-        const json = (await resp.json()) as ApiResponse<string>;
-        if (json.success && json.data) {
-          roles[role] =
-            typeof json.data === "string"
-              ? json.data
-              : JSON.stringify(json.data);
-        }
-      }
-      templates.roles = roles;
-    } catch {
-      console.warn("[BATCH] Failed to load role prompts from KV");
-    }
-
-    return templates;
+    return loadPromptTemplates(this.env, "[BATCH]");
   }
 }
