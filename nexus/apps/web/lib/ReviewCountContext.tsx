@@ -50,8 +50,8 @@ function getCountsPromise() {
 }
 
 export function ReviewCountProvider({ children }: { children: ReactNode }) {
-  const [pendingReviewCount, setPendingReviewCount] = useState(0);
-  const [publishableCount, setPublishableCount] = useState(0);
+  const [pendingReviewCount, setPendingReviewCount] = useState(MOCK_PENDING_COUNT);
+  const [publishableCount, setPublishableCount] = useState(MOCK_PUBLISHABLE_COUNT);
 
   // Use React 19's `use`-compatible pattern: resolve the module-level promise
   // in an event-handler style callback that we trigger once via useState init.
