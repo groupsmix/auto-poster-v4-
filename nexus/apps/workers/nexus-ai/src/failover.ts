@@ -1,55 +1,51 @@
 // ============================================================
-// Enhanced AI Failover Engine (V4) — The Core
-// Flow: cache check -> failover chain -> Workers AI fallback
-// Matches NEXUS-ARCHITECTURE-V4.md Part 5 exactly
+// Enhanced AI Failover Engine (V4) — THE CORE
+// Flow: cache check -> ordered model list -> failover -> Workers AI fallback
+// Every text-based chain ends with Workers AI — you NEVER get "All AIs failed"
 // ============================================================
 
+import type { Env } from "@nexus/shared";
+import { getMidnightTimestamp } from "@nexus/shared";
+import { checkCache, writeCache } from "./cache";
+import { callAIviaGateway } from "./gateway";
+import { updateHealthScore } from "./health";
 import { getModelsForTask } from "./registry";
 import type { AIModelConfig } from "./registry";
-import { checkCache, writeCache, recordCacheHit, recordCacheMiss } from "./cache";
-import { callAIviaGateway, GatewayError } from "./gateway";
-import { runTextGeneration, runImageGeneration } from "./workers-ai";
-import {
-  updateHealthScore,
-  getOrInitHealth,
-  markRateLimited,
-  markSleeping,
-  tryReactivate,
-} from "./health";
+import { runTextGeneration } from "./workers-ai";
 
-/** Env bindings needed by the failover engine */
-interface FailoverEnv {
-  AI: {
-    run(model: string, inputs: Record<string, unknown>): Promise<unknown>;
-  };
-  KV: KVNamespace;
-  AI_GATEWAY_ACCOUNT_ID: string;
-  AI_GATEWAY_ID: string;
-  [key: string]: unknown; // dynamic API key lookups
+/** Runtime model state — tracks rate limits and sleep status per model */
+interface ModelRuntimeState {
+  status: "active" | "rate_limited" | "sleeping";
+  rateLimitResetAt?: number;
+  dailyLimitResetAt?: number;
 }
 
-/** Result returned by runWithFailover */
-export interface FailoverResult {
-  result: string;
-  model: string;
-  cached: boolean;
-  tokens?: number;
-  latencyMs?: number;
+/** In-memory runtime state for models — keyed by model ID */
+const modelState: Map<string, ModelRuntimeState> = new Map();
+
+/** Get or create runtime state for a model */
+function getModelState(modelId: string): ModelRuntimeState {
+  let state = modelState.get(modelId);
+  if (!state) {
+    state = { status: "active" };
+    modelState.set(modelId, state);
+  }
+  return state;
 }
 
 // ============================================================
-// MAIN FAILOVER FUNCTION
+// RUN WITH FAILOVER — the main function
+// Returns { result, model, cached, tokens? }
 // ============================================================
 
 export async function runWithFailover(
   taskType: string,
   prompt: string,
-  env: FailoverEnv
-): Promise<FailoverResult> {
-  // ---- Step 1: Check cache first ----
+  env: Env
+): Promise<{ result: string; model: string; cached: boolean; tokens?: number }> {
+  // ── Step 1: Check cache first ──────────────────────────────
   const cached = await checkCache(prompt, taskType, env);
   if (cached) {
-    recordCacheHit();
     return {
       result: cached.response,
       model: "cache",
@@ -57,141 +53,124 @@ export async function runWithFailover(
       tokens: cached.tokens,
     };
   }
-  recordCacheMiss();
 
-  // ---- Step 2: Get ordered model list for this task type ----
+  // ── Step 2: Get ordered model list from registry ───────────
   const models = getModelsForTask(taskType);
   if (models.length === 0) {
     throw new Error(`No models registered for task type: ${taskType}`);
   }
 
-  // ---- Step 3: Loop through models in failover order ----
+  // ── Step 3: Loop through models in order ───────────────────
   for (const model of models) {
-    // Skip models without API key (unless Workers AI)
+    const state = getModelState(model.id);
+
+    // (a) Check API key (Workers AI doesn't need one)
     if (!model.isWorkersAI) {
       const apiKey = env[model.apiKeyEnvName] as string | undefined;
       if (!apiKey) {
-        console.log(`[SKIP] ${model.name} — no API key`);
+        console.log(`[SKIP] ${model.name} -- no API key`);
         continue;
       }
     }
 
-    // Check rate limit / sleeping status
-    const healthState = getOrInitHealth(model.id, model.name);
-
-    if (healthState.status === "rate_limited") {
-      if (!tryReactivate(model.id, model.name)) {
-        console.log(`[SLEEP] ${model.name} — rate limited`);
+    // (b) Check rate limit status
+    if (state.status === "rate_limited") {
+      const now = Date.now();
+      if (state.rateLimitResetAt && now < state.rateLimitResetAt) {
+        console.log(`[SLEEP] ${model.name} -- rate limited`);
         continue;
       }
+      // Reset time passed — reactivate
+      state.status = "active";
+      console.log(`[REACTIVATE] ${model.name} -- rate limit expired`);
     }
 
-    if (healthState.status === "sleeping") {
-      if (!tryReactivate(model.id, model.name)) {
-        console.log(`[SLEEP] ${model.name} — daily limit`);
+    // (c) Check daily limit (sleeping) status
+    if (state.status === "sleeping") {
+      const now = Date.now();
+      if (state.dailyLimitResetAt && now < state.dailyLimitResetAt) {
+        console.log(`[SLEEP] ${model.name} -- daily limit`);
         continue;
       }
+      // Midnight passed — reactivate
+      state.status = "active";
+      console.log(`[REACTIVATE] ${model.name} -- daily limit reset`);
     }
 
-    // ---- Step 4: Try the call ----
-    const start = Date.now();
-
+    // (d) Try the call
     try {
+      const start = Date.now();
       let result: string;
       let tokens: number | undefined;
 
       if (model.isWorkersAI) {
-        // Workers AI — direct on-platform call
-        const response = await callWorkersAIByType(model, prompt, env);
-        result = response.text;
-        tokens = response.tokens;
+        // Workers AI — direct on-platform call, no external dependency
+        const aiResult = await runTextGeneration(
+          env as unknown as { AI: { run(model: string, inputs: Record<string, unknown>): Promise<unknown> } },
+          prompt
+        );
+        result = aiResult.text;
+        tokens = aiResult.tokens;
         console.log(`[WORKERS-AI] Fallback succeeded`);
       } else {
-        // External provider — route through AI Gateway
+        // External AI — route through AI Gateway
         const apiKey = env[model.apiKeyEnvName] as string;
         const aiResult = await callAIviaGateway(model, apiKey, prompt, env);
         result = aiResult.text;
         tokens = aiResult.tokens;
       }
 
-      const latencyMs = Date.now() - start;
-
-      // Update health score on success
-      updateHealthScore(model.id, model.name, true, latencyMs);
+      // (e) On success: update health, write cache, log, return
+      const latency = Date.now() - start;
+      await updateHealthScore(model.id, model.name, true, latency, env);
+      await writeCache(prompt, taskType, result, model.name, tokens, env);
 
       console.log(
-        `[OK] ${model.name} succeeded (${latencyMs}ms, health: ${getOrInitHealth(model.id, model.name).healthScore}%)`
+        `[OK] ${model.name} succeeded (${latency}ms)`
       );
 
-      // Cache the response
-      await writeCache(prompt, taskType, result, env, model.name, tokens);
-
-      return {
-        result,
-        model: model.name,
-        cached: false,
-        tokens,
-        latencyMs,
-      };
+      return { result, model: model.name, cached: false, tokens };
     } catch (err: unknown) {
-      const latencyMs = Date.now() - start;
-      const error = err instanceof Error ? err : new Error(String(err));
-      const status =
-        err instanceof GatewayError
-          ? err.status
-          : (err as { status?: number }).status;
-      const code = (err as { code?: string }).code;
+      // (f) On error: handle specific error types
+      const latency = Date.now();
+      const error = err as { status?: number; code?: string; message?: string };
+      const errorMsg = error.message ?? String(err);
 
-      // Update health score on failure
-      updateHealthScore(model.id, model.name, false, latencyMs, error.message);
+      await updateHealthScore(model.id, model.name, false, 0, env, errorMsg);
 
-      if (status === 429) {
-        markRateLimited(model.id, model.name);
-      } else if (status === 402 || code === "QUOTA_EXCEEDED") {
-        markSleeping(model.id, model.name);
+      if (error.status === 429) {
+        // Rate limited — sleep for 1 hour
+        state.status = "rate_limited";
+        state.rateLimitResetAt = Date.now() + 3_600_000;
+        console.log(`[LIMIT] ${model.name} -> sleep 1hr`);
+      } else if (
+        error.status === 402 ||
+        error.code === "QUOTA_EXCEEDED"
+      ) {
+        // Quota exceeded — sleep until midnight
+        state.status = "sleeping";
+        state.dailyLimitResetAt = getMidnightTimestamp();
+        console.log(`[QUOTA] ${model.name} -> sleep until midnight`);
       } else {
-        console.log(
-          `[ERR] ${model.name}: ${error.message} (health: ${getOrInitHealth(model.id, model.name).healthScore}%)`
-        );
+        console.log(`[ERR] ${model.name}: ${errorMsg}`);
       }
 
       continue;
     }
   }
 
-  // This should never happen for text tasks because Workers AI is always last
+  // V4: This should never happen for text tasks because Workers AI is always last
   throw new Error(`All AIs failed for task: ${taskType}`);
 }
 
 // ============================================================
-// WORKERS AI DISPATCH — routes to correct Workers AI model
+// GET MODEL RUNTIME STATES — for debugging/admin
 // ============================================================
 
-async function callWorkersAIByType(
-  model: AIModelConfig,
-  prompt: string,
-  env: FailoverEnv
-): Promise<{ text: string; tokens?: number }> {
-  // Text generation models (Llama 3.1)
-  if (
-    model.model === "@cf/meta/llama-3.1-8b-instruct" ||
-    model.provider === "workers-ai"
-  ) {
-    // Check if this is an image model
-    if (model.model === "@cf/stabilityai/stable-diffusion-xl-base-1.0") {
-      const imageResult = await runImageGeneration(env, prompt);
-      // For image tasks, return a placeholder text since result is binary
-      return {
-        text: `[Workers AI SDXL] Generated image (${imageResult.image.length} bytes)`,
-      };
-    }
-
-    // Default to text generation
-    const textResult = await runTextGeneration(env, prompt);
-    return { text: textResult.text, tokens: textResult.tokens };
+export function getModelStates(): Record<string, ModelRuntimeState> {
+  const result: Record<string, ModelRuntimeState> = {};
+  for (const [id, state] of modelState) {
+    result[id] = { ...state };
   }
-
-  // Fallback — try text generation
-  const textResult = await runTextGeneration(env, prompt);
-  return { text: textResult.text, tokens: textResult.tokens };
+  return result;
 }

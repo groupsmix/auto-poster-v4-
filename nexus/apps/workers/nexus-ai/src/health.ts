@@ -1,180 +1,142 @@
 // ============================================================
-// AI Health Scoring System
+// V4: AI Health Scoring System
 // Tracks reliability, latency, failure rates per model
 // Health Score = (successful_calls / total_calls) * 100
-// Data stored in D1 ai_models table, detailed calls in analytics
+// Stores health data in D1 ai_models table
+// Stores detailed call data in D1 analytics table
 // ============================================================
 
-/** Runtime health state per model (in-memory, synced to D1 periodically) */
-export interface ModelHealthState {
+import { calculateHealthScore, generateId, now } from "@nexus/shared";
+import type { Env } from "@nexus/shared";
+
+/** In-memory health data per model (synced to D1 periodically) */
+export interface ModelHealthData {
   modelId: string;
   modelName: string;
-  status: "active" | "sleeping" | "rate_limited" | "no_key";
-  rateLimitResetAt?: number;
-  dailyLimitResetAt?: number;
-  healthScore: number;
   totalCalls: number;
   totalFailures: number;
   avgLatencyMs: number;
-  lastCallAt?: number;
-  lastErrorAt?: number;
+  healthScore: number;
+  lastCallAt?: string;
+  lastErrorAt?: string;
   lastError?: string;
 }
 
-/** Health report for all models */
-export interface HealthReport {
-  models: ModelHealthState[];
-  generatedAt: number;
-}
-
-/** Reorder suggestion when model #2 outperforms model #1 */
-export interface ReorderSuggestion {
-  taskType: string;
-  currentFirst: string;
-  suggestedFirst: string;
-  healthDiff: number;
-  message: string;
-}
-
-// In-memory health state map: modelId -> ModelHealthState
-const healthStates = new Map<string, ModelHealthState>();
-
-// ============================================================
-// GET OR INIT HEALTH STATE
-// ============================================================
-
-export function getOrInitHealth(
-  modelId: string,
-  modelName: string
-): ModelHealthState {
-  let state = healthStates.get(modelId);
-  if (!state) {
-    state = {
-      modelId,
-      modelName,
-      status: "active",
-      healthScore: 100,
-      totalCalls: 0,
-      totalFailures: 0,
-      avgLatencyMs: 0,
-    };
-    healthStates.set(modelId, state);
-  }
-  return state;
-}
+/** In-memory health store — keyed by model ID */
+const healthStore: Map<string, ModelHealthData> = new Map();
 
 // ============================================================
 // UPDATE HEALTH SCORE — called after every AI call
 // ============================================================
 
-export function updateHealthScore(
+export async function updateHealthScore(
   modelId: string,
   modelName: string,
   success: boolean,
   latencyMs: number,
-  error?: string
-): ModelHealthState {
-  const state = getOrInitHealth(modelId, modelName);
-
-  state.totalCalls++;
-  state.lastCallAt = Date.now();
-
-  if (success) {
-    // Update average latency (running average)
-    state.avgLatencyMs =
-      (state.avgLatencyMs * (state.totalCalls - 1) + latencyMs) /
-      state.totalCalls;
-  } else {
-    state.totalFailures++;
-    state.lastErrorAt = Date.now();
-    state.lastError = error;
+  env: Env,
+  errorMessage?: string
+): Promise<void> {
+  // Get or create health data
+  let health = healthStore.get(modelId);
+  if (!health) {
+    health = {
+      modelId,
+      modelName,
+      totalCalls: 0,
+      totalFailures: 0,
+      avgLatencyMs: 0,
+      healthScore: 100,
+    };
+    healthStore.set(modelId, health);
   }
+
+  // Update stats
+  health.totalCalls++;
+  if (!success) {
+    health.totalFailures++;
+    health.lastErrorAt = now();
+    health.lastError = errorMessage;
+  }
+  health.lastCallAt = now();
+
+  // Recalculate average latency (rolling average)
+  health.avgLatencyMs =
+    (health.avgLatencyMs * (health.totalCalls - 1) + latencyMs) /
+    health.totalCalls;
 
   // Recalculate health score
-  if (state.totalCalls > 0) {
-    state.healthScore = Math.round(
-      ((state.totalCalls - state.totalFailures) / state.totalCalls) * 100
-    );
+  health.healthScore = calculateHealthScore(
+    health.totalCalls,
+    health.totalFailures
+  );
+
+  // Persist to D1: update ai_models table
+  try {
+    await env.DB.prepare(
+      `UPDATE ai_models
+       SET total_calls = ?, total_failures = ?, avg_latency_ms = ?, health_score = ?
+       WHERE id = ?`
+    )
+      .bind(
+        health.totalCalls,
+        health.totalFailures,
+        Math.round(health.avgLatencyMs),
+        health.healthScore,
+        modelId
+      )
+      .run();
+  } catch {
+    // D1 may not have this model yet — that's okay, analytics still logs it
+    console.log(`[HEALTH] Could not update D1 for model ${modelId}`);
   }
 
-  return state;
+  // Log to D1 analytics table
+  try {
+    await env.DB.prepare(
+      `INSERT INTO analytics (id, event_type, ai_model, tokens_used, cost, latency_ms, cached, metadata, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        generateId(),
+        "ai_call",
+        modelName,
+        0,
+        0,
+        Math.round(latencyMs),
+        0,
+        JSON.stringify({ success, error: errorMessage }),
+        now()
+      )
+      .run();
+  } catch {
+    console.log(`[HEALTH] Could not write analytics for ${modelId}`);
+  }
 }
 
 // ============================================================
-// STATUS TRANSITIONS
+// GET HEALTH REPORT — returns all models with their health stats
 // ============================================================
 
-export function markRateLimited(modelId: string, modelName: string): void {
-  const state = getOrInitHealth(modelId, modelName);
-  state.status = "rate_limited";
-  state.rateLimitResetAt = Date.now() + 3600_000; // +1 hour
-  console.log(
-    `[LIMIT] ${modelName} -> sleep 1hr (health: ${state.healthScore}%)`
+export function getHealthReport(): ModelHealthData[] {
+  return Array.from(healthStore.values()).sort(
+    (a, b) => b.healthScore - a.healthScore
   );
 }
 
-export function markSleeping(modelId: string, modelName: string): void {
-  const state = getOrInitHealth(modelId, modelName);
-  state.status = "sleeping";
-  const midnight = new Date();
-  midnight.setHours(24, 0, 0, 0);
-  state.dailyLimitResetAt = midnight.getTime();
-  console.log(`[QUOTA] ${modelName} -> sleep until midnight`);
-}
-
-export function markNoKey(modelId: string, modelName: string): void {
-  const state = getOrInitHealth(modelId, modelName);
-  state.status = "no_key";
-}
-
-/** Check if a rate-limited or sleeping model can be reactivated */
-export function tryReactivate(modelId: string, modelName: string): boolean {
-  const state = getOrInitHealth(modelId, modelName);
-  const now = Date.now();
-
-  if (
-    state.status === "rate_limited" &&
-    state.rateLimitResetAt &&
-    now >= state.rateLimitResetAt
-  ) {
-    state.status = "active";
-    state.rateLimitResetAt = undefined;
-    console.log(`[WAKE] ${modelName} — rate limit reset, reactivating`);
-    return true;
-  }
-
-  if (
-    state.status === "sleeping" &&
-    state.dailyLimitResetAt &&
-    now >= state.dailyLimitResetAt
-  ) {
-    state.status = "active";
-    state.dailyLimitResetAt = undefined;
-    console.log(`[WAKE] ${modelName} — daily limit reset, reactivating`);
-    return true;
-  }
-
-  return false;
-}
-
 // ============================================================
-// HEALTH REPORT — for /ai/health endpoint
+// SHOULD SUGGEST REORDER — if model #2 has higher health
+// than model #1 for 7+ days, suggest reordering
 // ============================================================
 
-export function getHealthReport(): HealthReport {
-  return {
-    models: Array.from(healthStates.values()).sort(
-      (a, b) => b.healthScore - a.healthScore
-    ),
-    generatedAt: Date.now(),
-  };
+export interface ReorderSuggestion {
+  taskType: string;
+  currentFirst: string;
+  suggestedFirst: string;
+  currentFirstHealth: number;
+  suggestedFirstHealth: number;
+  reason: string;
 }
-
-// ============================================================
-// REORDER SUGGESTION
-// If model #2 has higher health than #1 for a task type,
-// suggest reordering (manual confirmation required)
-// ============================================================
 
 export function shouldSuggestReorder(
   taskType: string,
@@ -182,23 +144,26 @@ export function shouldSuggestReorder(
 ): ReorderSuggestion | null {
   if (modelIds.length < 2) return null;
 
-  const first = healthStates.get(modelIds[0]);
-  const second = healthStates.get(modelIds[1]);
+  const first = healthStore.get(modelIds[0]);
+  const second = healthStore.get(modelIds[1]);
 
   if (!first || !second) return null;
 
-  // Only suggest if both have significant call volume
-  if (first.totalCalls < 50 || second.totalCalls < 50) return null;
+  // Both models need at least 10 calls to make a meaningful comparison
+  if (first.totalCalls < 10 || second.totalCalls < 10) return null;
 
-  // Suggest if #2 has meaningfully higher health score
-  const healthDiff = second.healthScore - first.healthScore;
-  if (healthDiff >= 5) {
+  // Check if second model has meaningfully higher health
+  if (second.healthScore > first.healthScore + 5) {
+    // Check if first model has been consistently lower
+    // (simplified: we just check current state — full 7-day tracking
+    // would require time-series data in D1 which can be added later)
     return {
       taskType,
       currentFirst: first.modelName,
       suggestedFirst: second.modelName,
-      healthDiff,
-      message: `${second.modelName} (${second.healthScore}%) has been more reliable than ${first.modelName} (${first.healthScore}%) — consider reordering`,
+      currentFirstHealth: first.healthScore,
+      suggestedFirstHealth: second.healthScore,
+      reason: `${second.modelName} (health: ${second.healthScore}%) is more reliable than ${first.modelName} (health: ${first.healthScore}%). Consider reordering.`,
     };
   }
 
