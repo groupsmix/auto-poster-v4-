@@ -2,21 +2,29 @@ name = "nexus-storage"
 main = "src/index.ts"
 compatibility_date = "2024-12-30"
 
-# D1 Database
+# ── D1 Database (products, workflow runs, steps, reviews, assets, analytics) ──
 [[d1_databases]]
 binding = "DB"
 database_name = "nexus-db"
 database_id = "placeholder-d1-id"
+# Replace placeholder-d1-id after running: wrangler d1 create nexus-db
 
-# KV Namespace (config + AI response cache)
+# ── KV Namespace (config cache, AI response cache, prompts, platform rules) ──
 [[kv_namespaces]]
 binding = "CACHE"
 id = "placeholder-kv-id"
+# Replace placeholder-kv-id after running: wrangler kv namespace create CACHE
 
-# R2 Bucket
+# ── R2 Bucket (PDFs, images, audio, exports, mockups — zero egress) ──
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "nexus-assets"
+# Create via: wrangler r2 bucket create nexus-assets
 
-# CF Images & AI Gateway are accessed via account-level API
-# AI_GATEWAY binding configured at deploy time
+# ── CF Images (image CDN, resize, transform, optimize) ──
+# Accessed via account-level API, not a wrangler binding
+# Set these via wrangler secret put:
+#   wrangler secret put CF_ACCOUNT_ID
+#   wrangler secret put CF_IMAGES_TOKEN
+[vars]
+# CF_ACCOUNT_ID and CF_IMAGES_TOKEN are stored as secrets, not vars

@@ -370,11 +370,17 @@ export interface Env {
   // AI Gateway
   AI_GATEWAY: Fetcher;
 
-  // Service Bindings
+  // Service Bindings (used by nexus-workflow, nexus-variation)
   NEXUS_AI: Fetcher;
   NEXUS_WORKFLOW: Fetcher;
   NEXUS_VARIATION: Fetcher;
   NEXUS_STORAGE: Fetcher;
+
+  // Service Bindings (used by nexus-router)
+  AI_SERVICE: Fetcher;
+  WORKFLOW_SERVICE: Fetcher;
+  VARIATION_SERVICE: Fetcher;
+  STORAGE_SERVICE: Fetcher;
 
   // Secrets (AI API keys — optional, model sleeps if missing)
   TAVILY_API_KEY?: string;

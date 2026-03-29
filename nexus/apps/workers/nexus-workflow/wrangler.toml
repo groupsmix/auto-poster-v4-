@@ -2,7 +2,8 @@ name = "nexus-workflow"
 main = "src/index.ts"
 compatibility_date = "2024-12-30"
 
-# Service Bindings (free internal routing)
+# ── Service Bindings (free internal routing) ──
+
 [[services]]
 binding = "NEXUS_AI"
 service = "nexus-ai"
@@ -15,4 +16,27 @@ service = "nexus-storage"
 binding = "NEXUS_VARIATION"
 service = "nexus-variation"
 
-# D1, KV, R2, CF Workflows Durable Objects — configured at deploy time (Task 16)
+# ── D1 Database (workflow state, runs, steps) ──
+[[d1_databases]]
+binding = "DB"
+database_name = "nexus-db"
+database_id = "placeholder-d1-id"
+# Replace placeholder-d1-id after running: wrangler d1 create nexus-db
+
+# ── KV Namespace (prompt templates, config cache) ──
+[[kv_namespaces]]
+binding = "KV"
+id = "placeholder-kv-id"
+# Replace placeholder-kv-id after running: wrangler kv namespace create CACHE
+
+# ── CF Workflows (multi-step product workflow orchestration) ──
+# Each product run = 1 Workflow instance
+# Sleeps free between steps, 10,000 steps/instance
+# Note: Workflows require a Durable Object namespace.
+# The workflow class must be exported from the worker entry point.
+# Uncomment and configure after defining the Workflow class:
+#
+# [[workflows]]
+# name = "nexus-product-workflow"
+# binding = "PRODUCT_WORKFLOW"
+# class_name = "NexusProductWorkflow"
