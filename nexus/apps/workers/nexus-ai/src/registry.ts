@@ -1,18 +1,210 @@
-// AI Model Registry — All AI model configurations
-// Full implementation in Task 3
+// ============================================================
+// AI Model Registry — Ordered failover chains per task type
+// Matches NEXUS-ARCHITECTURE-V4.md Part 6 exactly
+// Every text-based chain ends with Workers AI as ultimate fallback
+// ============================================================
 
-export const TASK_MODEL_REGISTRY: Record<string, unknown[]> = {
-  research: [],
-  writing: [],
-  seo: [],
-  reasoning: [],
-  code: [],
-  image_text: [],
-  image_artistic: [],
-  audio_music: [],
-  audio_voice: [],
-  variation: [],
-  social: [],
-  humanizer: [],
-  review: [],
+export interface AIModelConfig {
+  id: string;
+  name: string;
+  provider: string;
+  apiKeyEnvName: string;
+  isWorkersAI: boolean;
+  isFree: boolean;
+  model?: string; // provider-specific model identifier
+}
+
+// --- Workers AI fallback entries (reused across chains) ---
+
+const WORKERS_AI_TEXT: AIModelConfig = {
+  id: "workers-ai-llama",
+  name: "Workers AI (Llama 3.1)",
+  provider: "workers-ai",
+  apiKeyEnvName: "",
+  isWorkersAI: true,
+  isFree: true,
+  model: "@cf/meta/llama-3.1-8b-instruct",
 };
+
+const WORKERS_AI_IMAGE: AIModelConfig = {
+  id: "workers-ai-sdxl",
+  name: "Workers AI (SDXL)",
+  provider: "workers-ai",
+  apiKeyEnvName: "",
+  isWorkersAI: true,
+  isFree: true,
+  model: "@cf/stabilityai/stable-diffusion-xl-base-1.0",
+};
+
+// ============================================================
+// TASK_MODEL_REGISTRY — The master registry
+// ============================================================
+
+export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
+  // ----------------------------------------------------------
+  // RESEARCH TASKS
+  // ----------------------------------------------------------
+  research: [
+    { id: "tavily", name: "Tavily Search", provider: "tavily", apiKeyEnvName: "TAVILY_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "exa", name: "Exa Neural Search", provider: "exa", apiKeyEnvName: "EXA_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "serpapi", name: "SerpAPI", provider: "serpapi", apiKeyEnvName: "SERPAPI_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "deepseek-v3", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
+    WORKERS_AI_TEXT,
+  ],
+
+  seo: [
+    { id: "dataforseo", name: "DataForSEO", provider: "dataforseo", apiKeyEnvName: "DATAFORSEO_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "serpapi-seo", name: "SerpAPI", provider: "serpapi", apiKeyEnvName: "SERPAPI_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "qwen-flash", name: "Qwen 3.5 Flash", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-7B-Instruct" },
+    WORKERS_AI_TEXT,
+  ],
+
+  // ----------------------------------------------------------
+  // WRITING & CONTENT TASKS
+  // ----------------------------------------------------------
+  writing: [
+    { id: "deepseek-v3-write", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
+    { id: "qwen-max", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
+    { id: "doubao-pro", name: "Doubao 1.5 Pro", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-pro" },
+    { id: "kimi-k15", name: "Kimi k1.5", provider: "moonshot", apiKeyEnvName: "MOONSHOT_API_KEY", isWorkersAI: false, isFree: true, model: "moonshot-v1-8k" },
+    WORKERS_AI_TEXT,
+  ],
+
+  copywriting: [
+    { id: "deepseek-v3-copy", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
+    { id: "doubao-pro-copy", name: "Doubao 1.5 Pro", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-pro" },
+    { id: "qwen-max-copy", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
+    WORKERS_AI_TEXT,
+  ],
+
+  seo_formatting: [
+    { id: "qwen-flash-seo", name: "Qwen 3.5 Flash", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-7B-Instruct" },
+    { id: "deepseek-v3-seo", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
+    { id: "mistral-7b", name: "Mistral 7B", provider: "groq", apiKeyEnvName: "GROQ_API_KEY", isWorkersAI: false, isFree: true, model: "mistral-saba-24b" },
+    { id: "llama-scout", name: "Llama 4 Scout", provider: "fireworks", apiKeyEnvName: "FIREWORKS_API_KEY", isWorkersAI: false, isFree: true, model: "accounts/fireworks/models/llama4-scout-instruct-basic" },
+    WORKERS_AI_TEXT,
+  ],
+
+  reasoning: [
+    { id: "deepseek-r1", name: "DeepSeek-R1", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-reasoner" },
+    { id: "qwen-max-reason", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
+    { id: "phi-4", name: "Phi-4", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "microsoft/phi-4" },
+    WORKERS_AI_TEXT,
+  ],
+
+  code: [
+    { id: "deepseek-coder", name: "DeepSeek-Coder-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-coder" },
+    { id: "qwen-coder", name: "Qwen 3.5 Coder", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-Coder-32B-Instruct" },
+    { id: "deepseek-r1-code", name: "DeepSeek-R1", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-reasoner" },
+    WORKERS_AI_TEXT,
+  ],
+
+  // ----------------------------------------------------------
+  // IMAGE & VISUAL TASKS
+  // ----------------------------------------------------------
+  text_on_image: [
+    { id: "flux-pro", name: "FLUX.1 Pro", provider: "fal", apiKeyEnvName: "FAL_API_KEY", isWorkersAI: false, isFree: true, model: "fal-ai/flux-pro" },
+    { id: "ideogram-3", name: "Ideogram 3.0", provider: "ideogram", apiKeyEnvName: "IDEOGRAM_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "sdxl-hf", name: "SDXL", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "stabilityai/stable-diffusion-xl-base-1.0" },
+    { id: "segmind-sdxl", name: "Segmind", provider: "segmind", apiKeyEnvName: "SEGMIND_API_KEY", isWorkersAI: false, isFree: true },
+    WORKERS_AI_IMAGE,
+  ],
+
+  artistic_image: [
+    { id: "sdxl-hf-art", name: "SDXL", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "stabilityai/stable-diffusion-xl-base-1.0" },
+    { id: "cogview-3", name: "CogView-3", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "THUDM/CogView-3" },
+    { id: "wan-26", name: "Wan 2.6", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "alibaba/Wan-2.6" },
+    WORKERS_AI_IMAGE,
+  ],
+
+  image_editing: [
+    { id: "cf-images", name: "Cloudflare Images", provider: "cf-images", apiKeyEnvName: "", isWorkersAI: true, isFree: true },
+    { id: "clipdrop", name: "Clipdrop", provider: "clipdrop", apiKeyEnvName: "CLIPDROP_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "fal-edit", name: "fal.ai", provider: "fal", apiKeyEnvName: "FAL_API_KEY", isWorkersAI: false, isFree: true },
+  ],
+
+  mockup: [
+    { id: "printful", name: "Printful Mockup API", provider: "printful", apiKeyEnvName: "PRINTFUL_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "printify", name: "Printify Mockup API", provider: "printify", apiKeyEnvName: "PRINTIFY_API_KEY", isWorkersAI: false, isFree: true },
+  ],
+
+  // ----------------------------------------------------------
+  // AUDIO & MUSIC TASKS
+  // ----------------------------------------------------------
+  music: [
+    { id: "suno", name: "Suno", provider: "suno", apiKeyEnvName: "SUNO_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "udio", name: "Udio", provider: "udio", apiKeyEnvName: "UDIO_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "musicgen", name: "MusicGen", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "facebook/musicgen-small" },
+  ],
+
+  voice_tts: [
+    { id: "kokoro-tts", name: "Kokoro TTS", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "hexgrad/Kokoro-82M" },
+    { id: "coqui-tts", name: "Coqui TTS", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "coqui/XTTS-v2" },
+    { id: "google-tts", name: "Google TTS", provider: "google", apiKeyEnvName: "GOOGLE_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "workers-ai-whisper", name: "Workers AI (Whisper)", provider: "workers-ai", apiKeyEnvName: "", isWorkersAI: true, isFree: true, model: "@cf/openai/whisper" },
+  ],
+
+  // ----------------------------------------------------------
+  // PLATFORM & SOCIAL TASKS
+  // ----------------------------------------------------------
+  platform_variation: [
+    { id: "qwen-flash-var", name: "Qwen 3.5 Flash", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-7B-Instruct" },
+    { id: "deepseek-v3-var", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
+    { id: "doubao-lite", name: "Doubao 1.5 Lite", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-lite" },
+    WORKERS_AI_TEXT,
+  ],
+
+  social_adaptation: [
+    { id: "doubao-pro-social", name: "Doubao 1.5 Pro", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-pro" },
+    { id: "deepseek-v3-social", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
+    { id: "qwen-max-social", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
+    WORKERS_AI_TEXT,
+  ],
+
+  humanizer: [
+    { id: "doubao-pro-human", name: "Doubao 1.5 Pro", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-pro" },
+    { id: "deepseek-v3-human", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
+    { id: "minimax-m25", name: "MiniMax M2.5", provider: "minimax", apiKeyEnvName: "MINIMAX_API_KEY", isWorkersAI: false, isFree: true },
+    WORKERS_AI_TEXT,
+  ],
+
+  quality_review: [
+    { id: "deepseek-r1-review", name: "DeepSeek-R1", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-reasoner" },
+    { id: "qwen-max-review", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
+    WORKERS_AI_TEXT,
+  ],
+};
+
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
+
+/** Get the ordered failover chain for a task type */
+export function getModelsForTask(taskType: string): AIModelConfig[] {
+  return TASK_MODEL_REGISTRY[taskType] ?? [];
+}
+
+/** Find a specific model by ID across all registries */
+export function getModelById(modelId: string): AIModelConfig | null {
+  for (const models of Object.values(TASK_MODEL_REGISTRY)) {
+    const found = models.find((m) => m.id === modelId);
+    if (found) return found;
+  }
+  return null;
+}
+
+/** Get all unique task types */
+export function getTaskTypes(): string[] {
+  return Object.keys(TASK_MODEL_REGISTRY);
+}
+
+/** Get all unique model IDs */
+export function getAllModelIds(): string[] {
+  const ids = new Set<string>();
+  for (const models of Object.values(TASK_MODEL_REGISTRY)) {
+    for (const model of models) {
+      ids.add(model.id);
+    }
+  }
+  return Array.from(ids);
+}

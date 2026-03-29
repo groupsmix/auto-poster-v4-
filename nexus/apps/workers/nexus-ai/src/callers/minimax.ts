@@ -1,22 +1,21 @@
 // ============================================================
-// Qwen AI Caller (via SiliconFlow API)
-// Models: Qwen 3.5 Flash, Qwen 3.5 Max, Qwen 3.5 Coder
-// API: https://api.siliconflow.cn/v1/chat/completions (OpenAI-compatible)
+// MiniMax AI Caller
+// Models: MiniMax M2.5 — best "human-like flow"
+// API: https://api.minimax.chat/v1/text/chatcompletion_v2
 // ============================================================
 
 import { AICallerError } from "./errors";
 
-export interface QwenOptions {
+export interface MiniMaxOptions {
   maxTokens?: number;
   temperature?: number;
   systemPrompt?: string;
 }
 
-export async function callQwen(
-  model: string,
+export async function callMiniMax(
   apiKey: string,
   prompt: string,
-  options?: QwenOptions
+  options?: MiniMaxOptions
 ): Promise<{ text: string; tokens?: number }> {
   const messages: Array<{ role: string; content: string }> = [];
   if (options?.systemPrompt) {
@@ -25,7 +24,7 @@ export async function callQwen(
   messages.push({ role: "user", content: prompt });
 
   const response = await fetch(
-    "https://api.siliconflow.cn/v1/chat/completions",
+    "https://api.minimax.chat/v1/text/chatcompletion_v2",
     {
       method: "POST",
       headers: {
@@ -33,7 +32,7 @@ export async function callQwen(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model,
+        model: "MiniMax-Text-01",
         messages,
         max_tokens: options?.maxTokens ?? 4096,
         temperature: options?.temperature ?? 0.7,
@@ -43,7 +42,7 @@ export async function callQwen(
 
   if (!response.ok) {
     throw new AICallerError(
-      `Qwen/SiliconFlow API error: ${response.status} ${response.statusText}`,
+      `MiniMax API error: ${response.status} ${response.statusText}`,
       response.status
     );
   }
