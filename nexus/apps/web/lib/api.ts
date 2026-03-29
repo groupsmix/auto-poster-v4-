@@ -82,6 +82,47 @@ export const api = {
     get: (domainId: string, slug: string) =>
       request<Category>(`/domains/${domainId}/categories/${slug}`),
   },
+
+  // Prompt template endpoints
+  prompts: {
+    list: (layer?: string) => {
+      const query = layer ? `?layer=${layer}` : "";
+      return request<PromptTemplate[]>(`/prompts${query}`);
+    },
+    get: (id: string) => request<PromptTemplate>(`/prompts/${id}`),
+    update: (id: string, data: { prompt: string }) =>
+      request<PromptTemplate>(`/prompts/${id}`, { method: "PUT", body: data }),
+    history: (id: string) =>
+      request<PromptVersion[]>(`/prompts/${id}/history`),
+    revert: (id: string, version: number) =>
+      request<PromptTemplate>(`/prompts/${id}/revert`, {
+        method: "POST",
+        body: { version },
+      }),
+    test: (id: string) =>
+      request<{ assembled: string }>(`/prompts/${id}/test`, {
+        method: "POST",
+        body: {},
+      }),
+  },
+
+  // AI model endpoints
+  aiModels: {
+    list: () => request<AIModel[]>("/ai-models"),
+    get: (id: string) => request<AIModel>(`/ai-models/${id}`),
+    addKey: (id: string, apiKey: string) =>
+      request<AIModel>(`/ai-models/${id}/key`, {
+        method: "POST",
+        body: { api_key: apiKey },
+      }),
+    removeKey: (id: string) =>
+      request<AIModel>(`/ai-models/${id}/key`, { method: "DELETE" }),
+    reorder: (taskType: string, modelIds: string[]) =>
+      request<void>(`/ai-models/reorder`, {
+        method: "POST",
+        body: { task_type: taskType, model_ids: modelIds },
+      }),
+  },
 };
 
 // Re-export types used by API consumers
@@ -106,4 +147,42 @@ interface Category {
   is_active: boolean;
 }
 
-export type { Domain, Category, ApiResponse };
+interface PromptTemplate {
+  id: string;
+  layer: string;
+  target_id: string | null;
+  name: string;
+  prompt: string;
+  version: number;
+  is_active: boolean;
+  updated_at: string;
+}
+
+interface PromptVersion {
+  id: string;
+  prompt_id: string;
+  version: number;
+  prompt: string;
+  updated_at: string;
+}
+
+interface AIModel {
+  id: string;
+  name: string;
+  provider: string;
+  task_type: string;
+  rank: number;
+  api_key_secret_name: string | null;
+  is_workers_ai: boolean;
+  status: string;
+  rate_limit_reset_at: string | null;
+  daily_limit_reset_at: string | null;
+  is_free_tier: boolean;
+  health_score: number;
+  total_calls: number;
+  total_failures: number;
+  avg_latency_ms: number;
+  notes: string | null;
+}
+
+export type { Domain, Category, PromptTemplate, PromptVersion, AIModel, ApiResponse };
