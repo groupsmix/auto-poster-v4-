@@ -1,150 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
-import type { WorkflowRun, WorkflowStep, RevisionEntry } from "@/lib/api";
+import StatusBadge from "@/components/StatusBadge";
+import { MOCK_RUNS, MOCK_STEPS, MOCK_REVISIONS } from "@/lib/mock-data";
+import { formatDateTime, formatDuration } from "@/lib/format";
+import type { WorkflowStep, RevisionEntry } from "@/lib/api";
 import CacheIndicator from "@/components/CacheIndicator";
 
-// Mock data
-const MOCK_RUNS: WorkflowRun[] = [
-  {
-    id: "run-001",
-    product_id: "prod-001",
-    product_name: "Freelancer CRM System — Notion Template",
-    domain_name: "Digital Products",
-    category_name: "Notion Templates",
-    batch_id: "batch-001",
-    status: "completed",
-    started_at: "2025-03-15T10:30:00Z",
-    completed_at: "2025-03-15T10:31:15Z",
-    total_tokens: 18420,
-    total_cost: 0.0,
-    cache_hits: 2,
-    ai_models_used: ["DeepSeek-R1", "Qwen-Plus", "Llama 3.1 8B"],
-    duration_ms: 75000,
-  },
-  {
-    id: "run-002",
-    product_id: "prod-002",
-    product_name: "Student Planner — Notion Template",
-    domain_name: "Digital Products",
-    category_name: "Notion Templates",
-    batch_id: "batch-001",
-    status: "completed",
-    started_at: "2025-03-15T10:35:00Z",
-    completed_at: "2025-03-15T10:36:02Z",
-    total_tokens: 15800,
-    total_cost: 0.0,
-    cache_hits: 3,
-    ai_models_used: ["DeepSeek-R1", "Qwen-Plus"],
-    duration_ms: 62000,
-  },
-  {
-    id: "run-003",
-    product_id: "prod-003",
-    product_name: "Ultimate SEO Checklist — PDF Guide",
-    domain_name: "Digital Products",
-    category_name: "PDF Guides & Ebooks",
-    status: "completed",
-    started_at: "2025-03-10T08:00:00Z",
-    completed_at: "2025-03-10T08:01:30Z",
-    total_tokens: 22100,
-    total_cost: 0.0,
-    cache_hits: 1,
-    ai_models_used: ["DeepSeek-R1", "Qwen-Plus", "Mixtral 8x7B"],
-    duration_ms: 90000,
-  },
-  {
-    id: "run-004",
-    product_id: "prod-004",
-    product_name: "Minimalist Mountain T-Shirt Design",
-    domain_name: "Print on Demand (POD)",
-    category_name: "T-Shirts & Apparel",
-    batch_id: "batch-002",
-    status: "failed",
-    started_at: "2025-03-12T14:00:00Z",
-    completed_at: "2025-03-12T14:00:45Z",
-    total_tokens: 8400,
-    total_cost: 0.0,
-    cache_hits: 0,
-    ai_models_used: ["DeepSeek-R1"],
-    duration_ms: 45000,
-  },
-  {
-    id: "run-005",
-    product_id: "prod-006",
-    product_name: "Podcast Launch Blueprint",
-    domain_name: "Content & Media",
-    category_name: "Podcast Content",
-    status: "cancelled",
-    started_at: "2025-03-08T09:00:00Z",
-    completed_at: "2025-03-08T09:00:20Z",
-    total_tokens: 3200,
-    total_cost: 0.0,
-    cache_hits: 0,
-    ai_models_used: ["Qwen-Plus"],
-    duration_ms: 20000,
-  },
-];
-
-const MOCK_STEPS: Record<string, WorkflowStep[]> = {
-  "run-001": [
-    { id: "s1", run_id: "run-001", step_name: "Research", step_order: 1, status: "completed", ai_used: "DeepSeek-R1", ai_tried: ["DeepSeek-R1"], tokens_used: 3200, cost: 0, cached: true, latency_ms: 120 },
-    { id: "s2", run_id: "run-001", step_name: "Content Generation", step_order: 2, status: "completed", ai_used: "DeepSeek-R1", ai_tried: ["DeepSeek-R1"], tokens_used: 4800, cost: 0, cached: false, latency_ms: 2400 },
-    { id: "s3", run_id: "run-001", step_name: "SEO Optimization", step_order: 3, status: "completed", ai_used: "Qwen-Plus", ai_tried: ["DeepSeek-R1", "Qwen-Plus"], tokens_used: 2100, cost: 0, cached: true, latency_ms: 80 },
-    { id: "s4", run_id: "run-001", step_name: "Title & Tags", step_order: 4, status: "completed", ai_used: "Qwen-Plus", ai_tried: ["Qwen-Plus"], tokens_used: 1800, cost: 0, cached: false, latency_ms: 1200 },
-    { id: "s5", run_id: "run-001", step_name: "Description", step_order: 5, status: "completed", ai_used: "DeepSeek-R1", ai_tried: ["DeepSeek-R1"], tokens_used: 2400, cost: 0, cached: false, latency_ms: 1800 },
-    { id: "s6", run_id: "run-001", step_name: "Pricing", step_order: 6, status: "completed", ai_used: "Llama 3.1 8B", ai_tried: ["Llama 3.1 8B"], tokens_used: 800, cost: 0, cached: false, latency_ms: 400 },
-    { id: "s7", run_id: "run-001", step_name: "Image Generation", step_order: 7, status: "completed", ai_used: "FLUX", ai_tried: ["FLUX"], tokens_used: 0, cost: 0, cached: false, latency_ms: 8000 },
-    { id: "s8", run_id: "run-001", step_name: "CEO Review", step_order: 8, status: "completed", ai_used: "DeepSeek-R1", ai_tried: ["DeepSeek-R1"], tokens_used: 1820, cost: 0, cached: false, latency_ms: 2200 },
-    { id: "s9", run_id: "run-001", step_name: "Platform Variation", step_order: 9, status: "completed", ai_used: "Qwen-Plus", ai_tried: ["Qwen-Plus"], tokens_used: 1500, cost: 0, cached: false, latency_ms: 1600 },
-  ],
-};
-
-const MOCK_REVISIONS: Record<string, RevisionEntry[]> = {
-  "prod-001": [
-    { id: "rev-1", product_id: "prod-001", version: 1, feedback: "Title too generic, make it more niche-specific", ai_score: 6.8, ai_model: "DeepSeek-R1", reviewed_at: "2025-03-15T10:31:00Z", decision: "rejected" },
-    { id: "rev-2", product_id: "prod-001", version: 2, ai_score: 8.4, ai_model: "DeepSeek-R1", reviewed_at: "2025-03-15T10:32:30Z", decision: "approved" },
-  ],
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    completed: "bg-green-500/10 text-green-400",
-    cancelled: "bg-gray-500/10 text-gray-500",
-    failed: "bg-red-500/10 text-red-400",
-    running: "bg-blue-500/10 text-blue-400",
-    waiting: "bg-gray-500/10 text-gray-400",
-  };
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors[status] ?? "bg-gray-500/10 text-gray-400"}`}>
-      {status}
-    </span>
-  );
-}
-
-function formatDuration(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remaining = seconds % 60;
-  return `${minutes}m ${remaining}s`;
-}
-
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export default function HistoryPage() {
   const [filterStatus, setFilterStatus] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: runs, loading, isUsingMock } = useApiQuery(
     () => api.history.listRuns(filterStatus ? { status: filterStatus } : undefined),
@@ -205,9 +74,19 @@ export default function HistoryPage() {
     }
   };
 
-  const filteredRuns = filterStatus
-    ? runs.filter((r) => r.status === filterStatus)
-    : runs;
+  const filteredRuns = runs.filter((r) => {
+    if (filterStatus && r.status !== filterStatus) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (
+        !r.product_name.toLowerCase().includes(q) &&
+        !(r.domain_name ?? "").toLowerCase().includes(q) &&
+        !(r.category_name ?? "").toLowerCase().includes(q)
+      )
+        return false;
+    }
+    return true;
+  });
 
   return (
     <div>
@@ -223,6 +102,18 @@ export default function HistoryPage() {
       {/* Filters */}
       <div className="rounded-xl border border-card-border bg-card-bg p-4 mb-6">
         <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search runs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-3 py-1.5 rounded-lg bg-card-hover border border-card-border text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-accent w-48"
+            />
+          </div>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -257,13 +148,13 @@ export default function HistoryPage() {
       ) : (
         <div className="rounded-xl border border-card-border bg-card-bg overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[900px]">
               <thead>
                 <tr className="border-b border-card-border text-left">
                   <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
                     Product
                   </th>
-                  <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
+                  <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider hidden md:table-cell">
                     Domain / Category
                   </th>
                   <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
@@ -272,13 +163,13 @@ export default function HistoryPage() {
                   <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
                     Tokens
                   </th>
-                  <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
+                  <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider hidden lg:table-cell">
                     AI Models
                   </th>
-                  <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
+                  <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider hidden lg:table-cell">
                     Cache Hits
                   </th>
-                  <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
+                  <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider hidden xl:table-cell">
                     Cost
                   </th>
                   <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
@@ -294,9 +185,8 @@ export default function HistoryPage() {
               </thead>
               <tbody>
                 {filteredRuns.map((run) => (
-                  <>
+                  <Fragment key={run.id}>
                     <tr
-                      key={run.id}
                       className={`border-b border-card-border hover:bg-card-hover transition-colors cursor-pointer ${
                         expandedRun === run.id ? "bg-card-hover" : ""
                       }`}
@@ -307,7 +197,7 @@ export default function HistoryPage() {
                           {run.product_name}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-muted">
+                      <td className="px-4 py-3 text-muted hidden md:table-cell">
                         <div className="text-xs">
                           {run.domain_name ?? "—"}
                           {run.category_name && (
@@ -326,7 +216,7 @@ export default function HistoryPage() {
                       <td className="px-4 py-3 text-muted font-mono text-xs">
                         {run.total_tokens.toLocaleString()}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 hidden lg:table-cell">
                         <div className="flex flex-wrap gap-1">
                           {run.ai_models_used.map((m) => (
                             <span
@@ -338,10 +228,10 @@ export default function HistoryPage() {
                           ))}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-muted text-xs">
+                      <td className="px-4 py-3 text-muted text-xs hidden lg:table-cell">
                         {run.cache_hits}
                       </td>
-                      <td className="px-4 py-3 text-muted font-mono text-xs">
+                      <td className="px-4 py-3 text-muted font-mono text-xs hidden xl:table-cell">
                         ${run.total_cost.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-muted text-xs">
@@ -350,7 +240,7 @@ export default function HistoryPage() {
                           : "—"}
                       </td>
                       <td className="px-4 py-3 text-muted text-xs">
-                        {formatDate(run.started_at)}
+                        {formatDateTime(run.started_at)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
@@ -452,7 +342,7 @@ export default function HistoryPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -514,7 +404,7 @@ export default function HistoryPage() {
                         </span>
                       </div>
                       <span className="text-xs text-muted">
-                        {formatDate(rev.reviewed_at)}
+                        {formatDateTime(rev.reviewed_at)}
                       </span>
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted mb-2">

@@ -416,10 +416,12 @@ export default function AIManagerPage() {
                       onDragOver={(e) => handleDragOver(e, idx)}
                       onDrop={() => handleDrop(taskType)}
                       onDragEnd={() => setDragState(null)}
-                      className={`px-6 py-4 flex items-center gap-4 transition-colors cursor-grab active:cursor-grabbing ${
-                        dragState?.taskType === taskType && dragState.overIdx === idx
-                          ? "bg-accent/5"
-                          : "hover:bg-card-hover"
+                      className={`px-6 py-4 flex items-center gap-4 transition-all cursor-grab active:cursor-grabbing ${
+                        dragState?.taskType === taskType && dragState.dragIdx === idx
+                          ? "opacity-50 scale-[0.98] ring-1 ring-accent/30"
+                          : dragState?.taskType === taskType && dragState.overIdx === idx
+                            ? "bg-accent/10 border-t-2 border-t-accent"
+                            : "hover:bg-card-hover"
                       } ${model.is_workers_ai ? "bg-green-500/[0.02]" : ""}`}
                     >
                       {/* Drag handle + rank */}

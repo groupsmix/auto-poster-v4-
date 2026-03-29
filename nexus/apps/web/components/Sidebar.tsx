@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useReviewCounts } from "@/lib/ReviewCountContext";
@@ -165,14 +165,6 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const { pendingReviewCount, publishableCount } = useReviewCounts();
 
-  // Close mobile sidebar on any route change
-  const currentPathname = pathname;
-  useEffect(() => {
-    return () => {
-      setIsOpen(false);
-    };
-  }, [currentPathname]);
-
   // Build nav sections with dynamic badge counts
   const dynamicNavSections = navSections.map((section) => ({
     ...section,
@@ -303,7 +295,7 @@ export default function Sidebar() {
         {/* Footer */}
         <div className="px-5 py-4 border-t border-sidebar-border flex items-center justify-between">
           <p className="text-xs text-muted">
-            v4.0 &middot; Cloudflare $5/mo
+            v{process.env.NEXT_PUBLIC_APP_VERSION ?? "4.0"} &middot; Cloudflare $5/mo
           </p>
           <ShortcutsReference />
         </div>

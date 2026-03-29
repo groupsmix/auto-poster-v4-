@@ -426,10 +426,14 @@ export default function DomainsPage() {
                 onDrop={handleDomainDrop}
                 onDragEnd={() => { dragItem.current = null; dragOverItem.current = null; setDragType(null); }}
                 onClick={() => handleSelectDomain(domain)}
-                className={`rounded-lg border p-3 cursor-pointer transition-colors group ${
-                  selectedDomain?.id === domain.id
-                    ? "border-accent bg-accent/5"
-                    : "border-card-border bg-card-bg hover:bg-card-hover"
+                className={`rounded-lg border p-3 cursor-pointer transition-all group ${
+                  dragType === "domain" && dragItem.current === index
+                    ? "opacity-50 scale-[0.98] ring-1 ring-accent/30 border-card-border bg-card-bg"
+                    : dragType === "domain" && dragOverItem.current === index
+                      ? "border-accent bg-accent/10 shadow-sm"
+                      : selectedDomain?.id === domain.id
+                        ? "border-accent bg-accent/5"
+                        : "border-card-border bg-card-bg hover:bg-card-hover"
                 }`}
               >
                 {editingDomainId === domain.id ? (
@@ -595,7 +599,13 @@ export default function DomainsPage() {
                         onDragOver={(e) => handleCategoryDragOver(e, index)}
                         onDrop={handleCategoryDrop}
                         onDragEnd={() => { dragItem.current = null; dragOverItem.current = null; setDragType(null); }}
-                        className="rounded-lg border border-card-border bg-background p-3 group hover:bg-card-hover transition-colors"
+                        className={`rounded-lg border p-3 group transition-all ${
+                          dragType === "category" && dragItem.current === index
+                            ? "opacity-50 scale-[0.98] ring-1 ring-accent/30 border-card-border bg-background"
+                            : dragType === "category" && dragOverItem.current === index
+                              ? "border-accent bg-accent/10 shadow-sm"
+                              : "border-card-border bg-background hover:bg-card-hover"
+                        }`}
                       >
                         {editingCategoryId === category.id ? (
                           <div className="space-y-2">
