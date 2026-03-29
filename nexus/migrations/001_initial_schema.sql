@@ -1,5 +1,7 @@
+-- ============================================================
 -- NEXUS V4 Initial Schema
--- Cloudflare D1 SQL Migration
+-- Cloudflare D1 (SQLite dialect)
+-- ============================================================
 
 -- Core domain/category structure
 CREATE TABLE domains (
@@ -100,7 +102,7 @@ CREATE TABLE workflow_steps (
   completed_at  TEXT
 );
 
--- Generated assets
+-- Generated assets (files stored in R2)
 CREATE TABLE assets (
   id            TEXT PRIMARY KEY,
   product_id    TEXT REFERENCES products(id) ON DELETE CASCADE,
@@ -150,7 +152,7 @@ CREATE TABLE reviews (
   reviewed_at   TEXT DEFAULT (datetime('now'))
 );
 
--- Revision history
+-- Revision history (full audit trail)
 CREATE TABLE revision_history (
   id            TEXT PRIMARY KEY,
   product_id    TEXT REFERENCES products(id) ON DELETE CASCADE,
@@ -163,7 +165,7 @@ CREATE TABLE revision_history (
   decision      TEXT
 );
 
--- Prompt templates
+-- Prompt templates (editable from dashboard Prompt Manager)
 CREATE TABLE prompt_templates (
   id            TEXT PRIMARY KEY,
   layer         TEXT,
@@ -202,12 +204,49 @@ CREATE TABLE settings (
   updated_at    TEXT DEFAULT (datetime('now'))
 );
 
--- Default settings
-INSERT INTO settings (key, value) VALUES
-  ('social_posting_mode', 'manual'),
-  ('default_language', 'en'),
-  ('ceo_review_required', 'true'),
-  ('auto_publish_after_approval', 'false'),
-  ('batch_max_products', '10'),
-  ('cache_enabled', 'true'),
-  ('ai_gateway_enabled', 'true');
+-- ============================================================
+-- Indexes for common query patterns
+-- ============================================================
+
+-- Products
+CREATE INDEX idx_products_domain_id ON products(domain_id);
+CREATE INDEX idx_products_category_id ON products(category_id);
+CREATE INDEX idx_products_batch_id ON products(batch_id);
+CREATE INDEX idx_products_status ON products(status);
+
+-- Workflow runs
+CREATE INDEX idx_workflow_runs_product_id ON workflow_runs(product_id);
+CREATE INDEX idx_workflow_runs_batch_id ON workflow_runs(batch_id);
+CREATE INDEX idx_workflow_runs_status ON workflow_runs(status);
+
+-- Workflow steps
+CREATE INDEX idx_workflow_steps_run_id ON workflow_steps(run_id);
+
+-- Assets
+CREATE INDEX idx_assets_product_id ON assets(product_id);
+
+-- Platform variants
+CREATE INDEX idx_platform_variants_product_id ON platform_variants(product_id);
+CREATE INDEX idx_platform_variants_platform_id ON platform_variants(platform_id);
+
+-- Social variants
+CREATE INDEX idx_social_variants_product_id ON social_variants(product_id);
+CREATE INDEX idx_social_variants_channel_id ON social_variants(channel_id);
+
+-- Reviews
+CREATE INDEX idx_reviews_product_id ON reviews(product_id);
+CREATE INDEX idx_reviews_run_id ON reviews(run_id);
+
+-- Revision history
+CREATE INDEX idx_revision_history_product_id ON revision_history(product_id);
+
+-- Prompt templates
+CREATE INDEX idx_prompt_templates_layer ON prompt_templates(layer);
+CREATE INDEX idx_prompt_templates_target_id ON prompt_templates(target_id);
+
+-- AI models
+CREATE INDEX idx_ai_models_task_type ON ai_models(task_type);
+CREATE INDEX idx_ai_models_status ON ai_models(status);
+
+-- Categories
+CREATE INDEX idx_categories_domain_id ON categories(domain_id);
