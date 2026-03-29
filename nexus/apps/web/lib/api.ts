@@ -216,8 +216,45 @@ export const api = {
   // Settings endpoints
   settings: {
     get: (key: string) => request<{ value: string }>(`/settings/${key}`),
+    getAll: () => request<SettingsMap>("/settings"),
     update: (key: string, value: string) =>
       request<void>(`/settings/${key}`, { method: "PUT", body: { value } }),
+    bulkUpdate: (settings: Record<string, string>) =>
+      request<void>("/settings", { method: "PUT", body: settings }),
+  },
+
+  // Analytics endpoints (V4)
+  analytics: {
+    summary: () => request<AnalyticsSummary>("/analytics/summary"),
+    aiUsageOverTime: () => request<AIUsageOverTime[]>("/analytics/ai-usage"),
+    costBreakdown: () => request<CostBreakdownItem[]>("/analytics/cost-breakdown"),
+    cacheHitTrend: () => request<CacheHitTrendItem[]>("/analytics/cache-trend"),
+    productsByDomain: () => request<DomainBreakdownItem[]>("/analytics/products-by-domain"),
+    productsByCategory: () => request<CategoryBreakdownItem[]>("/analytics/products-by-category"),
+    aiLeaderboard: () => request<AILeaderboardEntry[]>("/analytics/ai-leaderboard"),
+  },
+
+  // History endpoints
+  history: {
+    listRuns: (params?: Record<string, string>) => {
+      const query = params
+        ? "?" + new URLSearchParams(params).toString()
+        : "";
+      return request<WorkflowRun[]>(`/history/runs${query}`);
+    },
+    getRunSteps: (runId: string) =>
+      request<WorkflowStep[]>(`/history/runs/${runId}/steps`),
+    getRevisions: (productId: string) =>
+      request<RevisionEntry[]>(`/history/products/${productId}/revisions`),
+  },
+
+  // API Key management
+  apiKeys: {
+    list: () => request<APIKeyEntry[]>("/api-keys"),
+    add: (keyName: string, apiKey: string) =>
+      request<void>(`/api-keys/${keyName}`, { method: "POST", body: { api_key: apiKey } }),
+    remove: (keyName: string) =>
+      request<void>(`/api-keys/${keyName}`, { method: "DELETE" }),
   },
 };
 
@@ -413,6 +450,111 @@ interface SocialChannelFull {
   is_active: boolean;
 }
 
+// Analytics types (V4)
+interface AnalyticsSummary {
+  total_products_all_time: number;
+  total_products_this_month: number;
+  total_ai_calls_all_time: number;
+  total_ai_calls_this_month: number;
+  cache_hit_rate: number;
+  total_cost: number;
+  avg_workflow_time_ms: number;
+  cost_savings: number;
+}
+
+interface AIUsageOverTime {
+  date: string;
+  provider: string;
+  tokens: number;
+}
+
+interface CostBreakdownItem {
+  provider: string;
+  cost: number;
+}
+
+interface CacheHitTrendItem {
+  date: string;
+  hit_rate: number;
+}
+
+interface DomainBreakdownItem {
+  domain: string;
+  count: number;
+}
+
+interface CategoryBreakdownItem {
+  category: string;
+  count: number;
+}
+
+interface AILeaderboardEntry {
+  id: string;
+  name: string;
+  provider: string;
+  health_score: number;
+  avg_latency_ms: number;
+  total_calls: number;
+  total_failures: number;
+}
+
+// History types
+interface WorkflowRun {
+  id: string;
+  product_id: string;
+  product_name: string;
+  domain_name?: string;
+  category_name?: string;
+  batch_id?: string;
+  status: string;
+  started_at: string;
+  completed_at?: string;
+  total_tokens: number;
+  total_cost: number;
+  cache_hits: number;
+  ai_models_used: string[];
+  duration_ms?: number;
+}
+
+interface WorkflowStep {
+  id: string;
+  run_id: string;
+  step_name: string;
+  step_order: number;
+  status: string;
+  ai_used: string | null;
+  ai_tried: string[];
+  tokens_used: number;
+  cost: number;
+  cached: boolean;
+  latency_ms: number;
+  started_at?: string;
+  completed_at?: string;
+}
+
+interface RevisionEntry {
+  id: string;
+  product_id: string;
+  version: number;
+  feedback?: string;
+  ai_score: number;
+  ai_model: string;
+  reviewed_at: string;
+  decision: string;
+}
+
+// Settings types
+interface SettingsMap {
+  [key: string]: string;
+}
+
+// API Key management types
+interface APIKeyEntry {
+  key_name: string;
+  display_name: string;
+  status: "active" | "not_set";
+}
+
 export type {
   Domain,
   Category,
@@ -431,4 +573,16 @@ export type {
   SocialChannel,
   SocialChannelFull,
   ApiResponse,
+  AnalyticsSummary,
+  AIUsageOverTime,
+  CostBreakdownItem,
+  CacheHitTrendItem,
+  DomainBreakdownItem,
+  CategoryBreakdownItem,
+  AILeaderboardEntry,
+  WorkflowRun,
+  WorkflowStep,
+  RevisionEntry,
+  SettingsMap,
+  APIKeyEntry,
 };
