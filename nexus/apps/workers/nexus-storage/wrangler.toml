@@ -2,4 +2,21 @@ name = "nexus-storage"
 main = "src/index.ts"
 compatibility_date = "2024-12-30"
 
-# R2, D1, KV, CF Images bindings — filled in during Task 16
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "nexus-db"
+database_id = "placeholder-d1-id"
+
+# KV Namespace (config + AI response cache)
+[[kv_namespaces]]
+binding = "CACHE"
+id = "placeholder-kv-id"
+
+# R2 Bucket
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "nexus-assets"
+
+# CF Images & AI Gateway are accessed via account-level API
+# AI_GATEWAY binding configured at deploy time
