@@ -28,6 +28,15 @@ export default class ErrorBoundary extends React.Component<
     this.setState({ hasError: false, error: null });
   };
 
+  handleGoHome = () => {
+    this.setState({ hasError: false, error: null });
+    window.location.href = "/";
+  };
+
+  handleReload = () => {
+    window.location.reload();
+  };
+
   render() {
     if (this.state.hasError) {
       return (
@@ -53,12 +62,26 @@ export default class ErrorBoundary extends React.Component<
           <p className="text-muted text-sm text-center max-w-md mb-4">
             {this.state.error?.message || "An unexpected error occurred"}
           </p>
-          <button
-            onClick={this.handleReset}
-            className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
-          >
-            Try Again
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={this.handleReset}
+              className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={this.handleReload}
+              className="px-4 py-2 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
+            >
+              Reload Page
+            </button>
+            <button
+              onClick={this.handleGoHome}
+              className="px-4 py-2 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
+            >
+              Go to Home
+            </button>
+          </div>
         </div>
       );
     }

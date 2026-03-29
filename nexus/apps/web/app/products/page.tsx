@@ -5,107 +5,11 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import MockDataBanner from "@/components/MockDataBanner";
+import StatusBadge from "@/components/StatusBadge";
+import { MOCK_PRODUCTS } from "@/lib/mock-data";
+import { formatDate as sharedFormatDate } from "@/lib/format";
 import type { Product } from "@/lib/api";
 
-// Mock data for when API is not available
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: "prod-001",
-    domain_id: "d1",
-    category_id: "c1",
-    name: "Freelancer CRM System — Notion Template",
-    niche: "freelancers",
-    language: "en",
-    batch_id: "batch-001",
-    status: "approved",
-    created_at: "2025-03-15T10:30:00Z",
-    domain_name: "Digital Products",
-    category_name: "Notion Templates",
-    platforms: ["Etsy", "Gumroad"],
-  },
-  {
-    id: "prod-002",
-    domain_id: "d1",
-    category_id: "c1",
-    name: "Student Planner — Notion Template",
-    niche: "students",
-    language: "en",
-    batch_id: "batch-001",
-    status: "pending_review",
-    created_at: "2025-03-15T10:35:00Z",
-    domain_name: "Digital Products",
-    category_name: "Notion Templates",
-    platforms: ["Etsy", "Gumroad", "Payhip"],
-  },
-  {
-    id: "prod-003",
-    domain_id: "d1",
-    category_id: "c2",
-    name: "Ultimate SEO Checklist — PDF Guide",
-    niche: "marketers",
-    language: "en",
-    status: "published",
-    created_at: "2025-03-10T08:00:00Z",
-    domain_name: "Digital Products",
-    category_name: "PDF Guides & Ebooks",
-    platforms: ["Gumroad"],
-  },
-  {
-    id: "prod-004",
-    domain_id: "d2",
-    category_id: "c3",
-    name: "Minimalist Mountain T-Shirt Design",
-    niche: "outdoor enthusiasts",
-    language: "en",
-    batch_id: "batch-002",
-    status: "in_revision",
-    created_at: "2025-03-12T14:00:00Z",
-    domain_name: "Print on Demand (POD)",
-    category_name: "T-Shirts & Apparel",
-    platforms: ["Redbubble"],
-  },
-  {
-    id: "prod-005",
-    domain_id: "d2",
-    category_id: "c3",
-    name: "Retro Sunset Graphic Tee",
-    niche: "retro lovers",
-    language: "en",
-    batch_id: "batch-002",
-    status: "draft",
-    created_at: "2025-03-12T14:05:00Z",
-    domain_name: "Print on Demand (POD)",
-    category_name: "T-Shirts & Apparel",
-    platforms: ["Redbubble", "TeeSpring"],
-  },
-  {
-    id: "prod-006",
-    domain_id: "d3",
-    category_id: "c4",
-    name: "Podcast Launch Blueprint",
-    niche: "content creators",
-    language: "en",
-    status: "approved",
-    created_at: "2025-03-08T09:00:00Z",
-    domain_name: "Content & Media",
-    category_name: "Podcast Content",
-    platforms: ["Gumroad", "Payhip"],
-  },
-  {
-    id: "prod-007",
-    domain_id: "d1",
-    category_id: "c1",
-    name: "Project Manager Dashboard — Notion",
-    niche: "project managers",
-    language: "en",
-    batch_id: "batch-001",
-    status: "running",
-    created_at: "2025-03-15T10:40:00Z",
-    domain_name: "Digital Products",
-    category_name: "Notion Templates",
-    platforms: ["Etsy"],
-  },
-];
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
@@ -118,28 +22,6 @@ const STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    draft: "bg-gray-500/10 text-gray-400",
-    running: "bg-blue-500/10 text-blue-400",
-    queued: "bg-gray-500/10 text-gray-400",
-    pending_review: "bg-yellow-500/10 text-yellow-400",
-    approved: "bg-green-500/10 text-green-400",
-    in_revision: "bg-orange-500/10 text-orange-400",
-    published: "bg-accent/10 text-accent",
-    rejected: "bg-red-500/10 text-red-400",
-    cancelled: "bg-gray-500/10 text-gray-500",
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors[status] ?? "bg-gray-500/10 text-gray-400"}`}
-    >
-      {status.replace(/_/g, " ")}
-    </span>
-  );
-}
-
 export default function ProductsPage() {
   const { data: products, loading, isUsingMock } = useApiQuery(
     () => api.products.list(),
@@ -151,8 +33,11 @@ export default function ProductsPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterPlatform, setFilterPlatform] = useState("");
   const [filterBatch, setFilterBatch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [batchView, setBatchView] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<"name" | "status" | "created_at" | "">("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const effectiveProducts = localProducts ?? products;
 
@@ -186,16 +71,35 @@ export default function ProductsPage() {
 
   // Filter products
   const filtered = useMemo(() => {
-    return effectiveProducts.filter((p) => {
+    let result = effectiveProducts.filter((p) => {
       if (filterDomain && p.domain_name !== filterDomain) return false;
       if (filterCategory && p.category_name !== filterCategory) return false;
       if (filterStatus && p.status !== filterStatus) return false;
       if (filterPlatform && !(p.platforms ?? []).includes(filterPlatform))
         return false;
       if (filterBatch && p.batch_id !== filterBatch) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        if (
+          !p.name.toLowerCase().includes(q) &&
+          !(p.niche ?? "").toLowerCase().includes(q) &&
+          !(p.domain_name ?? "").toLowerCase().includes(q) &&
+          !(p.category_name ?? "").toLowerCase().includes(q)
+        )
+          return false;
+      }
       return true;
     });
-  }, [effectiveProducts, filterDomain, filterCategory, filterStatus, filterPlatform, filterBatch]);
+    if (sortKey) {
+      result = [...result].sort((a, b) => {
+        const av = a[sortKey] ?? "";
+        const bv = b[sortKey] ?? "";
+        const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+    return result;
+  }, [effectiveProducts, filterDomain, filterCategory, filterStatus, filterPlatform, filterBatch, searchQuery, sortKey, sortDir]);
 
   // Group by batch
   const batchGroups = useMemo(() => {
@@ -213,13 +117,7 @@ export default function ProductsPage() {
     return { groups, ungrouped };
   }, [filtered, batchView]);
 
-  const formatDate = (d: string) => {
-    return new Date(d).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
+  const formatDate = sharedFormatDate;
 
   return (
     <div>
@@ -235,6 +133,18 @@ export default function ProductsPage() {
       {/* Filters */}
       <div className="rounded-xl border border-card-border bg-card-bg p-4 mb-6">
         <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-3 py-1.5 rounded-lg bg-card-hover border border-card-border text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-accent w-48"
+            />
+          </div>
           <select
             value={filterDomain}
             onChange={(e) => setFilterDomain(e.target.value)}
@@ -356,6 +266,12 @@ export default function ProductsPage() {
                   products={batchProducts}
                   onDelete={(id) => setDeleteConfirm(id)}
                   formatDate={formatDate}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={(key) => {
+                    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+                    else { setSortKey(key as "name" | "status" | "created_at"); setSortDir("asc"); }
+                  }}
                 />
               </div>
             </div>
@@ -377,6 +293,12 @@ export default function ProductsPage() {
                   products={batchGroups.ungrouped}
                   onDelete={(id) => setDeleteConfirm(id)}
                   formatDate={formatDate}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={(key) => {
+                    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+                    else { setSortKey(key as "name" | "status" | "created_at"); setSortDir("asc"); }
+                  }}
                 />
               </div>
             </div>
@@ -388,6 +310,12 @@ export default function ProductsPage() {
             products={filtered}
             onDelete={(id) => setDeleteConfirm(id)}
             formatDate={formatDate}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={(key) => {
+              if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+              else { setSortKey(key as "name" | "status" | "created_at"); setSortDir("asc"); }
+            }}
           />
         </div>
       )}
@@ -431,41 +359,74 @@ export default function ProductsPage() {
   );
 }
 
+function SortHeader({
+  label,
+  sortKey: colKey,
+  currentSort,
+  currentDir,
+  onSort,
+}: {
+  label: string;
+  sortKey: string;
+  currentSort: string;
+  currentDir: "asc" | "desc";
+  onSort: (key: string) => void;
+}) {
+  const active = currentSort === colKey;
+  return (
+    <th
+      className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider cursor-pointer select-none hover:text-foreground transition-colors"
+      onClick={() => onSort(colKey)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <span className={`transition-opacity ${active ? "opacity-100" : "opacity-0"}`}>
+          {currentDir === "asc" ? "\u2191" : "\u2193"}
+        </span>
+      </span>
+    </th>
+  );
+}
+
 function ProductTable({
   products,
   onDelete,
   formatDate,
+  sortKey: currentSort = "",
+  sortDir: currentDir = "desc",
+  onSort,
 }: {
   products: Product[];
   onDelete: (id: string) => void;
   formatDate: (d: string) => string;
+  sortKey?: string;
+  sortDir?: "asc" | "desc";
+  onSort?: (key: string) => void;
 }) {
+  const handleSort = (key: string) => {
+    onSort?.(key);
+  };
+
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm min-w-[800px]">
         <thead>
           <tr className="border-b border-card-border text-left">
-            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
-              Name
-            </th>
-            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
+            <SortHeader label="Name" sortKey="name" currentSort={currentSort} currentDir={currentDir} onSort={handleSort} />
+            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider hidden md:table-cell">
               Domain
             </th>
-            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
+            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider hidden lg:table-cell">
               Category
             </th>
-            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
-              Status
-            </th>
-            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
+            <SortHeader label="Status" sortKey="status" currentSort={currentSort} currentDir={currentDir} onSort={handleSort} />
+            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider hidden lg:table-cell">
               Platform(s)
             </th>
-            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
+            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider hidden xl:table-cell">
               Batch
             </th>
-            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
-              Created
-            </th>
+            <SortHeader label="Created" sortKey="created_at" currentSort={currentSort} currentDir={currentDir} onSort={handleSort} />
             <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
               Actions
             </th>
@@ -485,16 +446,16 @@ function ProductTable({
                   {product.name}
                 </Link>
               </td>
-              <td className="px-4 py-3 text-muted">
+              <td className="px-4 py-3 text-muted hidden md:table-cell">
                 {product.domain_name ?? "—"}
               </td>
-              <td className="px-4 py-3 text-muted">
+              <td className="px-4 py-3 text-muted hidden lg:table-cell">
                 {product.category_name ?? "—"}
               </td>
               <td className="px-4 py-3">
                 <StatusBadge status={product.status} />
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3 hidden lg:table-cell">
                 <div className="flex flex-wrap gap-1">
                   {(product.platforms ?? []).map((p) => (
                     <span
@@ -509,7 +470,7 @@ function ProductTable({
                   )}
                 </div>
               </td>
-              <td className="px-4 py-3 text-muted text-xs">
+              <td className="px-4 py-3 text-muted text-xs hidden xl:table-cell">
                 {product.batch_id ?? "—"}
               </td>
               <td className="px-4 py-3 text-muted text-xs">

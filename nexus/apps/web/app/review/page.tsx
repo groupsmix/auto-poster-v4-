@@ -5,151 +5,11 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
-import type { ReviewItem } from "@/lib/api";
-
-// Mock data for when API is not available
-const MOCK_PENDING: ReviewItem[] = [
-  {
-    id: "rev-001",
-    product_id: "prod-002",
-    product_name: "Student Planner — Notion Template",
-    domain_name: "Digital Products",
-    category_name: "Notion Templates",
-    ai_score: 8.7,
-    ai_model: "DeepSeek-V3",
-    version: 1,
-    reviewed_at: "2025-03-15T11:00:00Z",
-    status: "pending_review",
-  },
-  {
-    id: "rev-002",
-    product_id: "prod-008",
-    product_name: "Fitness Coaching Plan — PDF",
-    domain_name: "Knowledge & Education",
-    category_name: "Coaching Plans",
-    ai_score: 7.9,
-    ai_model: "Qwen 3.5 Max",
-    version: 1,
-    reviewed_at: "2025-03-14T16:30:00Z",
-    status: "pending_review",
-  },
-  {
-    id: "rev-003",
-    product_id: "prod-009",
-    product_name: "SaaS Landing Page Template",
-    domain_name: "Digital Products",
-    category_name: "SaaS Templates",
-    ai_score: 9.1,
-    ai_model: "DeepSeek-R1",
-    version: 1,
-    reviewed_at: "2025-03-14T14:00:00Z",
-    status: "pending_review",
-  },
-];
-
-const MOCK_IN_REVISION: ReviewItem[] = [
-  {
-    id: "rev-004",
-    product_id: "prod-004",
-    product_name: "Minimalist Mountain T-Shirt Design",
-    domain_name: "Print on Demand (POD)",
-    category_name: "T-Shirts & Apparel",
-    ai_score: 6.5,
-    ai_model: "DeepSeek-V3",
-    decision: "rejected",
-    feedback: "Design needs more contrast and the text is too small for print",
-    version: 2,
-    reviewed_at: "2025-03-13T10:00:00Z",
-    status: "in_revision",
-  },
-];
-
-const MOCK_HISTORY: ReviewItem[] = [
-  {
-    id: "rev-005",
-    product_id: "prod-001",
-    product_name: "Freelancer CRM System — Notion Template",
-    domain_name: "Digital Products",
-    category_name: "Notion Templates",
-    ai_score: 8.4,
-    ai_model: "DeepSeek-V3",
-    decision: "approved",
-    version: 1,
-    reviewed_at: "2025-03-15T12:00:00Z",
-    status: "approved",
-  },
-  {
-    id: "rev-006",
-    product_id: "prod-003",
-    product_name: "Ultimate SEO Checklist — PDF Guide",
-    domain_name: "Digital Products",
-    category_name: "PDF Guides & Ebooks",
-    ai_score: 9.2,
-    ai_model: "DeepSeek-R1",
-    decision: "approved",
-    version: 1,
-    reviewed_at: "2025-03-10T10:00:00Z",
-    status: "approved",
-  },
-  {
-    id: "rev-007",
-    product_id: "prod-006",
-    product_name: "Podcast Launch Blueprint",
-    domain_name: "Content & Media",
-    category_name: "Podcast Content",
-    ai_score: 7.8,
-    ai_model: "Qwen 3.5 Max",
-    decision: "rejected",
-    feedback: "Title too generic, needs more specificity",
-    version: 1,
-    reviewed_at: "2025-03-08T11:00:00Z",
-    status: "rejected",
-  },
-  {
-    id: "rev-008",
-    product_id: "prod-006",
-    product_name: "Podcast Launch Blueprint",
-    domain_name: "Content & Media",
-    category_name: "Podcast Content",
-    ai_score: 8.9,
-    ai_model: "DeepSeek-V3",
-    decision: "approved",
-    version: 2,
-    reviewed_at: "2025-03-08T14:00:00Z",
-    status: "approved",
-  },
-];
+import { ScoreBadge, DecisionBadge } from "@/components/StatusBadge";
+import { MOCK_PENDING, MOCK_IN_REVISION, MOCK_REVIEW_HISTORY } from "@/lib/mock-data";
+import { formatDateTime } from "@/lib/format";
 
 type Tab = "pending" | "in_revision" | "history";
-
-function ScoreBadge({ score }: { score: number }) {
-  const color =
-    score >= 8
-      ? "text-green-400 bg-green-500/10"
-      : score >= 6
-        ? "text-yellow-400 bg-yellow-500/10"
-        : "text-red-400 bg-red-500/10";
-  return (
-    <span className={`px-2 py-0.5 rounded text-xs font-bold ${color}`}>
-      {score.toFixed(1)}
-    </span>
-  );
-}
-
-function DecisionBadge({ decision }: { decision?: string }) {
-  if (!decision) return null;
-  const colors: Record<string, string> = {
-    approved: "bg-green-500/10 text-green-400",
-    rejected: "bg-red-500/10 text-red-400",
-  };
-  return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors[decision] ?? "bg-gray-500/10 text-gray-400"}`}
-    >
-      {decision}
-    </span>
-  );
-}
 
 export default function ReviewCenterPage() {
   const [activeTab, setActiveTab] = useState<Tab>("pending");
@@ -164,21 +24,12 @@ export default function ReviewCenterPage() {
   );
   const { data: history, loading: loadingHistory, isUsingMock: mockHistory } = useApiQuery(
     () => api.reviews.history(),
-    MOCK_HISTORY,
+    MOCK_REVIEW_HISTORY,
   );
 
   const loading = loadingPending || loadingRevision || loadingHistory;
   const isUsingMock = mockPending || mockRevision || mockHistory;
 
-  const formatDate = (d: string) => {
-    return new Date(d).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: "pending", label: "Pending Review", count: pending.length },
@@ -300,7 +151,7 @@ export default function ReviewCenterPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-muted whitespace-nowrap">
-                    {formatDate(item.reviewed_at)}
+                    {formatDateTime(item.reviewed_at)}
                   </span>
                   <span className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all">
                     &rarr;

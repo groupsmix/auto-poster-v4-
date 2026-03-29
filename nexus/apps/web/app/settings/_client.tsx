@@ -1,39 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
+import { MOCK_API_KEYS } from "@/lib/mock-data";
 import type { APIKeyEntry } from "@/lib/api";
 
-// All possible API keys from the architecture doc
-const ALL_API_KEYS: { key_name: string; display_name: string }[] = [
-  { key_name: "DEEPSEEK_API_KEY", display_name: "DeepSeek" },
-  { key_name: "DASHSCOPE_API_KEY", display_name: "DashScope (Qwen)" },
-  { key_name: "SILICONFLOW_API_KEY", display_name: "SiliconFlow" },
-  { key_name: "GROQ_API_KEY", display_name: "Groq" },
-  { key_name: "FIREWORKS_API_KEY", display_name: "Fireworks AI" },
-  { key_name: "OPENROUTER_API_KEY", display_name: "OpenRouter" },
-  { key_name: "HF_TOKEN", display_name: "Hugging Face" },
-  { key_name: "TAVILY_API_KEY", display_name: "Tavily (Research)" },
-  { key_name: "EXA_API_KEY", display_name: "Exa (Research)" },
-  { key_name: "SERPAPI_KEY", display_name: "SerpAPI (Research)" },
-  { key_name: "FAL_API_KEY", display_name: "fal.ai (FLUX Images)" },
-  { key_name: "SUNO_API_KEY", display_name: "Suno (Audio)" },
-  { key_name: "MOONSHOT_API_KEY", display_name: "Moonshot (Kimi)" },
-  { key_name: "DATAFORSEO_KEY", display_name: "DataForSEO" },
-  { key_name: "PRINTFUL_API_KEY", display_name: "Printful (Mockups)" },
-  { key_name: "PRINTIFY_API_KEY", display_name: "Printify (Mockups)" },
-  { key_name: "ANTHROPIC_API_KEY", display_name: "Anthropic (Claude)" },
-  { key_name: "OPENAI_API_KEY", display_name: "OpenAI (GPT)" },
-  { key_name: "GOOGLE_API_KEY", display_name: "Google (Gemini)" },
-  { key_name: "MIDJOURNEY_API_KEY", display_name: "Midjourney" },
-  { key_name: "IDEOGRAM_API_KEY", display_name: "Ideogram" },
-  { key_name: "ELEVENLABS_API_KEY", display_name: "ElevenLabs (Voice)" },
-  { key_name: "CARTESIA_API_KEY", display_name: "Cartesia (TTS)" },
-  { key_name: "PERPLEXITY_API_KEY", display_name: "Perplexity (Research)" },
-  { key_name: "PLACEIT_API_KEY", display_name: "Placeit (Mockups)" },
-];
 
 const LANGUAGES = [
   { value: "en", label: "English" },
@@ -109,13 +82,6 @@ function ToggleSwitch({
   );
 }
 
-const MOCK_API_KEYS: APIKeyEntry[] = ALL_API_KEYS.map((k) => ({
-  ...k,
-  status: ["DEEPSEEK_API_KEY", "GROQ_API_KEY", "TAVILY_API_KEY"].includes(k.key_name)
-    ? ("active" as const)
-    : ("not_set" as const),
-}));
-
 export default function SettingsClient() {
   const { data: fetchedKeys, loading, isUsingMock } = useApiQuery(
     () => api.apiKeys.list(),
@@ -123,6 +89,7 @@ export default function SettingsClient() {
   );
 
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
+  const savedSettingsRef = useRef<SettingsState>(DEFAULT_SETTINGS);
   const [apiKeys, setApiKeys] = useState<APIKeyEntry[]>(MOCK_API_KEYS);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -130,6 +97,8 @@ export default function SettingsClient() {
   const [newKeyValue, setNewKeyValue] = useState("");
   const [addingKey, setAddingKey] = useState(false);
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
+
+  const isDirty = JSON.stringify(settings) !== JSON.stringify(savedSettingsRef.current);
 
   // Sync hook data into local mutable state
   useEffect(() => {
@@ -140,14 +109,16 @@ export default function SettingsClient() {
   useEffect(() => {
     api.settings.getAll().then((settingsRes) => {
       if (settingsRes.success && settingsRes.data) {
-        setSettings((prev) => ({
-          ...prev,
+        const merged = {
+          ...DEFAULT_SETTINGS,
           ...Object.fromEntries(
             Object.entries(settingsRes.data!).filter(
               ([k]) => k in DEFAULT_SETTINGS
             )
           ),
-        }));
+        };
+        setSettings(merged);
+        savedSettingsRef.current = merged;
       }
     }).catch(() => { /* keep defaults */ });
   }, []);
@@ -160,6 +131,7 @@ export default function SettingsClient() {
     } catch {
       // best-effort
     } finally {
+      savedSettingsRef.current = { ...settings };
       setSaving(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -229,10 +201,18 @@ export default function SettingsClient() {
 
   return (
     <>
-      <div className="mb-6 flex items-center justify-end">
+      {/* Sticky Save Bar */}
+      <div className={`sticky top-0 z-10 mb-6 flex items-center justify-between rounded-xl border px-5 py-3 transition-all ${
+        isDirty
+          ? "border-accent/30 bg-accent/5"
+          : "border-card-border bg-card-bg"
+      }`}>
+        <p className="text-sm text-muted">
+          {isDirty ? "You have unsaved changes" : saved ? "Settings saved" : "Settings"}
+        </p>
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || (!isDirty && !saving)}
           className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
             saved
               ? "bg-success text-white"
