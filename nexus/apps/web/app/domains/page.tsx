@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
+import MockDataBanner from "@/components/MockDataBanner";
 import type { Domain, Category } from "@/lib/api";
 
 // Mock data matching the architecture doc (Part 3)
@@ -40,6 +41,7 @@ export default function DomainsPage() {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUsingMock, setIsUsingMock] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
   const [loadingCategories, setLoadingCategories] = useState(false);
 
@@ -70,15 +72,18 @@ export default function DomainsPage() {
       const response = await api.domains.list();
       if (response.success && response.data) {
         setDomains(response.data);
+        setIsUsingMock(false);
         if (response.data.length > 0 && !selectedDomain) {
           setSelectedDomain(response.data[0]);
         }
       } else {
         setDomains(MOCK_DOMAINS);
+        setIsUsingMock(true);
         if (!selectedDomain) setSelectedDomain(MOCK_DOMAINS[0]);
       }
     } catch {
       setDomains(MOCK_DOMAINS);
+      setIsUsingMock(true);
       if (!selectedDomain) setSelectedDomain(MOCK_DOMAINS[0]);
     } finally {
       setLoading(false);
@@ -369,6 +374,8 @@ export default function DomainsPage() {
           Manage product domains and their categories &middot; {domains.length} domain{domains.length !== 1 ? "s" : ""}
         </p>
       </div>
+
+      {isUsingMock && <MockDataBanner />}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left panel: Domains */}

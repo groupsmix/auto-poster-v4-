@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
+import MockDataBanner from "@/components/MockDataBanner";
 import type {
   AnalyticsSummary,
   AIUsageOverTime,
@@ -134,9 +135,11 @@ export default function AnalyticsPage() {
   const [productsByCategory, setProductsByCategory] = useState<CategoryBreakdownItem[]>(MOCK_BY_CATEGORY);
   const [leaderboard, setLeaderboard] = useState<AILeaderboardEntry[]>(MOCK_LEADERBOARD);
   const [loading, setLoading] = useState(true);
+  const [isUsingMock, setIsUsingMock] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    let usingMock = false;
     try {
       const [summaryRes, usageRes, costRes, cacheRes, domainRes, categoryRes, leaderRes] =
         await Promise.all([
@@ -149,15 +152,16 @@ export default function AnalyticsPage() {
           api.analytics.aiLeaderboard(),
         ]);
 
-      if (summaryRes.success && summaryRes.data) setSummary(summaryRes.data);
-      if (usageRes.success && usageRes.data) setAiUsage(usageRes.data);
-      if (costRes.success && costRes.data) setCostBreakdown(costRes.data);
-      if (cacheRes.success && cacheRes.data) setCacheHitTrend(cacheRes.data);
-      if (domainRes.success && domainRes.data) setProductsByDomain(domainRes.data);
-      if (categoryRes.success && categoryRes.data) setProductsByCategory(categoryRes.data);
-      if (leaderRes.success && leaderRes.data) setLeaderboard(leaderRes.data);
+      if (summaryRes.success && summaryRes.data) setSummary(summaryRes.data); else usingMock = true;
+      if (usageRes.success && usageRes.data) setAiUsage(usageRes.data); else usingMock = true;
+      if (costRes.success && costRes.data) setCostBreakdown(costRes.data); else usingMock = true;
+      if (cacheRes.success && cacheRes.data) setCacheHitTrend(cacheRes.data); else usingMock = true;
+      if (domainRes.success && domainRes.data) setProductsByDomain(domainRes.data); else usingMock = true;
+      if (categoryRes.success && categoryRes.data) setProductsByCategory(categoryRes.data); else usingMock = true;
+      if (leaderRes.success && leaderRes.data) setLeaderboard(leaderRes.data); else usingMock = true;
+      setIsUsingMock(usingMock);
     } catch {
-      // Keep mock data on error
+      setIsUsingMock(true);
     } finally {
       setLoading(false);
     }
@@ -212,6 +216,8 @@ export default function AnalyticsPage() {
         </div>
       ) : (
         <div className="space-y-6">
+          {isUsingMock && <MockDataBanner />}
+
           {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <SummaryCard

@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { useApiQuery } from "@/lib/useApiQuery";
+import MockDataBanner from "@/components/MockDataBanner";
 import type { Product } from "@/lib/api";
 
 // Mock data for when API is not available
@@ -139,8 +141,11 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: products, loading, isUsingMock } = useApiQuery(
+    () => api.products.list(),
+    MOCK_PRODUCTS,
+  );
+  const [localProducts, setLocalProducts] = useState<Product[] | null>(null);
   const [filterDomain, setFilterDomain] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -149,25 +154,7 @@ export default function ProductsPage() {
   const [batchView, setBatchView] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await api.products.list();
-      if (response.success && response.data) {
-        setProducts(response.data);
-      } else {
-        setProducts(MOCK_PRODUCTS);
-      }
-    } catch {
-      setProducts(MOCK_PRODUCTS);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+  const effectiveProducts = localProducts ?? products;
 
   const handleDelete = async (id: string) => {
     try {
@@ -175,31 +162,31 @@ export default function ProductsPage() {
     } catch {
       // best-effort
     }
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+    setLocalProducts((prev) => (prev ?? products).filter((p) => p.id !== id));
     setDeleteConfirm(null);
   };
 
   // Derive unique filter options from products
   const domains = useMemo(
-    () => [...new Set(products.map((p) => p.domain_name).filter(Boolean))],
-    [products]
+    () => [...new Set(effectiveProducts.map((p) => p.domain_name).filter(Boolean))],
+    [effectiveProducts]
   );
   const categories = useMemo(
-    () => [...new Set(products.map((p) => p.category_name).filter(Boolean))],
-    [products]
+    () => [...new Set(effectiveProducts.map((p) => p.category_name).filter(Boolean))],
+    [effectiveProducts]
   );
   const platformsList = useMemo(
-    () => [...new Set(products.flatMap((p) => p.platforms ?? []))],
-    [products]
+    () => [...new Set(effectiveProducts.flatMap((p) => p.platforms ?? []))],
+    [effectiveProducts]
   );
   const batches = useMemo(
-    () => [...new Set(products.map((p) => p.batch_id).filter(Boolean))],
-    [products]
+    () => [...new Set(effectiveProducts.map((p) => p.batch_id).filter(Boolean))],
+    [effectiveProducts]
   );
 
   // Filter products
   const filtered = useMemo(() => {
-    return products.filter((p) => {
+    return effectiveProducts.filter((p) => {
       if (filterDomain && p.domain_name !== filterDomain) return false;
       if (filterCategory && p.category_name !== filterCategory) return false;
       if (filterStatus && p.status !== filterStatus) return false;
@@ -208,7 +195,7 @@ export default function ProductsPage() {
       if (filterBatch && p.batch_id !== filterBatch) return false;
       return true;
     });
-  }, [products, filterDomain, filterCategory, filterStatus, filterPlatform, filterBatch]);
+  }, [effectiveProducts, filterDomain, filterCategory, filterStatus, filterPlatform, filterBatch]);
 
   // Group by batch
   const batchGroups = useMemo(() => {
@@ -242,6 +229,8 @@ export default function ProductsPage() {
           All products with status and filtering
         </p>
       </div>
+
+      {isUsingMock && <MockDataBanner />}
 
       {/* Filters */}
       <div className="rounded-xl border border-card-border bg-card-bg p-4 mb-6">

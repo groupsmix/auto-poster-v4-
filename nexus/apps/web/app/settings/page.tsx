@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
+import MockDataBanner from "@/components/MockDataBanner";
 import type { APIKeyEntry } from "@/lib/api";
 
 // All possible API keys from the architecture doc
@@ -111,6 +112,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
   const [apiKeys, setApiKeys] = useState<APIKeyEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUsingMock, setIsUsingMock] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [addKeyModal, setAddKeyModal] = useState<string | null>(null);
@@ -151,6 +153,7 @@ export default function SettingsPage() {
               : ("not_set" as const),
           }))
         );
+        setIsUsingMock(true);
       }
     } catch {
       // Use defaults and mock keys
@@ -164,6 +167,7 @@ export default function SettingsPage() {
             : ("not_set" as const),
         }))
       );
+      setIsUsingMock(true);
     } finally {
       setLoading(false);
     }
@@ -277,6 +281,8 @@ export default function SettingsPage() {
           {saving ? "Saving..." : saved ? "Saved" : "Save Settings"}
         </button>
       </div>
+
+      {isUsingMock && <MockDataBanner />}
 
       <div className="space-y-6">
         {/* Auth & System Status Banner (7.6) */}

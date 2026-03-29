@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { api } from "@/lib/api";
+import { useApiQuery } from "@/lib/useApiQuery";
+import MockDataBanner from "@/components/MockDataBanner";
 import type { Asset } from "@/lib/api";
 
 // Mock data for when API is not available
@@ -116,32 +118,17 @@ function AssetTypeIcon({ type }: { type: string }) {
 }
 
 export default function ContentPage() {
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: assets, loading, isUsingMock } = useApiQuery(
+    () => api.assets.list(),
+    MOCK_ASSETS,
+  );
+  const [localAssets, setLocalAssets] = useState<Asset[] | null>(null);
   const [filterProduct, setFilterProduct] = useState("");
   const [filterType, setFilterType] = useState("");
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  const fetchAssets = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await api.assets.list();
-      if (response.success && response.data) {
-        setAssets(response.data);
-      } else {
-        setAssets(MOCK_ASSETS);
-      }
-    } catch {
-      setAssets(MOCK_ASSETS);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchAssets();
-  }, [fetchAssets]);
+  const effectiveAssets = localAssets ?? assets;
 
   const handleDelete = async (id: string) => {
     try {
@@ -149,23 +136,23 @@ export default function ContentPage() {
     } catch {
       // best-effort
     }
-    setAssets((prev) => prev.filter((a) => a.id !== id));
+    setLocalAssets((prev) => (prev ?? assets).filter((a) => a.id !== id));
     setDeleteConfirm(null);
     if (previewAsset?.id === id) setPreviewAsset(null);
   };
 
   const productNames = useMemo(
-    () => [...new Set(assets.map((a) => a.product_name).filter(Boolean))],
-    [assets]
+    () => [...new Set(effectiveAssets.map((a) => a.product_name).filter(Boolean))],
+    [effectiveAssets]
   );
 
   const filtered = useMemo(() => {
-    return assets.filter((a) => {
+    return effectiveAssets.filter((a) => {
       if (filterProduct && a.product_name !== filterProduct) return false;
       if (filterType && a.asset_type !== filterType) return false;
       return true;
     });
-  }, [assets, filterProduct, filterType]);
+  }, [effectiveAssets, filterProduct, filterType]);
 
   const formatDate = (d: string) => {
     return new Date(d).toLocaleDateString("en-US", {
@@ -187,6 +174,8 @@ export default function ContentPage() {
           All generated assets (images, PDFs, audio, mockups)
         </p>
       </div>
+
+      {isUsingMock && <MockDataBanner />}
 
       {/* Filters */}
       <div className="rounded-xl border border-card-border bg-card-bg p-4 mb-6">

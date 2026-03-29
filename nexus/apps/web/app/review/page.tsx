@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import MockDataBanner from "@/components/MockDataBanner";
 import type { ReviewItem } from "@/lib/api";
 
 // Mock data for when API is not available
@@ -155,6 +156,7 @@ export default function ReviewCenterPage() {
   const [inRevision, setInRevision] = useState<ReviewItem[]>([]);
   const [history, setHistory] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUsingMock, setIsUsingMock] = useState(false);
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
@@ -164,21 +166,18 @@ export default function ReviewCenterPage() {
         api.reviews.inRevision(),
         api.reviews.history(),
       ]);
-      setPending(
-        pendingRes.success && pendingRes.data ? pendingRes.data : MOCK_PENDING
-      );
-      setInRevision(
-        revisionRes.success && revisionRes.data
-          ? revisionRes.data
-          : MOCK_IN_REVISION
-      );
-      setHistory(
-        historyRes.success && historyRes.data ? historyRes.data : MOCK_HISTORY
-      );
+      const pMock = !(pendingRes.success && pendingRes.data);
+      const rMock = !(revisionRes.success && revisionRes.data);
+      const hMock = !(historyRes.success && historyRes.data);
+      setPending(pMock ? MOCK_PENDING : pendingRes.data!);
+      setInRevision(rMock ? MOCK_IN_REVISION : revisionRes.data!);
+      setHistory(hMock ? MOCK_HISTORY : historyRes.data!);
+      setIsUsingMock(pMock || rMock || hMock);
     } catch {
       setPending(MOCK_PENDING);
       setInRevision(MOCK_IN_REVISION);
       setHistory(MOCK_HISTORY);
+      setIsUsingMock(true);
     } finally {
       setLoading(false);
     }
@@ -219,6 +218,8 @@ export default function ReviewCenterPage() {
           CEO approval queue and revision history
         </p>
       </div>
+
+      {isUsingMock && <MockDataBanner />}
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 mb-6">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
+import MockDataBanner from "@/components/MockDataBanner";
 import type { AIModel } from "@/lib/api";
 
 // Task type labels for grouping
@@ -131,6 +132,7 @@ function formatNumber(n: number): string {
 export default function AIManagerPage() {
   const [models, setModels] = useState<AIModel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUsingMock, setIsUsingMock] = useState(false);
   const [activeTaskType, setActiveTaskType] = useState<string | null>(null);
   const [keyInput, setKeyInput] = useState<{ modelId: string; value: string } | null>(null);
   const [addingKey, setAddingKey] = useState(false);
@@ -146,11 +148,14 @@ export default function AIManagerPage() {
       const response = await api.aiModels.list();
       if (response.success && response.data) {
         setModels(response.data);
+        setIsUsingMock(false);
       } else {
         setModels(MOCK_MODELS);
+        setIsUsingMock(true);
       }
     } catch {
       setModels(MOCK_MODELS);
+      setIsUsingMock(true);
     } finally {
       setLoading(false);
     }
@@ -299,6 +304,8 @@ export default function AIManagerPage() {
           AI Gateway Dashboard
         </a>
       </div>
+
+      {isUsingMock && <MockDataBanner />}
 
       {/* Workers AI summary card */}
       <div className="mb-6 rounded-xl border border-green-500/20 bg-green-500/5 p-4">

@@ -1,73 +1,73 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import DomainCard, { AddDomainCard } from "@/components/DomainCard";
 import LoadingState from "@/components/LoadingState";
-import ErrorState from "@/components/ErrorState";
+import MockDataBanner from "@/components/MockDataBanner";
 import AddDomainModal from "@/components/AddDomainModal";
 import { api } from "@/lib/api";
+import { useApiQuery } from "@/lib/useApiQuery";
 import { DEFAULT_DOMAINS } from "@/lib/domains";
 import type { DomainData } from "@/lib/domains";
+import type { Domain } from "@nexus/shared";
+
+const MOCK_DOMAIN_API: Domain[] = DEFAULT_DOMAINS.map((d, i) => ({
+  ...d,
+  id: d.slug,
+  description: "",
+  sort_order: i,
+  is_active: true,
+  created_at: new Date().toISOString(),
+}));
 
 export default function HomePage() {
   const router = useRouter();
-  const [domains, setDomains] = useState<DomainData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [localDomains, setLocalDomains] = useState<DomainData[]>([]);
+  const [hasLocalOverride, setHasLocalOverride] = useState(false);
 
-  const fetchDomains = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const { data: apiDomains, loading, isUsingMock, refetch } = useApiQuery(
+    () => api.domains.list(),
+    MOCK_DOMAIN_API,
+  );
 
-    try {
-      const response = await api.domains.list();
-      if (response.success && response.data) {
-        setDomains(
-          response.data.map((d) => ({
-            name: d.name,
-            slug: d.slug,
-            icon: d.icon || "\u{1F4E6}",
-          }))
-        );
-      } else {
-        // API returned an error response — surface it instead of hiding
-        setError(response.error || "Failed to load domains");
-      }
-    } catch {
-      // Network error — fall back to defaults so the UI is still usable
-      setDomains(DEFAULT_DOMAINS);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const domains: DomainData[] = useMemo(() => {
+    if (hasLocalOverride) return localDomains;
+    return apiDomains.map((d) => ({
+      name: d.name,
+      slug: d.slug,
+      icon: d.icon || "\u{1F4E6}",
+    }));
+  }, [apiDomains, localDomains, hasLocalOverride]);
 
-  useEffect(() => {
-    fetchDomains();
-  }, [fetchDomains]);
+  const handleDomainClick = useCallback(
+    (slug: string) => {
+      router.push(`/${slug}`);
+    },
+    [router],
+  );
 
-  const handleDomainClick = (slug: string) => {
-    router.push(`/${slug}`);
-  };
+  const handleAddDomain = useCallback(
+    (data: { name: string; icon: string }) => {
+      const slug = data.name
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, "")
+        .replace(/[\s_]+/g, "-")
+        .replace(/-+/g, "-")
+        .trim();
 
-  const handleAddDomain = (data: { name: string; icon: string }) => {
-    const slug = data.name
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, "")
-      .replace(/[\s_]+/g, "-")
-      .replace(/-+/g, "-")
-      .trim();
+      const updated = [...domains, { name: data.name, slug, icon: data.icon }];
+      setLocalDomains(updated);
+      setHasLocalOverride(true);
 
-    // Optimistically add to local state
-    setDomains((prev) => [...prev, { name: data.name, slug, icon: data.icon }]);
-
-    // Fire API call with error handling
-    api.domains.create({ name: data.name, icon: data.icon }).catch(() => {
-      setDomains((prev) => prev.filter((d) => d.slug !== slug));
-      setError("Failed to create domain");
-    });
-  };
+      api.domains.create({ name: data.name, icon: data.icon }).catch(() => {
+        setLocalDomains((prev) => prev.filter((d) => d.slug !== slug));
+        refetch();
+      });
+    },
+    [domains, refetch],
+  );
 
   if (loading) {
     return (
@@ -85,19 +85,6 @@ export default function HomePage() {
     );
   }
 
-  if (error) {
-    return (
-      <div>
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground">
-            Welcome to NEXUS
-          </h1>
-        </div>
-        <ErrorState message={error} onRetry={fetchDomains} />
-      </div>
-    );
-  }
-
   return (
     <div>
       <div className="mb-8">
@@ -108,6 +95,8 @@ export default function HomePage() {
           Select a domain to get started
         </p>
       </div>
+
+      {isUsingMock && <MockDataBanner />}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {domains.map((domain) => (
