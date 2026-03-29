@@ -2,6 +2,8 @@
 
 import { use } from "react";
 import Link from "next/link";
+import { DEFAULT_DOMAINS } from "@/lib/domains";
+import ProductSetupForm from "@/components/ProductSetupForm";
 
 export default function CategoryPage({
   params,
@@ -9,7 +11,9 @@ export default function CategoryPage({
   params: Promise<{ domain: string; category: string }>;
 }) {
   const { domain, category } = use(params);
-  const domainDisplay = domain.replace(/-/g, " ");
+
+  const domainData = DEFAULT_DOMAINS.find((d) => d.slug === domain);
+  const domainDisplay = domainData?.name || domain.replace(/-/g, " ");
   const categoryDisplay = category.replace(/-/g, " ");
 
   return (
@@ -18,11 +22,12 @@ export default function CategoryPage({
       <div className="flex items-center gap-2 text-sm text-muted mb-6">
         <Link href="/" className="hover:text-foreground transition-colors">Home</Link>
         <span>/</span>
-        <Link href={`/${domain}`} className="hover:text-foreground transition-colors capitalize">{domainDisplay}</Link>
+        <Link href={`/${domain}`} className="hover:text-foreground transition-colors">{domainDisplay}</Link>
         <span>/</span>
         <span className="text-foreground capitalize">{categoryDisplay}</span>
       </div>
 
+      {/* Back button + Title */}
       <div className="flex items-center gap-3 mb-8">
         <Link
           href={`/${domain}`}
@@ -34,13 +39,17 @@ export default function CategoryPage({
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-foreground capitalize">{categoryDisplay}</h1>
-          <p className="text-muted text-sm mt-0.5">Product setup form</p>
+          <p className="text-muted text-sm mt-0.5">Configure and start a product workflow</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-card-border bg-card-bg p-12 text-center">
-        <p className="text-muted text-sm">Product setup form will be rendered here.</p>
-      </div>
+      {/* Product Setup Form */}
+      <ProductSetupForm
+        domain={domain}
+        domainDisplay={domainDisplay}
+        category={category}
+        categoryDisplay={categoryDisplay}
+      />
     </div>
   );
 }
