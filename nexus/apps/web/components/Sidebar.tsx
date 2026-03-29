@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useReviewCounts } from "@/lib/ReviewCountContext";
+import ShortcutsReference from "@/components/ShortcutsReference";
 
 interface NavItem {
   label: string;
@@ -162,6 +164,21 @@ const settingsItem: NavItem = {
 export default function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const { pendingReviewCount, publishableCount } = useReviewCounts();
+
+  // Build nav sections with dynamic badge counts
+  const dynamicNavSections = navSections.map((section) => ({
+    ...section,
+    items: section.items.map((item) => {
+      if (item.href === "/review") {
+        return { ...item, badge: pendingReviewCount };
+      }
+      if (item.href === "/publish") {
+        return { ...item, badge: publishableCount };
+      }
+      return item;
+    }),
+  }));
 
   return (
     <>
@@ -213,7 +230,7 @@ export default function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 px-3">
-          {navSections.map((section, sectionIdx) => (
+          {dynamicNavSections.map((section, sectionIdx) => (
             <div key={section.title} className={sectionIdx > 0 ? "mt-4" : ""}>
               <h3 className="text-[10px] uppercase tracking-wider text-muted px-3 mb-1">
                 {section.title}
@@ -277,10 +294,11 @@ export default function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-sidebar-border">
+        <div className="px-5 py-4 border-t border-sidebar-border flex items-center justify-between">
           <p className="text-xs text-muted">
             v4.0 &middot; Cloudflare $5/mo
           </p>
+          <ShortcutsReference />
         </div>
       </aside>
     </>
