@@ -1,0 +1,5 @@
+name = "nexus-variation"
+main = "src/index.ts"
+compatibility_date = "2024-12-30"
+
+# KV, D1 bindings — filled in during Task 16

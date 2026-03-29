@@ -1,0 +1,10 @@
+name = "nexus-router"
+main = "src/index.ts"
+compatibility_date = "2024-12-30"
+
+# Service Bindings — filled in during Task 16
+# [services]
+# nexus_ai = { service = "nexus-ai" }
+# nexus_workflow = { service = "nexus-workflow" }
+# nexus_variation = { service = "nexus-variation" }
+# nexus_storage = { service = "nexus-storage" }

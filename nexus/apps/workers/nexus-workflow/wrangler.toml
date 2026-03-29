@@ -1,0 +1,5 @@
+name = "nexus-workflow"
+main = "src/index.ts"
+compatibility_date = "2024-12-30"
+
+# CF Workflows, D1, Service Bindings — filled in during Task 16
