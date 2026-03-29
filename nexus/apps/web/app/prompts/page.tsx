@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
+import { useApiQuery } from "@/lib/useApiQuery";
 import type { PromptTemplate, PromptVersion } from "@/lib/api";
 
 // Prompt layer configuration matching the architecture doc (Layers A-I)
@@ -357,9 +358,12 @@ function LayerIcon({ layer }: { layer: string }) {
 }
 
 export default function PromptsPage() {
-  const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isUsingMock, setIsUsingMock] = useState(false);
+  const { data: fetchedPrompts, loading, isUsingMock } = useApiQuery(
+    () => api.prompts.list(),
+    MOCK_PROMPTS,
+  );
+
+  const [prompts, setPrompts] = useState<PromptTemplate[]>(MOCK_PROMPTS);
   const [activeLayer, setActiveLayer] = useState<string>("master");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
@@ -370,28 +374,9 @@ export default function PromptsPage() {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
 
-  const fetchPrompts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await api.prompts.list();
-      if (response.success && response.data) {
-        setPrompts(response.data);
-        setIsUsingMock(false);
-      } else {
-        setPrompts(MOCK_PROMPTS);
-        setIsUsingMock(true);
-      }
-    } catch {
-      setPrompts(MOCK_PROMPTS);
-      setIsUsingMock(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchPrompts();
-  }, [fetchPrompts]);
+    setPrompts(fetchedPrompts);
+  }, [fetchedPrompts]);
 
   const layerPrompts = prompts.filter((p) => p.layer === activeLayer);
 

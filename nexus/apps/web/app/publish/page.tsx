@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
+import { useApiQuery } from "@/lib/useApiQuery";
 import type { PublishableProduct } from "@/lib/api";
 
 // Mock data for when API is not available
@@ -109,36 +110,15 @@ interface ProductPublishState {
 }
 
 export default function PublishPage() {
-  const [products, setProducts] = useState<PublishableProduct[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isUsingMock, setIsUsingMock] = useState(false);
+  const { data: products, loading, isUsingMock } = useApiQuery(
+    () => api.publishing.ready(),
+    MOCK_PUBLISHABLE,
+  );
+
   const [publishStates, setPublishStates] = useState<
     Record<string, ProductPublishState>
   >({});
   const [exporting, setExporting] = useState(false);
-
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await api.publishing.ready();
-      if (response.success && response.data) {
-        setProducts(response.data);
-        setIsUsingMock(false);
-      } else {
-        setProducts(MOCK_PUBLISHABLE);
-        setIsUsingMock(true);
-      }
-    } catch {
-      setProducts(MOCK_PUBLISHABLE);
-      setIsUsingMock(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
 
   // Initialize publish states for each product
   useEffect(() => {

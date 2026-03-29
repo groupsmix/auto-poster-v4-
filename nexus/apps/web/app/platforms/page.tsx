@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
+import { useApiQuery } from "@/lib/useApiQuery";
 import type { PlatformFull } from "@/lib/api";
 
 // Mock data matching the architecture doc (Part 7)
@@ -107,9 +108,12 @@ function generateSlug(name: string): string {
 }
 
 export default function PlatformsPage() {
-  const [platforms, setPlatforms] = useState<PlatformFull[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isUsingMock, setIsUsingMock] = useState(false);
+  const { data: fetchedPlatforms, loading, isUsingMock, refetch: fetchPlatforms } = useApiQuery(
+    () => api.platforms.list(),
+    MOCK_PLATFORMS,
+  );
+
+  const [platforms, setPlatforms] = useState<PlatformFull[]>(MOCK_PLATFORMS);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<PlatformFull | null>(null);
   const [saving, setSaving] = useState(false);
@@ -117,28 +121,9 @@ export default function PlatformsPage() {
   const [newPlatform, setNewPlatform] = useState<Omit<PlatformFull, "id">>(EMPTY_PLATFORM);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  const fetchPlatforms = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await api.platforms.list();
-      if (response.success && response.data) {
-        setPlatforms(response.data);
-        setIsUsingMock(false);
-      } else {
-        setPlatforms(MOCK_PLATFORMS);
-        setIsUsingMock(true);
-      }
-    } catch {
-      setPlatforms(MOCK_PLATFORMS);
-      setIsUsingMock(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchPlatforms();
-  }, [fetchPlatforms]);
+    setPlatforms(fetchedPlatforms);
+  }, [fetchedPlatforms]);
 
   const handleEdit = (platform: PlatformFull) => {
     setEditingId(platform.id);

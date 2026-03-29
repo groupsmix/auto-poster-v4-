@@ -1,14 +1,14 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import CategoryCard, { AddCategoryCard } from "@/components/CategoryCard";
 import LoadingState from "@/components/LoadingState";
 import ErrorState from "@/components/ErrorState";
 import { api } from "@/lib/api";
+import { useApiQuery } from "@/lib/useApiQuery";
 import { DEFAULT_DOMAINS, DEFAULT_CATEGORIES } from "@/lib/domains";
-import type { CategoryData } from "@/lib/domains";
 
 export default function DomainPage({
   params,
@@ -21,46 +21,17 @@ export default function DomainPage({
   const domainData = DEFAULT_DOMAINS.find((d) => d.slug === domain);
   const displayName = domainData?.name || domain.replace(/-/g, " ");
 
-  const [categories, setCategories] = useState<CategoryData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchCategories = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const response = await api.categories.list(domain);
-        if (cancelled) return;
-        if (response.success && response.data) {
-          setCategories(
-            response.data.map((c) => ({
-              name: c.name,
-              slug: c.slug,
-            }))
-          );
-        } else {
-          setCategories(DEFAULT_CATEGORIES[domain] || []);
-        }
-      } catch {
-        if (!cancelled) {
-          setCategories(DEFAULT_CATEGORIES[domain] || []);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchCategories();
-    return () => {
-      cancelled = true;
-    };
-  }, [domain]);
+  const { data: categories, loading, error } = useApiQuery(
+    () => api.categories.list(domain).then((response) => ({
+      success: response.success,
+      data: response.success && response.data
+        ? response.data.map((c: { name: string; slug: string }) => ({ name: c.name, slug: c.slug }))
+        : undefined,
+      error: response.error,
+    })),
+    DEFAULT_CATEGORIES[domain] || [],
+    [domain],
+  );
 
   const handleCategoryClick = (slug: string) => {
     router.push(`/${domain}/${slug}`);
