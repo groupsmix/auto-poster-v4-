@@ -33,8 +33,13 @@ export class CFImages {
   private apiToken: string;
 
   constructor(env: ImagesEnv) {
-    this.accountId = env.CF_ACCOUNT_ID ?? "";
-    this.apiToken = env.CF_IMAGES_TOKEN ?? "";
+    if (!env.CF_ACCOUNT_ID || !env.CF_IMAGES_TOKEN) {
+      throw new Error(
+        "CF_ACCOUNT_ID and CF_IMAGES_TOKEN are required for CF Images"
+      );
+    }
+    this.accountId = env.CF_ACCOUNT_ID;
+    this.apiToken = env.CF_IMAGES_TOKEN;
   }
 
   private get baseUrl(): string {

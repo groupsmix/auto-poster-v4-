@@ -40,12 +40,25 @@ const app = new Hono<{ Bindings: RouterEnv }>();
 // CORS — allow dashboard origin
 app.use("*", cors());
 
+// Body size limit — reject oversized requests (1MB max)
+app.use("/api/*", async (c, next) => {
+  const contentLength = parseInt(c.req.header("Content-Length") ?? "0", 10);
+  if (contentLength > 1_000_000) {
+    return c.json<ApiResponse>(
+      { success: false, error: "Request body too large" },
+      413
+    );
+  }
+  await next();
+});
+
 // Auth middleware — protects all /api/* routes
 app.use("/api/*", async (c, next) => {
   const secret = c.env.DASHBOARD_SECRET;
 
   // If no secret is configured, skip auth (development mode)
   if (!secret) {
+    console.warn("[SECURITY] DASHBOARD_SECRET not set — all routes are unprotected!");
     await next();
     return;
   }
@@ -59,7 +72,16 @@ app.use("/api/*", async (c, next) => {
   }
 
   const token = authHeader.replace(/^Bearer\s+/i, "");
-  if (token !== secret) {
+
+  // Timing-safe comparison to prevent timing attacks
+  const encoder = new TextEncoder();
+  const a = encoder.encode(token);
+  const b = encoder.encode(secret);
+  const isValid =
+    a.byteLength === b.byteLength &&
+    crypto.subtle.timingSafeEqual(a, b);
+
+  if (!isValid) {
     return c.json<ApiResponse>(
       { success: false, error: "Invalid authentication token" },
       401
