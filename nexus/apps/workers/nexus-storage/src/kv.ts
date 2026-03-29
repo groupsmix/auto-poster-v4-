@@ -4,6 +4,8 @@
 //            settings, cached AI responses
 // ============================================================
 
+import { KV_LIST_LIMIT } from "@nexus/shared";
+
 export interface CachedAIResponse {
   response: string;
   model_used: string;
@@ -100,7 +102,7 @@ export class KVCache {
       const list = await this.kv.list({
         prefix,
         cursor,
-        limit: 1000,
+        limit: KV_LIST_LIMIT,
       });
 
       const deletePromises = list.keys.map((key) => this.kv.delete(key.name));

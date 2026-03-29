@@ -104,13 +104,9 @@ export const api = {
     get: (id: string) => request<PromptTemplate>(`/prompts/${id}`),
     update: (id: string, data: { prompt: string }) =>
       request<PromptTemplate>(`/prompts/${id}`, { method: "PUT", body: data }),
-    history: (id: string) =>
-      request<PromptVersion[]>(`/prompts/${id}/history`),
-    revert: (id: string, version: number) =>
-      request<PromptTemplate>(`/prompts/${id}/revert`, {
-        method: "POST",
-        body: { version },
-      }),
+    // NOTE: history() and revert() removed — no prompt_versions table exists
+    // in the D1 schema, so these endpoints have no backing storage.
+    // Add a prompt_versions table if version history is needed in the future.
     test: (id: string) =>
       request<{ assembled: string }>(`/prompts/${id}/test`, {
         method: "POST",

@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { Env, ApiResponse } from "@nexus/shared";
-import { generateId, slugify, now } from "@nexus/shared";
+import { generateId, slugify, now, MAX_BATCH_SIZE, WORKFLOW_TIMEOUT_MS, BATCH_POLL_INTERVAL_MS } from "@nexus/shared";
 import { WorkflowEngine, type WorkflowInput, storageQuery } from "./engine";
 import type { ProductContext, PromptTemplates } from "./steps";
 
@@ -136,7 +136,7 @@ export class BatchOrchestrator {
     products: BatchProduct[];
   }> {
     const batchId = generateId();
-    const count = Math.min(Math.max(input.batch_count, 1), 10);
+    const count = Math.min(Math.max(input.batch_count, 1), MAX_BATCH_SIZE);
 
     console.log(
       `[BATCH] Creating batch ${batchId} with ${count} products for niche: ${input.niche}`
@@ -296,8 +296,8 @@ export class BatchOrchestrator {
    */
   private async waitForWorkflowCompletion(
     runId: string,
-    timeoutMs: number = 600_000, // 10 minutes max per product
-    pollIntervalMs: number = 5_000 // Check every 5 seconds
+    timeoutMs: number = WORKFLOW_TIMEOUT_MS,
+    pollIntervalMs: number = BATCH_POLL_INTERVAL_MS
   ): Promise<void> {
     const startTime = Date.now();
 

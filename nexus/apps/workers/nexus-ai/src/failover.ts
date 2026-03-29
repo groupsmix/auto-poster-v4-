@@ -5,7 +5,7 @@
 // ============================================================
 
 import type { Env } from "@nexus/shared";
-import { getMidnightTimestamp } from "@nexus/shared";
+import { getMidnightTimestamp, RATE_LIMIT_SLEEP_MS } from "@nexus/shared";
 import { checkCache, writeCache } from "./cache";
 import { callAIviaGateway } from "./gateway";
 import { updateHealthScore } from "./health";
@@ -141,7 +141,7 @@ export async function runWithFailover(
       if (error.status === 429) {
         // Rate limited — sleep for 1 hour
         state.status = "rate_limited";
-        state.rateLimitResetAt = Date.now() + 3_600_000;
+        state.rateLimitResetAt = Date.now() + RATE_LIMIT_SLEEP_MS;
         console.log(`[LIMIT] ${model.name} -> sleep 1hr`);
       } else if (
         error.status === 402 ||

@@ -111,35 +111,7 @@ export class CFImages {
     return `https://imagedelivery.net/${this.accountId}/${imageId}/${variant}`;
   }
 
-  /** List images for a product (filtered by metadata) */
-  async listImages(
-    productId: string
-  ): Promise<CFImageInfo[]> {
-    // CF Images API doesn't support filtering by metadata directly,
-    // so we list all and filter client-side. For production, consider
-    // tracking image IDs in D1 assets table instead.
-    const response = await fetch(this.baseUrl, {
-      method: "GET",
-      headers: this.headers,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `CF Images list failed: ${response.status} ${errorText}`
-      );
-    }
-
-    const data = (await response.json()) as {
-      success: boolean;
-      result: { images: CFImageInfo[] };
-    };
-
-    if (!data.success) return [];
-
-    // Filter by product_id in metadata
-    return data.result.images.filter(
-      (img) => img.metadata?.product_id === productId
-    );
-  }
+  // NOTE: listImages was removed — it fetched ALL images from CF Images API
+  // and filtered client-side by product_id metadata, which doesn't scale.
+  // Use the D1 assets table to look up image IDs by product_id instead.
 }
