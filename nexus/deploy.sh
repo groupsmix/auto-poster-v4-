@@ -1,19 +1,34 @@
 #!/usr/bin/env bash
 # ============================================================
-# NEXUS — Deploy All Workers (Dependency Order)
+# NEXUS — Full Deployment Script
 # ============================================================
+# Handles the complete deployment pipeline:
+#   1. D1 database migrations
+#   2. Seed prompts, domains, categories, platforms, social channels, AI models
+#   3. Deploy all 5 workers in dependency order
+#   4. Deploy frontend to CF Pages
+#   5. Set all secrets
+#
 # Usage:
-#   ./deploy.sh          # Deploy all workers
-#   ./deploy.sh --dry    # Dry run (show commands only)
-#   ./deploy.sh storage  # Deploy only nexus-storage
-#   ./deploy.sh ai       # Deploy only nexus-ai
+#   ./deploy.sh              # Full deploy (migrations + seed + workers + pages)
+#   ./deploy.sh --dry        # Dry run (show commands only)
+#   ./deploy.sh --workers    # Deploy workers only (skip migrations/seed/pages)
+#   ./deploy.sh --migrate    # Run migrations only
+#   ./deploy.sh --seed       # Run seed script only
+#   ./deploy.sh --pages      # Deploy CF Pages only
+#   ./deploy.sh --secrets    # Set all secrets interactively
+#   ./deploy.sh storage      # Deploy a single worker
 # ============================================================
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKERS_DIR="apps/workers"
+MIGRATIONS_DIR="migrations"
+FRONTEND_DIR="apps/web"
 DRY_RUN=false
 TARGET=""
+MODE="full"  # full, workers, migrate, seed, pages, secrets
 
 # Parse arguments
 for arg in "$@"; do
@@ -21,8 +36,24 @@ for arg in "$@"; do
     --dry|--dry-run)
       DRY_RUN=true
       ;;
+    --workers)
+      MODE="workers"
+      ;;
+    --migrate)
+      MODE="migrate"
+      ;;
+    --seed)
+      MODE="seed"
+      ;;
+    --pages)
+      MODE="pages"
+      ;;
+    --secrets)
+      MODE="secrets"
+      ;;
     *)
       TARGET="$arg"
+      MODE="single"
       ;;
   esac
 done
@@ -32,14 +63,61 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 log()  { echo -e "${GREEN}[DEPLOY]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 err()  { echo -e "${RED}[ERROR]${NC} $1"; }
 info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+step() { echo -e "${CYAN}[STEP]${NC} $1"; }
 
-# Deploy a single worker
+# ── Step 1: D1 Migrations ──────────────────────────────────
+run_migrations() {
+  step "Running D1 database migrations..."
+
+  local migration_files=(
+    "${MIGRATIONS_DIR}/001_initial_schema.sql"
+    "${MIGRATIONS_DIR}/002_v4_analytics.sql"
+  )
+
+  for migration in "${migration_files[@]}"; do
+    if [ ! -f "$migration" ]; then
+      warn "Migration file not found: $migration (skipping)"
+      continue
+    fi
+
+    local basename
+    basename=$(basename "$migration")
+    log "Applying migration: $basename"
+
+    if [ "$DRY_RUN" = true ]; then
+      info "  (dry run) wrangler d1 execute nexus-db --file=$migration --remote"
+    else
+      npx wrangler d1 execute nexus-db --file="$migration" --remote
+    fi
+
+    log "Migration $basename applied successfully"
+  done
+
+  echo ""
+}
+
+# ── Step 2: Seed Data ──────────────────────────────────────
+run_seed() {
+  step "Seeding prompts, domains, categories, platforms, social channels, AI models..."
+
+  if [ "$DRY_RUN" = true ]; then
+    info "  (dry run) npx tsx scripts/seed-prompts.ts"
+  else
+    npx tsx scripts/seed-prompts.ts
+  fi
+
+  log "Seed script completed"
+  echo ""
+}
+
+# ── Step 3: Deploy Workers ─────────────────────────────────
 deploy_worker() {
   local name=$1
   local dir="${WORKERS_DIR}/${name}"
@@ -61,67 +139,210 @@ deploy_worker() {
   echo ""
 }
 
+deploy_all_workers() {
+  step "Deploying all 5 workers in dependency order..."
+  info "Order: nexus-storage → nexus-ai → nexus-variation → nexus-workflow → nexus-router"
+  echo ""
+
+  # Deploy in dependency order:
+  # 1. nexus-storage  — no dependencies (foundation layer)
+  # 2. nexus-ai       — depends on nexus-storage (service binding)
+  # 3. nexus-variation — depends on nexus-ai + nexus-storage (service bindings)
+  # 4. nexus-workflow  — depends on nexus-ai + nexus-variation + nexus-storage
+  # 5. nexus-router    — depends on ALL other workers (API gateway)
+  deploy_worker "nexus-storage"
+  deploy_worker "nexus-ai"
+  deploy_worker "nexus-variation"
+  deploy_worker "nexus-workflow"
+  deploy_worker "nexus-router"
+
+  log "All 5 workers deployed successfully!"
+  echo ""
+}
+
+# ── Step 4: Deploy Frontend (CF Pages) ─────────────────────
+deploy_pages() {
+  step "Deploying frontend to Cloudflare Pages..."
+
+  if [ ! -d "$FRONTEND_DIR" ]; then
+    err "Frontend directory not found: $FRONTEND_DIR"
+    return 1
+  fi
+
+  log "Building frontend..."
+  if [ "$DRY_RUN" = true ]; then
+    info "  (dry run) cd $FRONTEND_DIR && pnpm run build"
+    info "  (dry run) npx wrangler pages deploy out --project-name=nexus-dashboard"
+  else
+    (cd "$FRONTEND_DIR" && pnpm run build)
+    (cd "$FRONTEND_DIR" && npx wrangler pages deploy out --project-name=nexus-dashboard)
+  fi
+
+  log "Frontend deployed to CF Pages!"
+  echo ""
+}
+
+# ── Step 5: Set Secrets ────────────────────────────────────
+set_secrets() {
+  step "Setting worker secrets..."
+
+  # List of all secrets that need to be set across workers
+  # AI API keys (set on nexus-ai)
+  local AI_SECRETS=(
+    "DEEPSEEK_API_KEY"
+    "SILICONFLOW_API_KEY"
+    "MOONSHOT_API_KEY"
+    "GROQ_API_KEY"
+    "FIREWORKS_API_KEY"
+    "HF_API_KEY"
+    "TAVILY_API_KEY"
+    "EXA_API_KEY"
+    "SERPAPI_API_KEY"
+    "DATAFORSEO_API_KEY"
+    "FAL_API_KEY"
+    "IDEOGRAM_API_KEY"
+    "SEGMIND_API_KEY"
+    "CLIPDROP_API_KEY"
+    "SUNO_API_KEY"
+    "UDIO_API_KEY"
+    "MINIMAX_API_KEY"
+    "PRINTFUL_API_KEY"
+    "PRINTIFY_API_KEY"
+    "GOOGLE_API_KEY"
+  )
+
+  # Storage secrets
+  local STORAGE_SECRETS=(
+    "CF_ACCOUNT_ID"
+    "CF_IMAGES_TOKEN"
+  )
+
+  # Router secrets (auth)
+  local ROUTER_SECRETS=(
+    "DASHBOARD_SECRET"
+  )
+
+  if [ "$DRY_RUN" = true ]; then
+    info "Secrets to set on nexus-ai:"
+    for secret in "${AI_SECRETS[@]}"; do
+      info "  wrangler secret put $secret --name nexus-ai"
+    done
+    info ""
+    info "Secrets to set on nexus-storage:"
+    for secret in "${STORAGE_SECRETS[@]}"; do
+      info "  wrangler secret put $secret --name nexus-storage"
+    done
+    info ""
+    info "Secrets to set on nexus-router:"
+    for secret in "${ROUTER_SECRETS[@]}"; do
+      info "  wrangler secret put $secret --name nexus-router"
+    done
+  else
+    warn "Interactive secret setting — you will be prompted for each value."
+    warn "Press Ctrl+C to skip remaining secrets."
+    echo ""
+
+    for secret in "${AI_SECRETS[@]}"; do
+      log "Setting $secret on nexus-ai..."
+      npx wrangler secret put "$secret" --name nexus-ai || warn "Skipped $secret"
+    done
+
+    for secret in "${STORAGE_SECRETS[@]}"; do
+      log "Setting $secret on nexus-storage..."
+      npx wrangler secret put "$secret" --name nexus-storage || warn "Skipped $secret"
+    done
+
+    for secret in "${ROUTER_SECRETS[@]}"; do
+      log "Setting $secret on nexus-router..."
+      npx wrangler secret put "$secret" --name nexus-router || warn "Skipped $secret"
+    done
+  fi
+
+  echo ""
+  log "Secrets configuration complete!"
+  echo ""
+}
+
+# ── Main Entry Point ──────────────────────────────────────
+
 echo ""
-echo "============================================"
-echo "  NEXUS — Worker Deployment"
-echo "============================================"
+echo "============================================================"
+echo "  NEXUS — Full Deployment Pipeline"
+echo "============================================================"
 echo ""
 
-# If a specific target is given, deploy only that worker
-if [ -n "$TARGET" ]; then
-  case "$TARGET" in
-    storage|nexus-storage)
-      deploy_worker "nexus-storage"
-      ;;
-    ai|nexus-ai)
-      deploy_worker "nexus-ai"
-      ;;
-    variation|nexus-variation)
-      deploy_worker "nexus-variation"
-      ;;
-    workflow|nexus-workflow)
-      deploy_worker "nexus-workflow"
-      ;;
-    router|nexus-router)
-      deploy_worker "nexus-router"
-      ;;
-    *)
-      err "Unknown worker: $TARGET"
-      echo "  Available: storage, ai, variation, workflow, router"
-      exit 1
-      ;;
-  esac
-  exit 0
+if [ "$DRY_RUN" = true ]; then
+  warn "DRY RUN MODE — no changes will be made"
+  echo ""
 fi
 
-# Deploy ALL workers in dependency order:
-#
-# 1. nexus-storage  — no dependencies (foundation layer)
-# 2. nexus-ai       — depends on nexus-storage (service binding)
-# 3. nexus-variation — depends on nexus-ai + nexus-storage (service bindings)
-# 4. nexus-workflow  — depends on nexus-ai + nexus-variation + nexus-storage
-# 5. nexus-router    — depends on ALL other workers (API gateway)
-#
-# This order ensures each worker's service binding targets exist before deploy.
+case "$MODE" in
+  single)
+    # Deploy a single worker
+    case "$TARGET" in
+      storage|nexus-storage)   deploy_worker "nexus-storage" ;;
+      ai|nexus-ai)             deploy_worker "nexus-ai" ;;
+      variation|nexus-variation) deploy_worker "nexus-variation" ;;
+      workflow|nexus-workflow)  deploy_worker "nexus-workflow" ;;
+      router|nexus-router)     deploy_worker "nexus-router" ;;
+      *)
+        err "Unknown worker: $TARGET"
+        echo "  Available: storage, ai, variation, workflow, router"
+        exit 1
+        ;;
+    esac
+    ;;
 
-info "Deploy order: storage → ai → variation → workflow → router"
-echo ""
+  migrate)
+    run_migrations
+    ;;
 
-deploy_worker "nexus-storage"
-deploy_worker "nexus-ai"
-deploy_worker "nexus-variation"
-deploy_worker "nexus-workflow"
-deploy_worker "nexus-router"
+  seed)
+    run_seed
+    ;;
 
-echo "============================================"
-log "All 5 workers deployed successfully!"
-echo "============================================"
-echo ""
-info "Next steps:"
-info "  1. Set secrets: wrangler secret put <KEY> --name <worker-name>"
-info "  2. Create D1 database: wrangler d1 create nexus-db"
-info "  3. Create KV namespace: wrangler kv namespace create CACHE"
-info "  4. Create R2 bucket: wrangler r2 bucket create nexus-assets"
-info "  5. Update placeholder IDs in wrangler.toml files with real IDs"
-info "  6. Re-deploy after updating IDs: ./deploy.sh"
-echo ""
+  workers)
+    deploy_all_workers
+    ;;
+
+  pages)
+    deploy_pages
+    ;;
+
+  secrets)
+    set_secrets
+    ;;
+
+  full)
+    # Full deployment pipeline
+    step "Starting full deployment pipeline..."
+    echo ""
+
+    # 1. Migrations
+    run_migrations
+
+    # 2. Seed data
+    run_seed
+
+    # 3. Deploy workers
+    deploy_all_workers
+
+    # 4. Deploy frontend
+    deploy_pages
+
+    # 5. Show secrets reminder
+    echo "============================================================"
+    log "Full deployment pipeline complete!"
+    echo "============================================================"
+    echo ""
+    info "Post-deploy checklist:"
+    info "  1. Run './deploy.sh --secrets' to set API keys (if not already done)"
+    info "  2. Verify workers: curl https://nexus-router.<account>.workers.dev/health"
+    info "  3. Verify dashboard: visit your CF Pages URL"
+    info "  4. Run a test workflow through the dashboard"
+    echo ""
+    info "To re-deploy a single worker:"
+    info "  ./deploy.sh storage   # or: ai, variation, workflow, router"
+    echo ""
+    ;;
+esac
