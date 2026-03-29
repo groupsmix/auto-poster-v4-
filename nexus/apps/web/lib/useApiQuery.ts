@@ -16,10 +16,16 @@ interface UseApiQueryResult<T> {
  * When the API call fails or returns `{ success: false }`, the hook
  * transparently falls back to `mockFallback` and sets `isUsingMock = true`
  * so the UI can display a banner.
+ *
+ * @param fetcher  — async function that calls the API
+ * @param mockFallback — data returned when the API is unreachable
+ * @param deps — optional dependency array; the query re-runs whenever any
+ *               value in this array changes (similar to useEffect deps)
  */
 export function useApiQuery<T>(
   fetcher: () => Promise<{ success: boolean; data?: T; error?: string }>,
   mockFallback: T,
+  deps: readonly unknown[] = [],
 ): UseApiQueryResult<T> {
   const [data, setData] = useState<T>(mockFallback);
   const [loading, setLoading] = useState(true);
@@ -52,7 +58,8 @@ export function useApiQuery<T>(
     } finally {
       setLoading(false);
     }
-  }, [mockFallback]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mockFallback, ...deps]);
 
   useEffect(() => {
     doFetch();

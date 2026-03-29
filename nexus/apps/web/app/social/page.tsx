@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
+import { useApiQuery } from "@/lib/useApiQuery";
 import type { SocialChannelFull } from "@/lib/api";
 
 // Mock data matching the architecture doc (Part 8)
@@ -99,9 +100,12 @@ function generateSlug(name: string): string {
 }
 
 export default function SocialPage() {
-  const [channels, setChannels] = useState<SocialChannelFull[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isUsingMock, setIsUsingMock] = useState(false);
+  const { data: fetchedChannels, loading, isUsingMock, refetch: fetchChannels } = useApiQuery(
+    () => api.socialChannels.list(),
+    MOCK_CHANNELS,
+  );
+
+  const [channels, setChannels] = useState<SocialChannelFull[]>(MOCK_CHANNELS);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<SocialChannelFull | null>(null);
   const [saving, setSaving] = useState(false);
@@ -110,37 +114,18 @@ export default function SocialPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [postingMode, setPostingMode] = useState<"auto" | "manual">("manual");
 
-  const fetchChannels = useCallback(async () => {
-    setLoading(true);
-    let usingMock = false;
-    try {
-      const response = await api.socialChannels.list();
-      if (response.success && response.data) {
-        setChannels(response.data);
-      } else {
-        setChannels(MOCK_CHANNELS);
-        usingMock = true;
-      }
-    } catch {
-      setChannels(MOCK_CHANNELS);
-      usingMock = true;
-    }
-    // Fetch posting mode setting
-    try {
-      const modeRes = await api.settings.get("posting_mode");
+  useEffect(() => {
+    setChannels(fetchedChannels);
+  }, [fetchedChannels]);
+
+  // Fetch posting mode setting on mount
+  useEffect(() => {
+    api.settings.get("posting_mode").then((modeRes) => {
       if (modeRes.success && modeRes.data) {
         setPostingMode(modeRes.data.value as "auto" | "manual");
       }
-    } catch {
-      // keep default
-    }
-    setIsUsingMock(usingMock);
-    setLoading(false);
+    }).catch(() => { /* keep default */ });
   }, []);
-
-  useEffect(() => {
-    fetchChannels();
-  }, [fetchChannels]);
 
   const handleTogglePostingMode = async () => {
     const next = postingMode === "auto" ? "manual" : "auto";

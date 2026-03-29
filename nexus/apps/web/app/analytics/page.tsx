@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
+import { useApiQuery } from "@/lib/useApiQuery";
 import type {
   AnalyticsSummary,
   AIUsageOverTime,
@@ -127,49 +127,37 @@ function formatDuration(ms: number): string {
 }
 
 export default function AnalyticsPage() {
-  const [summary, setSummary] = useState<AnalyticsSummary>(MOCK_SUMMARY);
-  const [aiUsage, setAiUsage] = useState<AIUsageOverTime[]>(MOCK_AI_USAGE);
-  const [costBreakdown, setCostBreakdown] = useState<CostBreakdownItem[]>(MOCK_COST_BREAKDOWN);
-  const [cacheHitTrend, setCacheHitTrend] = useState<CacheHitTrendItem[]>(MOCK_CACHE_TREND);
-  const [productsByDomain, setProductsByDomain] = useState<DomainBreakdownItem[]>(MOCK_BY_DOMAIN);
-  const [productsByCategory, setProductsByCategory] = useState<CategoryBreakdownItem[]>(MOCK_BY_CATEGORY);
-  const [leaderboard, setLeaderboard] = useState<AILeaderboardEntry[]>(MOCK_LEADERBOARD);
-  const [loading, setLoading] = useState(true);
-  const [isUsingMock, setIsUsingMock] = useState(false);
+  const { data: summary, loading: l1, isUsingMock: m1 } = useApiQuery(
+    () => api.analytics.summary(),
+    MOCK_SUMMARY,
+  );
+  const { data: aiUsage, loading: l2, isUsingMock: m2 } = useApiQuery(
+    () => api.analytics.aiUsageOverTime(),
+    MOCK_AI_USAGE,
+  );
+  const { data: costBreakdown, loading: l3, isUsingMock: m3 } = useApiQuery(
+    () => api.analytics.costBreakdown(),
+    MOCK_COST_BREAKDOWN,
+  );
+  const { data: cacheHitTrend, loading: l4, isUsingMock: m4 } = useApiQuery(
+    () => api.analytics.cacheHitTrend(),
+    MOCK_CACHE_TREND,
+  );
+  const { data: productsByDomain, loading: l5, isUsingMock: m5 } = useApiQuery(
+    () => api.analytics.productsByDomain(),
+    MOCK_BY_DOMAIN,
+  );
+  const { data: productsByCategory, loading: l6, isUsingMock: m6 } = useApiQuery(
+    () => api.analytics.productsByCategory(),
+    MOCK_BY_CATEGORY,
+  );
+  const { data: leaderboard, loading: l7, isUsingMock: m7 } = useApiQuery(
+    () => api.analytics.aiLeaderboard(),
+    MOCK_LEADERBOARD,
+  );
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    let usingMock = false;
-    try {
-      const [summaryRes, usageRes, costRes, cacheRes, domainRes, categoryRes, leaderRes] =
-        await Promise.all([
-          api.analytics.summary(),
-          api.analytics.aiUsageOverTime(),
-          api.analytics.costBreakdown(),
-          api.analytics.cacheHitTrend(),
-          api.analytics.productsByDomain(),
-          api.analytics.productsByCategory(),
-          api.analytics.aiLeaderboard(),
-        ]);
-
-      if (summaryRes.success && summaryRes.data) setSummary(summaryRes.data); else usingMock = true;
-      if (usageRes.success && usageRes.data) setAiUsage(usageRes.data); else usingMock = true;
-      if (costRes.success && costRes.data) setCostBreakdown(costRes.data); else usingMock = true;
-      if (cacheRes.success && cacheRes.data) setCacheHitTrend(cacheRes.data); else usingMock = true;
-      if (domainRes.success && domainRes.data) setProductsByDomain(domainRes.data); else usingMock = true;
-      if (categoryRes.success && categoryRes.data) setProductsByCategory(categoryRes.data); else usingMock = true;
-      if (leaderRes.success && leaderRes.data) setLeaderboard(leaderRes.data); else usingMock = true;
-      setIsUsingMock(usingMock);
-    } catch {
-      setIsUsingMock(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const loading = l1 || l2 || l3 || l4 || l5 || l6 || l7;
+  const isUsingMock = m1 || m2 || m3 || m4 || m5 || m6 || m7;
 
   // Sort leaderboard by health_score desc, then total_calls desc
   const sortedLeaderboard = [...leaderboard].sort(

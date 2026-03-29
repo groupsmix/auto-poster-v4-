@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
+import { useApiQuery } from "@/lib/useApiQuery";
 import type { ReviewItem } from "@/lib/api";
 
 // Mock data for when API is not available
@@ -152,40 +153,22 @@ function DecisionBadge({ decision }: { decision?: string }) {
 
 export default function ReviewCenterPage() {
   const [activeTab, setActiveTab] = useState<Tab>("pending");
-  const [pending, setPending] = useState<ReviewItem[]>([]);
-  const [inRevision, setInRevision] = useState<ReviewItem[]>([]);
-  const [history, setHistory] = useState<ReviewItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isUsingMock, setIsUsingMock] = useState(false);
 
-  const fetchReviews = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [pendingRes, revisionRes, historyRes] = await Promise.all([
-        api.reviews.pending(),
-        api.reviews.inRevision(),
-        api.reviews.history(),
-      ]);
-      const pMock = !(pendingRes.success && pendingRes.data);
-      const rMock = !(revisionRes.success && revisionRes.data);
-      const hMock = !(historyRes.success && historyRes.data);
-      setPending(pMock ? MOCK_PENDING : pendingRes.data!);
-      setInRevision(rMock ? MOCK_IN_REVISION : revisionRes.data!);
-      setHistory(hMock ? MOCK_HISTORY : historyRes.data!);
-      setIsUsingMock(pMock || rMock || hMock);
-    } catch {
-      setPending(MOCK_PENDING);
-      setInRevision(MOCK_IN_REVISION);
-      setHistory(MOCK_HISTORY);
-      setIsUsingMock(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data: pending, loading: loadingPending, isUsingMock: mockPending } = useApiQuery(
+    () => api.reviews.pending(),
+    MOCK_PENDING,
+  );
+  const { data: inRevision, loading: loadingRevision, isUsingMock: mockRevision } = useApiQuery(
+    () => api.reviews.inRevision(),
+    MOCK_IN_REVISION,
+  );
+  const { data: history, loading: loadingHistory, isUsingMock: mockHistory } = useApiQuery(
+    () => api.reviews.history(),
+    MOCK_HISTORY,
+  );
 
-  useEffect(() => {
-    fetchReviews();
-  }, [fetchReviews]);
+  const loading = loadingPending || loadingRevision || loadingHistory;
+  const isUsingMock = mockPending || mockRevision || mockHistory;
 
   const formatDate = (d: string) => {
     return new Date(d).toLocaleDateString("en-US", {

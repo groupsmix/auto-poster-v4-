@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
+import { useApiQuery } from "@/lib/useApiQuery";
 import type { WorkflowRun, WorkflowStep, RevisionEntry } from "@/lib/api";
 import CacheIndicator from "@/components/CacheIndicator";
 
@@ -143,40 +144,20 @@ function formatDate(d: string) {
 }
 
 export default function HistoryPage() {
-  const [runs, setRuns] = useState<WorkflowRun[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isUsingMock, setIsUsingMock] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("");
+
+  const { data: runs, loading, isUsingMock } = useApiQuery(
+    () => api.history.listRuns(filterStatus ? { status: filterStatus } : undefined),
+    MOCK_RUNS,
+    [filterStatus],
+  );
+
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const [steps, setSteps] = useState<Record<string, WorkflowStep[]>>({});
   const [stepsLoading, setStepsLoading] = useState<Record<string, boolean>>({});
   const [revisionsModal, setRevisionsModal] = useState<string | null>(null);
   const [revisions, setRevisions] = useState<RevisionEntry[]>([]);
   const [revisionsLoading, setRevisionsLoading] = useState(false);
-  const [filterStatus, setFilterStatus] = useState("");
-
-  const fetchRuns = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = filterStatus ? { status: filterStatus } : undefined;
-      const response = await api.history.listRuns(params);
-      if (response.success && response.data) {
-        setRuns(response.data);
-        setIsUsingMock(false);
-      } else {
-        setRuns(MOCK_RUNS);
-        setIsUsingMock(true);
-      }
-    } catch {
-      setRuns(MOCK_RUNS);
-      setIsUsingMock(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [filterStatus]);
-
-  useEffect(() => {
-    fetchRuns();
-  }, [fetchRuns]);
 
   const toggleExpand = async (runId: string) => {
     if (expandedRun === runId) {

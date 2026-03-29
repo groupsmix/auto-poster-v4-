@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
+import { useApiQuery } from "@/lib/useApiQuery";
 import type { AIModel } from "@/lib/api";
 
 // Task type labels for grouping
@@ -130,9 +131,12 @@ function formatNumber(n: number): string {
 }
 
 export default function AIManagerPage() {
-  const [models, setModels] = useState<AIModel[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isUsingMock, setIsUsingMock] = useState(false);
+  const { data: fetchedModels, loading, isUsingMock } = useApiQuery(
+    () => api.aiModels.list(),
+    MOCK_MODELS,
+  );
+
+  const [models, setModels] = useState<AIModel[]>(MOCK_MODELS);
   const [activeTaskType, setActiveTaskType] = useState<string | null>(null);
   const [keyInput, setKeyInput] = useState<{ modelId: string; value: string } | null>(null);
   const [addingKey, setAddingKey] = useState(false);
@@ -142,28 +146,10 @@ export default function AIManagerPage() {
   const dragItemRef = useRef<number | null>(null);
   const dragOverRef = useRef<number | null>(null);
 
-  const fetchModels = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await api.aiModels.list();
-      if (response.success && response.data) {
-        setModels(response.data);
-        setIsUsingMock(false);
-      } else {
-        setModels(MOCK_MODELS);
-        setIsUsingMock(true);
-      }
-    } catch {
-      setModels(MOCK_MODELS);
-      setIsUsingMock(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Sync hook data into local mutable state
   useEffect(() => {
-    fetchModels();
-  }, [fetchModels]);
+    setModels(fetchedModels);
+  }, [fetchedModels]);
 
   // Group models by task type
   const modelsByTask: Record<string, AIModel[]> = {};

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
+import { useApiQuery } from "@/lib/useApiQuery";
 import type { APIKeyEntry } from "@/lib/api";
 
 // All possible API keys from the architecture doc
@@ -108,11 +109,21 @@ function ToggleSwitch({
   );
 }
 
+const MOCK_API_KEYS: APIKeyEntry[] = ALL_API_KEYS.map((k) => ({
+  ...k,
+  status: ["DEEPSEEK_API_KEY", "GROQ_API_KEY", "TAVILY_API_KEY"].includes(k.key_name)
+    ? ("active" as const)
+    : ("not_set" as const),
+}));
+
 export default function SettingsPage() {
+  const { data: fetchedKeys, loading, isUsingMock } = useApiQuery(
+    () => api.apiKeys.list(),
+    MOCK_API_KEYS,
+  );
+
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
-  const [apiKeys, setApiKeys] = useState<APIKeyEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isUsingMock, setIsUsingMock] = useState(false);
+  const [apiKeys, setApiKeys] = useState<APIKeyEntry[]>(MOCK_API_KEYS);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [addKeyModal, setAddKeyModal] = useState<string | null>(null);
@@ -120,14 +131,14 @@ export default function SettingsPage() {
   const [addingKey, setAddingKey] = useState(false);
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
 
-  const fetchSettings = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [settingsRes, keysRes] = await Promise.all([
-        api.settings.getAll(),
-        api.apiKeys.list(),
-      ]);
+  // Sync hook data into local mutable state
+  useEffect(() => {
+    setApiKeys(fetchedKeys);
+  }, [fetchedKeys]);
 
+  // Fetch settings (merges into defaults, no mock needed)
+  useEffect(() => {
+    api.settings.getAll().then((settingsRes) => {
       if (settingsRes.success && settingsRes.data) {
         setSettings((prev) => ({
           ...prev,
@@ -138,44 +149,8 @@ export default function SettingsPage() {
           ),
         }));
       }
-
-      if (keysRes.success && keysRes.data) {
-        setApiKeys(keysRes.data);
-      } else {
-        // Build from ALL_API_KEYS with mock statuses
-        setApiKeys(
-          ALL_API_KEYS.map((k) => ({
-            ...k,
-            status: ["DEEPSEEK_API_KEY", "GROQ_API_KEY", "TAVILY_API_KEY"].includes(
-              k.key_name
-            )
-              ? ("active" as const)
-              : ("not_set" as const),
-          }))
-        );
-        setIsUsingMock(true);
-      }
-    } catch {
-      // Use defaults and mock keys
-      setApiKeys(
-        ALL_API_KEYS.map((k) => ({
-          ...k,
-          status: ["DEEPSEEK_API_KEY", "GROQ_API_KEY", "TAVILY_API_KEY"].includes(
-            k.key_name
-          )
-            ? ("active" as const)
-            : ("not_set" as const),
-        }))
-      );
-      setIsUsingMock(true);
-    } finally {
-      setLoading(false);
-    }
+    }).catch(() => { /* keep defaults */ });
   }, []);
-
-  useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
 
   const handleSave = async () => {
     setSaving(true);

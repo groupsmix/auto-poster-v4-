@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, use } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { useApiQuery } from "@/lib/useApiQuery";
 import type { Product } from "@/lib/api";
 import PlatformVariantPreview from "@/components/PlatformVariantPreview";
 import SocialVariantPreview from "@/components/SocialVariantPreview";
@@ -118,36 +119,16 @@ export default function ProductDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const [product, setProduct] = useState<ProductDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const { data: product, loading } = useApiQuery(
+    () => api.products.get(id) as Promise<{ success: boolean; data?: ProductDetail; error?: string }>,
+    { ...MOCK_DETAIL, id },
+    [id],
+  );
+
   const [activePlatformTab, setActivePlatformTab] = useState(0);
   const [activeSocialTab, setActiveSocialTab] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchProduct = async () => {
-      setLoading(true);
-      try {
-        const response = await api.products.get(id);
-        if (!cancelled && response.success && response.data) {
-          setProduct(response.data as ProductDetail);
-        } else if (!cancelled) {
-          setProduct({ ...MOCK_DETAIL, id });
-        }
-      } catch {
-        if (!cancelled) setProduct({ ...MOCK_DETAIL, id });
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    fetchProduct();
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
 
   const handleDelete = async () => {
     try {
