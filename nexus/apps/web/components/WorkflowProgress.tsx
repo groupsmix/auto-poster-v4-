@@ -63,6 +63,7 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
 
   useEffect(() => {
     let cancelled = false;
+    const TERMINAL_STATES = ["completed", "failed", "cancelled", "pending_review"];
 
     const fetchProgress = async () => {
       try {
@@ -72,6 +73,10 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
           if (response.data.status === "pending_review") {
             router.push(`/review/${response.data.id}`);
           }
+          // Stop polling on terminal states
+          if (TERMINAL_STATES.includes(response.data.status)) {
+            cancelled = true;
+          }
         }
       } catch {
         // Keep showing current state on error
@@ -79,10 +84,27 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
     };
 
     fetchProgress();
-    const interval = setInterval(fetchProgress, 3000);
+    let pollCount = 0;
+    const getInterval = () => {
+      if (pollCount > 30) return 10000;
+      if (pollCount > 10) return 3000;
+      return 1000;
+    };
+    let timer: ReturnType<typeof setTimeout>;
+    const schedulePoll = () => {
+      timer = setTimeout(async () => {
+        if (cancelled) return;
+        pollCount++;
+        await fetchProgress();
+        if (!cancelled) {
+          schedulePoll();
+        }
+      }, getInterval());
+    };
+    schedulePoll();
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      clearTimeout(timer);
     };
   }, [workflowId, router]);
 

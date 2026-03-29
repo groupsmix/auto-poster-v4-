@@ -16,6 +16,28 @@ import type {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
 
+/**
+ * Retry wrapper for fetch: retries up to `retries` times with 1s delay
+ * for network errors and 5xx responses. Does not retry 4xx (client errors).
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = 2
+): Promise<Response> {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok || response.status < 500) return response;
+      if (i < retries) await new Promise((r) => setTimeout(r, 1000));
+    } catch (e) {
+      if (i === retries) throw e;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
+
 interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -59,7 +81,7 @@ async function request<T>(
   }
 
   try {
-    const response = await fetch(`${API_BASE}${endpoint}`, config);
+    const response = await fetchWithRetry(`${API_BASE}${endpoint}`, config);
     const data = await response.json();
 
     if (!response.ok) {
