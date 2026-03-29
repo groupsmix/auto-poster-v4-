@@ -2,4 +2,13 @@ name = "nexus-variation"
 main = "src/index.ts"
 compatibility_date = "2024-12-30"
 
-# KV, D1 bindings — filled in during Task 16
+# Service Bindings (free internal routing)
+[[services]]
+binding = "NEXUS_AI"
+service = "nexus-ai"
+
+[[services]]
+binding = "NEXUS_STORAGE"
+service = "nexus-storage"
+
+# KV, D1, R2 bindings — configured at deploy time (Task 16)
