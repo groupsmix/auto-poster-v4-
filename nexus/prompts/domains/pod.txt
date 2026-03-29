@@ -5,3 +5,9 @@ Key facts:
 - Most successful POD niches are hyper-specific identity groups, not generic audiences
 - Price competition is real -- differentiation must come from niche specificity and design quality
 - Etsy and Redbubble are the primary discovery channels -- optimize for both
+- Text-based designs with bold typography consistently outperform complex illustrations in sales volume
+- Mockup quality directly impacts click-through rate -- lifestyle mockups (person wearing product) outperform flat lays
+- Seasonal and trending niches (holidays, viral moments, awareness months) create demand spikes
+- Color psychology matters: design must pop on the most popular product colors (black, white, navy, heather gray)
+- Multi-product listings (same design on mugs, phone cases, stickers) maximize revenue per design
+- Keywords: "[niche] shirt", "[identity] gift", "funny [profession] tee", "[hobby] lover", "[group] pride"

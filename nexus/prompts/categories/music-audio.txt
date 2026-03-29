@@ -1,0 +1,13 @@
+Category: Music, Audio & Sound Effects
+Specific rules:
+- Licensing clarity is the #1 concern for buyers -- specify exact usage rights upfront (royalty-free, sync, commercial)
+- Audio preview is essential -- buyers will not purchase audio they cannot listen to first
+- Price range: $5-$15 for single tracks, $19-$49 for themed packs, $79-$199 for comprehensive libraries
+- Keywords: "royalty free music", "[genre] background music", "podcast intro music", "[mood] sound effects"
+- Genre and mood tagging is critical for discoverability: energetic, calm, cinematic, corporate, lo-fi
+- Format specifications matter: WAV (lossless), MP3 (compressed), stems (separate tracks) as premium tier
+- Use cases drive purchasing decisions: YouTube videos, podcasts, games, apps, corporate presentations
+- Loop-ready tracks (seamless beginning-to-end) are premium features for game and app developers
+- BPM, key, and duration metadata help professional buyers find exactly what they need
+- Bundle by theme or use case: "Complete Podcast Starter Kit" (intro, outro, transition, background)
+- Seasonal and trending sounds: holiday music, viral sound effects, trending audio styles

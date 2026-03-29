@@ -1,6 +1,12 @@
 Category: PDF Guides & Ebooks
 Specific rules:
-- Buyers want actionable, immediately usable content
-- Professional formatting and design increase perceived value
-- Table of contents and chapter structure signal quality
-- Price range: $9-$29 for guides, $29-$97 for comprehensive ebooks
+- Buyers want actionable, immediately usable content -- every page must deliver value
+- Professional formatting and design increase perceived value -- invest in layout, not just words
+- Table of contents and chapter structure signal quality and help buyers assess value before purchase
+- Price range: $9-$29 for guides, $29-$97 for comprehensive ebooks, $97-$197 for professional playbooks
+- Include checklists, worksheets, and templates within the PDF to increase perceived and actual value
+- Page count should be mentioned: "47-page comprehensive guide" signals depth without overwhelming
+- Preview pages (3-5 pages shown in listing) are the #1 conversion driver -- choose visually rich pages
+- Keywords: "[niche] guide", "[topic] ebook", "[skill] handbook", "how to [outcome] PDF"
+- Printable formatting option increases appeal: "Designed for both screen reading and printing"
+- Bundle strategy: starter guide + advanced guide + templates pack as a discounted bundle

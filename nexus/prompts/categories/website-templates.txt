@@ -1,0 +1,14 @@
+Category: Website Templates & Themes
+Specific rules:
+- Buyers want a professional online presence without hiring a developer -- sell the transformation
+- Platform specificity is essential: WordPress, Shopify, Webflow, Squarespace, HTML/CSS -- never mix
+- Mobile responsiveness is non-negotiable -- mention "fully responsive" and show mobile mockups
+- Price range: $19-$49 for landing pages, $49-$99 for multi-page themes, $99-$249 for complete site kits
+- Keywords: "[platform] theme", "[niche] website template", "[industry] landing page", "[platform] starter template"
+- Live demo site is the #1 conversion driver -- buyers must see the template working before purchase
+- Page speed and Core Web Vitals scores are increasingly important selling points
+- Include: multiple page layouts, header/footer variations, blog templates, contact forms
+- Setup documentation with step-by-step instructions reduces support requests and negative reviews
+- SEO-ready structure (proper heading hierarchy, meta tags, schema markup) is a premium differentiator
+- Niche-specific templates (restaurant, portfolio, SaaS, agency) outperform generic multi-purpose themes
+- License terms: specify single site vs. unlimited sites, personal vs. commercial use

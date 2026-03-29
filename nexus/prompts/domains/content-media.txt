@@ -1,6 +1,13 @@
-Domain context: Content & Media
+Domain context: Content & Media (Video, Music, Podcasts, Written Content)
 Key facts:
-- Content is king -- video, audio, and written content drive engagement
-- Platform-specific formats are critical (YouTube vs TikTok vs podcast)
-- SEO and discoverability differ significantly per platform
-- Monetization paths: ad revenue, sponsorships, digital products, memberships
+- Content is king -- video, audio, and written content drive engagement and build audiences
+- Platform-specific formats are critical: YouTube (long-form SEO), TikTok (short hooks), podcasts (deep value)
+- SEO and discoverability differ significantly per platform -- YouTube search vs. Apple Podcasts browse vs. Spotify algorithmic
+- Monetization paths: ad revenue, sponsorships, digital products, memberships, licensing, and syndication
+- Thumbnail and title are the #1 conversion factor for video content -- invest heavily in both
+- Audio quality is non-negotiable for podcasts and music -- poor audio is the top reason listeners abandon content
+- Consistency beats virality for long-term growth -- publish on a predictable schedule
+- Repurposing content across platforms maximizes ROI: one long video becomes shorts, tweets, blog posts, and audiograms
+- Music and sound effects have specific licensing requirements -- royalty-free, Creative Commons, and sync licensing are distinct markets
+- Keywords: "[topic] tutorial", "how to [skill]", "[niche] podcast", "royalty free [genre]", "[topic] course"
+- Engagement metrics (watch time, completion rate, saves) matter more than views for algorithm ranking

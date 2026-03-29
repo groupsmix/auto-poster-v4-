@@ -1,0 +1,13 @@
+Domain context: Automation & No-Code Tools
+Key facts:
+- Buyers want to eliminate repetitive work and build systems without writing code
+- Time savings is the #1 value proposition -- quantify hours saved per week/month in every listing
+- Integration ecosystem matters: compatibility with Zapier, Make, Notion, Airtable, Google Workspace signals value
+- Workflow templates and pre-built automations sell better than blank-canvas tools
+- Target audience ranges from solopreneurs to small teams to enterprise ops -- segment messaging accordingly
+- "Before and after" demonstrations showing manual process vs. automated process convert extremely well
+- Video walkthroughs and setup tutorials reduce support burden and increase conversion rates
+- Pricing models: one-time purchase for templates, subscription for SaaS tools, freemium for platform plays
+- Community and marketplace ecosystems (Bubble, Webflow, n8n, Make) drive organic discovery
+- Keywords: "automate [task]", "[tool] template", "no-code [solution]", "[workflow] automation"
+- Buyers fear vendor lock-in -- address data portability and export capabilities proactively

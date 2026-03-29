@@ -1,0 +1,13 @@
+Category: Prompt Libraries & AI Tools
+Specific rules:
+- Buyers want to save time crafting effective AI prompts -- sell the shortcut, not the theory
+- Organize prompts by use case, not by AI model -- buyers think in terms of tasks, not technology
+- Include example outputs showing what each prompt produces -- proof of quality converts browsers to buyers
+- Price range: $9-$19 for niche prompt packs, $27-$47 for comprehensive libraries, $67-$97 for mega bundles
+- Copy-paste ready format is essential -- buyers want zero friction between purchase and first use
+- Keywords: "ChatGPT prompts", "AI prompts for [niche]", "[profession] prompt pack", "midjourney prompts"
+- Specify which AI models the prompts work with: ChatGPT, Claude, Midjourney, DALL-E, Stable Diffusion
+- Niche-specific prompt packs (real estate, marketing, coding) outsell generic "1000 prompts" collections
+- Include a quick-start guide: "Start here" section with the 5 most impactful prompts
+- Update frequency matters: mention "regularly updated" or include version number to signal freshness
+- Bonus: include prompt engineering tips so buyers learn to modify and create their own
