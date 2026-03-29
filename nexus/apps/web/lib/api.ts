@@ -1,6 +1,19 @@
 // API client utility for nexus-router API
 // All routes are under /api/
 
+import type {
+  Domain,
+  Category,
+  PromptTemplate,
+  AIModel,
+  Product,
+  Asset,
+  WorkflowRun,
+  WorkflowStep,
+  Platform,
+  SocialChannel,
+} from "@nexus/shared";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 interface ApiResponse<T = unknown> {
@@ -266,38 +279,7 @@ export const api = {
   },
 };
 
-// Re-export types used by API consumers
-interface Domain {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  icon?: string;
-  sort_order: number;
-  is_active: boolean;
-  created_at: string;
-}
-
-interface Category {
-  id: string;
-  domain_id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  sort_order: number;
-  is_active: boolean;
-}
-
-interface PromptTemplate {
-  id: string;
-  layer: string;
-  target_id: string | null;
-  name: string;
-  prompt: string;
-  version: number;
-  is_active: boolean;
-  updated_at: string;
-}
+// --- Frontend-specific types (not in @nexus/shared) ---
 
 interface PromptVersion {
   id: string;
@@ -305,42 +287,6 @@ interface PromptVersion {
   version: number;
   prompt: string;
   updated_at: string;
-}
-
-interface AIModel {
-  id: string;
-  name: string;
-  provider: string;
-  task_type: string;
-  rank: number;
-  api_key_secret_name: string | null;
-  is_workers_ai: boolean;
-  status: string;
-  rate_limit_reset_at: string | null;
-  daily_limit_reset_at: string | null;
-  is_free_tier: boolean;
-  health_score: number;
-  total_calls: number;
-  total_failures: number;
-  avg_latency_ms: number;
-  notes: string | null;
-}
-
-interface Product {
-  id: string;
-  domain_id: string;
-  category_id: string;
-  name: string;
-  niche: string;
-  language: string;
-  user_input?: Record<string, unknown>;
-  batch_id?: string;
-  status: string;
-  created_at: string;
-  updated_at?: string;
-  domain_name?: string;
-  category_name?: string;
-  platforms?: string[];
 }
 
 interface ReviewItem {
@@ -404,29 +350,9 @@ interface PublishableProduct {
   posting_mode: string;
 }
 
-interface Asset {
-  id: string;
-  product_id: string;
-  product_name?: string;
-  asset_type: string;
-  r2_key: string;
-  cf_image_id?: string;
-  url: string;
-  metadata?: Record<string, unknown>;
-  created_at: string;
-}
-
-interface Platform {
-  id: string;
-  name: string;
-  slug: string;
-  is_active: boolean;
-}
-
-interface PlatformFull {
-  id: string;
-  name: string;
-  slug: string;
+// PlatformFull and SocialChannelFull are the same as the shared types
+// but with all optional fields required (used when fetching a single record).
+interface PlatformFull extends Platform {
   title_max_chars: number | null;
   tag_count: number | null;
   tag_max_chars: number | null;
@@ -436,26 +362,14 @@ interface PlatformFull {
   description_style: string;
   cta_style: string;
   forbidden_words: string;
-  is_active: boolean;
 }
 
-interface SocialChannel {
-  id: string;
-  name: string;
-  slug: string;
-  is_active: boolean;
-}
-
-interface SocialChannelFull {
-  id: string;
-  name: string;
-  slug: string;
+interface SocialChannelFull extends SocialChannel {
   caption_max_chars: number | null;
   hashtag_count: number | null;
   tone: string;
   format: string;
   content_types: string[];
-  is_active: boolean;
 }
 
 // Analytics types (V4)
@@ -506,40 +420,6 @@ interface AILeaderboardEntry {
   total_failures: number;
 }
 
-// History types
-interface WorkflowRun {
-  id: string;
-  product_id: string;
-  product_name: string;
-  domain_name?: string;
-  category_name?: string;
-  batch_id?: string;
-  status: string;
-  started_at: string;
-  completed_at?: string;
-  total_tokens: number;
-  total_cost: number;
-  cache_hits: number;
-  ai_models_used: string[];
-  duration_ms?: number;
-}
-
-interface WorkflowStep {
-  id: string;
-  run_id: string;
-  step_name: string;
-  step_order: number;
-  status: string;
-  ai_used: string | null;
-  ai_tried: string[];
-  tokens_used: number;
-  cost: number;
-  cached: boolean;
-  latency_ms: number;
-  started_at?: string;
-  completed_at?: string;
-}
-
 interface RevisionEntry {
   id: string;
   product_id: string;
@@ -580,7 +460,6 @@ export type {
   PlatformFull,
   SocialChannel,
   SocialChannelFull,
-  ApiResponse,
   AnalyticsSummary,
   AIUsageOverTime,
   CostBreakdownItem,

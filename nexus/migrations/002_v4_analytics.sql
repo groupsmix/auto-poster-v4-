@@ -28,7 +28,7 @@ CREATE INDEX idx_analytics_ai_model ON analytics(ai_model);
 -- SEED DATA: Default Domains (Part 3)
 -- ============================================================
 
-INSERT INTO domains (id, name, slug, icon, sort_order, is_active) VALUES
+INSERT OR IGNORE INTO domains (id, name, slug, icon, sort_order, is_active) VALUES
   ('dom_digital_products',    'Digital Products',         'digital-products',       '📦', 1,  true),
   ('dom_pod',                 'Print on Demand (POD)',    'print-on-demand',        '👕', 2,  true),
   ('dom_content_media',       'Content & Media',          'content-media',          '🎬', 3,  true),
@@ -45,7 +45,7 @@ INSERT INTO domains (id, name, slug, icon, sort_order, is_active) VALUES
 -- ============================================================
 
 -- Domain 1: Digital Products
-INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
+INSERT OR IGNORE INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_notion_templates',       'dom_digital_products', 'Notion Templates',              'notion-templates',              1,  true),
   ('cat_pdf_guides',             'dom_digital_products', 'PDF Guides & Ebooks',           'pdf-guides-ebooks',             2,  true),
   ('cat_planners',               'dom_digital_products', 'Planners & Calendars',          'planners-calendars',            3,  true),
@@ -58,7 +58,7 @@ INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_storybooks',             'dom_digital_products', 'Storybooks & Kids Books',       'storybooks-kids-books',         10, true);
 
 -- Domain 2: Print on Demand (POD)
-INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
+INSERT OR IGNORE INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_tshirts',                'dom_pod', 'T-Shirts & Apparel',        't-shirts-apparel',        1,  true),
   ('cat_mugs',                   'dom_pod', 'Mugs & Drinkware',          'mugs-drinkware',          2,  true),
   ('cat_posters',                'dom_pod', 'Posters & Wall Art',        'posters-wall-art',        3,  true),
@@ -71,7 +71,7 @@ INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_hats',                   'dom_pod', 'Hats & Accessories',        'hats-accessories',        10, true);
 
 -- Domain 3: Content & Media
-INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
+INSERT OR IGNORE INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_video_making',           'dom_content_media', 'Video Making (Scripts, Shorts, YouTube)', 'video-making',            1, true),
   ('cat_music_making',           'dom_content_media', 'Music Making (Loops, Intros, Sonic Logos)', 'music-making',          2, true),
   ('cat_podcast',                'dom_content_media', 'Podcast Content (Episodes, Show Notes)',  'podcast-content',         3, true),
@@ -82,7 +82,7 @@ INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_visual_packs',           'dom_content_media', 'Visual Asset Packs',                      'visual-asset-packs',     8, true);
 
 -- Domain 4: Freelance Services
-INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
+INSERT OR IGNORE INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_software_dev',           'dom_freelance', 'Software Development (Web, SaaS, API)',       'software-development',    1, true),
   ('cat_tech_writing',           'dom_freelance', 'Technical Writing (Docs, White Papers)',       'technical-writing',       2, true),
   ('cat_seo_marketing',          'dom_freelance', 'SEO & Digital Marketing Audits',               'seo-digital-marketing',   3, true),
@@ -93,7 +93,7 @@ INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_mobile_dev',             'dom_freelance', 'Mobile App Development',                       'mobile-app-development',  8, true);
 
 -- Domain 5: Affiliate Marketing
-INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
+INSERT OR IGNORE INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_software_comparison',    'dom_affiliate', 'Software Comparison Articles',   'software-comparison',     1, true),
   ('cat_product_reviews',        'dom_affiliate', 'Product Review Posts',           'product-review-posts',    2, true),
   ('cat_top10',                  'dom_affiliate', 'Top 10 Roundups',               'top-10-roundups',         3, true),
@@ -104,7 +104,7 @@ INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_email_sequences',        'dom_affiliate', 'Email Sequences',              'email-sequences',         8, true);
 
 -- Domain 6: E-Commerce & Retail
-INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
+INSERT OR IGNORE INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_dropshipping',           'dom_ecommerce', 'Dropshipping Product Research',   'dropshipping-research',      1, true),
   ('cat_amazon_fba',             'dom_ecommerce', 'Amazon FBA Listings',             'amazon-fba-listings',        2, true),
   ('cat_shopify_setup',          'dom_ecommerce', 'Shopify Store Setup',             'shopify-store-setup',        3, true),
@@ -114,7 +114,7 @@ INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_supplier',               'dom_ecommerce', 'Supplier Research',               'supplier-research',          7, true);
 
 -- Domain 7: Knowledge & Education
-INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
+INSERT OR IGNORE INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_online_courses',         'dom_education', 'Online Course Creation',           'online-course-creation',      1, true),
   ('cat_workshop',               'dom_education', 'Workshop Materials',               'workshop-materials',          2, true),
   ('cat_paid_newsletter',        'dom_education', 'Paid Newsletter Content',          'paid-newsletter-content',     3, true),
@@ -124,7 +124,7 @@ INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_training_manuals',       'dom_education', 'Training Manuals',                 'training-manuals',            7, true);
 
 -- Domain 8: Specialized Technology
-INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
+INSERT OR IGNORE INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_ai_implementation',      'dom_tech', 'AI Implementation Plans',           'ai-implementation-plans',     1, true),
   ('cat_cybersecurity',          'dom_tech', 'Cybersecurity Audit Reports',       'cybersecurity-audit-reports', 2, true),
   ('cat_real_estate',            'dom_tech', 'Real Estate Listing Automation',    'real-estate-automation',      3, true),
@@ -133,7 +133,7 @@ INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_proptech',               'dom_tech', 'PropTech Lead Systems',            'proptech-lead-systems',       6, true);
 
 -- Domain 9: Automation & No-Code
-INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
+INSERT OR IGNORE INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_zapier_make',            'dom_automation', 'Zapier/Make Workflow Designs',     'zapier-make-workflows',       1, true),
   ('cat_n8n',                    'dom_automation', 'n8n Automation Blueprints',        'n8n-automation-blueprints',   2, true),
   ('cat_airtable_notion',        'dom_automation', 'Airtable/Notion System Builds',   'airtable-notion-systems',     3, true),
@@ -142,7 +142,7 @@ INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_crm',                    'dom_automation', 'CRM Automation Plans',            'crm-automation-plans',        6, true);
 
 -- Domain 10: Space & Innovation
-INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
+INSERT OR IGNORE INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
   ('cat_space_tourism',          'dom_space', 'Space Tourism Content',        'space-tourism-content',       1, true),
   ('cat_satellite',              'dom_space', 'Satellite Data Reports',       'satellite-data-reports',      2, true),
   ('cat_space_merch',            'dom_space', 'Space Merchandise Concepts',   'space-merchandise-concepts',  3, true),
@@ -152,7 +152,7 @@ INSERT INTO categories (id, domain_id, name, slug, sort_order, is_active) VALUES
 -- SEED DATA: Default Platforms (Part 7)
 -- ============================================================
 
-INSERT INTO platforms (id, name, slug, title_max_chars, tag_count, tag_max_chars, audience, tone, seo_style, description_style, cta_style, rules_json, is_active) VALUES
+INSERT OR IGNORE INTO platforms (id, name, slug, title_max_chars, tag_count, tag_max_chars, audience, tone, seo_style, description_style, cta_style, rules_json, is_active) VALUES
   ('plat_etsy', 'Etsy', 'etsy', 140, 13, 20,
    'Handmade lovers, gift shoppers, small business owners',
    'Warm, personal, gift-focused, emotional',
@@ -202,7 +202,7 @@ INSERT INTO platforms (id, name, slug, title_max_chars, tag_count, tag_max_chars
 -- SEED DATA: Default Social Channels (Part 8)
 -- ============================================================
 
-INSERT INTO social_channels (id, name, slug, caption_max_chars, hashtag_count, tone, format, content_types, is_active) VALUES
+INSERT OR IGNORE INTO social_channels (id, name, slug, caption_max_chars, hashtag_count, tone, format, content_types, is_active) VALUES
   ('soc_instagram', 'Instagram', 'instagram', 2200, 30,
    'Visual, aspirational, lifestyle-focused',
    'Hook line -> value -> CTA -> hashtags',
@@ -237,7 +237,7 @@ INSERT INTO social_channels (id, name, slug, caption_max_chars, hashtag_count, t
 -- SEED DATA: Default Settings
 -- ============================================================
 
-INSERT INTO settings (key, value) VALUES
+INSERT OR IGNORE INTO settings (key, value) VALUES
   ('social_posting_mode', 'manual'),
   ('default_language', 'en'),
   ('ceo_review_required', 'true'),
@@ -251,7 +251,7 @@ INSERT INTO settings (key, value) VALUES
 -- ============================================================
 
 -- Research: Web Trend Research
-INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
+INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_tavily',            'Tavily Search',          'tavily.com',    'research', 1, 'TAVILY_API_KEY',       false, 'active', true,  'Purpose-built for AI agents. Returns clean structured web data.'),
   ('ai_exa',               'Exa Neural Search',      'exa.ai',        'research', 2, 'EXA_API_KEY',          false, 'active', true,  'Finds by meaning not keywords. Discovers emerging niches.'),
   ('ai_serpapi',            'SerpAPI',                'serpapi.com',   'research', 3, 'SERPAPI_API_KEY',      false, 'active', true,  'Raw Google results. Reliable backup for trend data.'),
@@ -259,14 +259,14 @@ INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name,
   ('ai_workers_research',   'Workers AI (Llama 3.1)', 'Cloudflare',   'research', 5, NULL,                  true,  'active', true,  'Ultimate fallback. On-platform, always available.');
 
 -- Research: Keyword & SEO Research
-INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
+INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_dataforseo',         'DataForSEO',             'dataforseo.com', 'seo',    1, 'DATAFORSEO_API_KEY',  false, 'active', true,  'Most accurate keyword volume + difficulty data.'),
   ('ai_serpapi_seo',         'SerpAPI',                'serpapi.com',    'seo',    2, 'SERPAPI_API_KEY',     false, 'active', true,  'See exactly what pages rank and why.'),
   ('ai_qwen_flash_seo',     'Qwen 3.5 Flash',        'SiliconFlow',   'seo',    3, 'SILICONFLOW_API_KEY', false, 'active', true,  'Cheapest reasoning fallback for keyword clustering.'),
   ('ai_workers_seo',         'Workers AI (Llama 3.1)', 'Cloudflare',   'seo',    4, NULL,                  true,  'active', true,  'Ultimate fallback for keyword analysis.');
 
 -- Writing: Long-form Writing
-INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
+INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_deepseek_v3_write',  'DeepSeek-V3',            'deepseek.com',  'writing', 1, 'DEEPSEEK_API_KEY',    false, 'active', true,  'Best free long-form quality. Avoids robotic patterns.'),
   ('ai_qwen_max_write',     'Qwen 3.5 Max',          'SiliconFlow',   'writing', 2, 'SILICONFLOW_API_KEY', false, 'active', true,  'Strong long-form. Especially good for technical topics.'),
   ('ai_doubao_pro_write',   'Doubao 1.5 Pro',         'SiliconFlow',   'writing', 3, 'SILICONFLOW_API_KEY', false, 'active', true,  'ByteDance model. Most human-like narrative flow.'),
@@ -276,7 +276,7 @@ INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name,
   ('ai_gpt_write',          'GPT-5.4',                'openai.com',    'writing', 7, 'OPENAI_API_KEY',      false, 'sleeping', false, 'Top-tier long-form.');
 
 -- SEO Formatting
-INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
+INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_qwen_flash_fmt',     'Qwen 3.5 Flash',        'SiliconFlow',   'seo',    5, 'SILICONFLOW_API_KEY', false, 'active', true,  'Fastest + best at constrained output.'),
   ('ai_deepseek_v3_seo',    'DeepSeek-V3',            'deepseek.com',  'seo',    6, 'DEEPSEEK_API_KEY',    false, 'active', true,  'Reliable rule-following for SEO constraints.'),
   ('ai_mistral_seo',        'Mistral 7B',             'Groq',          'seo',    7, 'GROQ_API_KEY',        false, 'active', true,  'Ultra-fast free inference. Good SEO fallback.'),
@@ -284,7 +284,7 @@ INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name,
   ('ai_workers_seo2',       'Workers AI (Llama 3.1)', 'Cloudflare',   'seo',    9, NULL,                  true,  'active', true,  'Structured output fallback.');
 
 -- Reasoning & Analysis
-INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
+INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_deepseek_r1',        'DeepSeek-R1',            'deepseek.com',  'review',  1, 'DEEPSEEK_API_KEY',    false, 'active', true,  'Best free reasoning model.'),
   ('ai_qwen_max_reason',    'Qwen 3.5 Max',          'SiliconFlow',   'review',  2, 'SILICONFLOW_API_KEY', false, 'active', true,  'Strong analytical reasoning. Great fallback.'),
   ('ai_phi4',               'Phi-4',                  'HuggingFace',   'review',  3, 'HF_API_KEY',          false, 'active', true,  'Microsoft small model. Punches above weight on logic.'),
@@ -293,7 +293,7 @@ INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name,
   ('ai_claude_reason',      'Claude Opus 4.6',       'anthropic.com', 'review',  6, 'ANTHROPIC_API_KEY',   false, 'sleeping', false, 'Deep nuanced thinking. Best for strategy.');
 
 -- Code Generation
-INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
+INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_deepseek_coder',     'DeepSeek-Coder-V3',      'deepseek.com',  'code',    1, 'DEEPSEEK_API_KEY',    false, 'active', true,  'Purpose-built for software architecture. Best free coder.'),
   ('ai_qwen_coder',         'Qwen 3.5 (Coder)',      'SiliconFlow',   'code',    2, 'SILICONFLOW_API_KEY', false, 'active', true,  'Strong full-stack. Next.js/Supabase/CF fluent.'),
   ('ai_deepseek_r1_code',   'DeepSeek-R1',            'deepseek.com',  'code',    3, 'DEEPSEEK_API_KEY',    false, 'active', true,  'Complex algorithmic problems needing reasoning first.'),
@@ -302,7 +302,7 @@ INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name,
   ('ai_claude_code',        'Claude Sonnet 4.5',      'anthropic.com', 'code',    6, 'ANTHROPIC_API_KEY',   false, 'sleeping', false, 'Best at understanding requirements -> clean code.');
 
 -- Image: Text-on-Image Generation
-INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
+INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_flux_pro',           'FLUX.1 Pro',             'fal.ai',        'image',   1, 'FAL_API_KEY',         false, 'active', true,  'Best text rendering in images. POD essential.'),
   ('ai_ideogram',           'Ideogram 3.0',           'ideogram.ai',   'image',   2, 'IDEOGRAM_API_KEY',    false, 'active', true,  'Specialized in typography + graphic design layouts.'),
   ('ai_sdxl_hf',            'SDXL',                   'HuggingFace',   'image',   3, 'HF_API_KEY',          false, 'active', true,  'Free, open. Good for illustration-style designs.'),
@@ -312,7 +312,7 @@ INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name,
   ('ai_dalle3',             'DALL-E 3',               'openai.com',    'image',   7, 'OPENAI_API_KEY',      false, 'sleeping', false, 'Reliable, clean text rendering.');
 
 -- Audio: Music Generation
-INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
+INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_suno',               'Suno',                   'suno.com',      'audio',   1, 'SUNO_API_KEY',        false, 'active', true,  'Best overall audio quality. All genres. 50 songs/day free.'),
   ('ai_udio',               'Udio',                   'udio.com',      'audio',   2, 'UDIO_API_KEY',        false, 'active', true,  'Different sonic character. Strong for specific genres.'),
   ('ai_musicgen',           'MusicGen',               'HuggingFace',   'audio',   3, 'HF_API_KEY',          false, 'active', true,  'Open source. Free. No limits. Good instrumentals.'),
@@ -320,21 +320,21 @@ INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name,
   ('ai_udio_pro',           'Udio Pro',               'udio.com',      'audio',   5, 'UDIO_API_KEY',        false, 'sleeping', false, 'Higher quality, longer generation.');
 
 -- Platform Variation AI
-INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
+INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_qwen_flash_var',     'Qwen 3.5 Flash',        'SiliconFlow',   'variation', 1, 'SILICONFLOW_API_KEY', false, 'active', true,  'Fastest at rule-based rewriting tasks.'),
   ('ai_deepseek_v3_var',    'DeepSeek-V3',            'deepseek.com',  'variation', 2, 'DEEPSEEK_API_KEY',    false, 'active', true,  'Better at maintaining quality while adapting tone.'),
   ('ai_doubao_lite_var',    'Doubao 1.5 Lite',        'SiliconFlow',   'variation', 3, 'SILICONFLOW_API_KEY', false, 'active', true,  'Micro-model. Perfect for fast variation generation.'),
   ('ai_workers_variation',  'Workers AI (Llama 3.1)', 'Cloudflare',   'variation', 4, NULL,                  true,  'active', true,  'Variation fallback.');
 
 -- Social Media Adaptation
-INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
+INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_doubao_pro_soc',     'Doubao 1.5 Pro',         'SiliconFlow',   'social',  1, 'SILICONFLOW_API_KEY', false, 'active', true,  'ByteDance. Naturally understands social platform patterns.'),
   ('ai_deepseek_v3_soc',    'DeepSeek-V3',            'deepseek.com',  'social',  2, 'DEEPSEEK_API_KEY',    false, 'active', true,  'Best at tone adaptation across platforms.'),
   ('ai_qwen_max_soc',       'Qwen 3.5 Max',          'SiliconFlow',   'social',  3, 'SILICONFLOW_API_KEY', false, 'active', true,  'Strong creative writing for social.'),
   ('ai_workers_social',     'Workers AI (Llama 3.1)', 'Cloudflare',   'social',  4, NULL,                  true,  'active', true,  'Social fallback.');
 
 -- Humanizer AI
-INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
+INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_doubao_pro_hum',     'Doubao 1.5 Pro',         'SiliconFlow',   'humanizer', 1, 'SILICONFLOW_API_KEY', false, 'active', true,  'Most human-like conversational output.'),
   ('ai_deepseek_v3_hum',    'DeepSeek-V3',            'deepseek.com',  'humanizer', 2, 'DEEPSEEK_API_KEY',    false, 'active', true,  'Naturally avoids AI writing patterns.'),
   ('ai_minimax',            'MiniMax M2.5',           'minimax.io',    'humanizer', 3, 'MINIMAX_API_KEY',     false, 'active', true,  'Best human-like flow in industry.'),
@@ -342,7 +342,7 @@ INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name,
   ('ai_claude_hum',         'Claude Sonnet 4.5',      'anthropic.com', 'humanizer', 5, 'ANTHROPIC_API_KEY',   false, 'sleeping', false, 'Lowest AI-detection score of any model.');
 
 -- Final Quality Review
-INSERT INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
+INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_deepseek_r1_rev',    'DeepSeek-R1',            'deepseek.com',  'review',  7,  'DEEPSEEK_API_KEY',    false, 'active', true,  'Reasoning model. Evaluates from multiple angles.'),
   ('ai_qwen_max_rev',       'Qwen 3.5 Max',          'SiliconFlow',   'review',  8,  'SILICONFLOW_API_KEY', false, 'active', true,  'Strong checklist-following and gap detection.'),
   ('ai_workers_review2',    'Workers AI (Llama 3.1)', 'Cloudflare',   'review',  9,  NULL,                  true,  'active', true,  'Basic review fallback.'),

@@ -32,11 +32,11 @@ export default function HomePage() {
           }))
         );
       } else {
-        // Fall back to default domains if API is not available
-        setDomains(DEFAULT_DOMAINS);
+        // API returned an error response — surface it instead of hiding
+        setError(response.error || "Failed to load domains");
       }
     } catch {
-      // Fall back to default domains on network error
+      // Network error — fall back to defaults so the UI is still usable
       setDomains(DEFAULT_DOMAINS);
     } finally {
       setLoading(false);
