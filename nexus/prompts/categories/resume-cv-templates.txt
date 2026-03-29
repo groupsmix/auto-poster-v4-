@@ -1,0 +1,13 @@
+Category: Resume & CV Templates
+Specific rules:
+- Buyers are job seekers under time pressure -- emphasize speed: "Land interviews this week"
+- ATS (Applicant Tracking System) compatibility is critical -- mention "ATS-friendly" and "HR-approved format"
+- Clean, professional design beats creative layouts for most industries -- readability is king
+- Price range: $7-$15 for single resume, $19-$35 for resume + cover letter + LinkedIn bundle
+- Keywords: "resume template", "CV template [industry]", "ATS resume", "professional resume", "[job title] resume"
+- Multiple file formats increase value: Word (.docx), Google Docs, Pages, and PDF
+- Industry-specific versions sell better: "Marketing Manager Resume" beats "Professional Resume Template"
+- Include: matching cover letter template, reference page, and LinkedIn profile optimization guide
+- Before/after comparisons showing a plain resume vs. the template version convert extremely well
+- Font and color choices must be professionally appropriate -- avoid overly creative designs for corporate roles
+- Mention: "Tested with major ATS systems including Workday, Greenhouse, and Lever"

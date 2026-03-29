@@ -1,6 +1,13 @@
 Domain context: Freelance Services
 Key facts:
-- Clients buy outcomes and expertise, not hours
-- Portfolio and case studies drive conversions
-- Pricing should reflect value delivered, not time spent
-- Specialization in a niche commands premium rates
+- Clients buy outcomes and expertise, not hours -- position every service around the result delivered
+- Portfolio and case studies with measurable results drive conversions better than credentials alone
+- Pricing should reflect value delivered, not time spent -- package services into fixed-price deliverables
+- Specialization in a niche commands 2-5x premium rates over generalist positioning
+- Fiverr, Upwork, and direct outreach are primary channels with fundamentally different buyer expectations
+- Response time and communication quality are top factors in client satisfaction and repeat business
+- Testimonials with specific results ("increased revenue by 34%") outperform generic praise
+- Service productization (fixed scope, fixed price, fixed timeline) scales better than custom proposals
+- Upsells and retainers convert best when offered after initial delivery exceeds expectations
+- Keywords: "[skill] freelancer", "hire [specialist]", "[service] agency", "[niche] consultant"
+- Gig descriptions must address: deliverables, timeline, revisions included, what the client needs to provide

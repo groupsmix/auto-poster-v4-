@@ -1,0 +1,13 @@
+Category: SaaS Templates & Boilerplates
+Specific rules:
+- Buyers are developers and entrepreneurs who want to skip months of foundational work
+- Tech stack specificity sells: mention exact frameworks, versions, and integrations included
+- Must include: authentication, database setup, payment integration, deployment configuration
+- Price range: $49-$149 for starter templates, $199-$499 for production-ready boilerplates with admin panels
+- Demo/preview site is essential -- buyers need to see the template running live before purchasing
+- Keywords: "SaaS boilerplate", "[framework] starter kit", "SaaS template [stack]", "[framework] admin dashboard"
+- Documentation quality directly impacts reviews and refund rates -- include setup guide, API docs, and architecture overview
+- Mention deployment targets: Vercel, Railway, Cloudflare, AWS -- buyers need to know it works on their platform
+- Include both light and dark mode by default -- it is an expected feature in modern SaaS templates
+- License clarity is critical: specify personal use, commercial use, and number of projects allowed
+- Active maintenance and update history signal reliability -- mention last update date and changelog
