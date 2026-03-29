@@ -1,22 +1,22 @@
 // ============================================================
-// Qwen AI Caller (via SiliconFlow API)
-// Models: Qwen 3.5 Flash, Qwen 3.5 Max, Qwen 3.5 Coder
-// API: https://api.siliconflow.cn/v1/chat/completions (OpenAI-compatible)
+// Groq Caller — Ultra-fast inference
+// Models: Mistral 7B, Llama models
+// API: https://api.groq.com/openai/v1/chat/completions (OpenAI-compatible)
 // ============================================================
 
 import { AICallerError } from "./errors";
 
-export interface QwenOptions {
+export interface GroqOptions {
   maxTokens?: number;
   temperature?: number;
   systemPrompt?: string;
 }
 
-export async function callQwen(
+export async function callGroq(
   model: string,
   apiKey: string,
   prompt: string,
-  options?: QwenOptions
+  options?: GroqOptions
 ): Promise<{ text: string; tokens?: number }> {
   const messages: Array<{ role: string; content: string }> = [];
   if (options?.systemPrompt) {
@@ -25,7 +25,7 @@ export async function callQwen(
   messages.push({ role: "user", content: prompt });
 
   const response = await fetch(
-    "https://api.siliconflow.cn/v1/chat/completions",
+    "https://api.groq.com/openai/v1/chat/completions",
     {
       method: "POST",
       headers: {
@@ -43,7 +43,7 @@ export async function callQwen(
 
   if (!response.ok) {
     throw new AICallerError(
-      `Qwen/SiliconFlow API error: ${response.status} ${response.statusText}`,
+      `Groq API error: ${response.status} ${response.statusText}`,
       response.status
     );
   }
