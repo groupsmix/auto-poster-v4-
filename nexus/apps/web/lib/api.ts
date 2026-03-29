@@ -69,10 +69,14 @@ export const api = {
   domains: {
     list: () => request<Domain[]>("/domains"),
     get: (slug: string) => request<Domain>(`/domains/${slug}`),
-    create: (data: { name: string; icon?: string }) =>
+    create: (data: { name: string; description?: string; icon?: string }) =>
       request<Domain>("/domains", { method: "POST", body: data }),
+    update: (id: string, data: Partial<Domain>) =>
+      request<Domain>(`/domains/${id}`, { method: "PUT", body: data }),
     delete: (id: string) =>
       request<void>(`/domains/${id}`, { method: "DELETE" }),
+    reorder: (ids: string[]) =>
+      request<void>("/domains/reorder", { method: "POST", body: { ids } }),
   },
 
   // Category endpoints
@@ -81,6 +85,14 @@ export const api = {
       request<Category[]>(`/domains/${domainId}/categories`),
     get: (domainId: string, slug: string) =>
       request<Category>(`/domains/${domainId}/categories/${slug}`),
+    create: (domainId: string, data: { name: string; description?: string }) =>
+      request<Category>(`/domains/${domainId}/categories`, { method: "POST", body: data }),
+    update: (domainId: string, id: string, data: Partial<Category>) =>
+      request<Category>(`/domains/${domainId}/categories/${id}`, { method: "PUT", body: data }),
+    delete: (domainId: string, id: string) =>
+      request<void>(`/domains/${domainId}/categories/${id}`, { method: "DELETE" }),
+    reorder: (domainId: string, ids: string[]) =>
+      request<void>(`/domains/${domainId}/categories/reorder`, { method: "POST", body: { ids } }),
   },
 
   // Prompt template endpoints
@@ -179,17 +191,33 @@ export const api = {
 
   // Platform endpoints
   platforms: {
-    list: () => request<Platform[]>("/platforms"),
+    list: () => request<PlatformFull[]>("/platforms"),
+    get: (id: string) => request<PlatformFull>(`/platforms/${id}`),
+    create: (data: Omit<PlatformFull, "id">) =>
+      request<PlatformFull>("/platforms", { method: "POST", body: data }),
+    update: (id: string, data: Partial<PlatformFull>) =>
+      request<PlatformFull>(`/platforms/${id}`, { method: "PUT", body: data }),
+    delete: (id: string) =>
+      request<void>(`/platforms/${id}`, { method: "DELETE" }),
   },
 
   // Social channel endpoints
   socialChannels: {
-    list: () => request<SocialChannel[]>("/social-channels"),
+    list: () => request<SocialChannelFull[]>("/social-channels"),
+    get: (id: string) => request<SocialChannelFull>(`/social-channels/${id}`),
+    create: (data: Omit<SocialChannelFull, "id">) =>
+      request<SocialChannelFull>("/social-channels", { method: "POST", body: data }),
+    update: (id: string, data: Partial<SocialChannelFull>) =>
+      request<SocialChannelFull>(`/social-channels/${id}`, { method: "PUT", body: data }),
+    delete: (id: string) =>
+      request<void>(`/social-channels/${id}`, { method: "DELETE" }),
   },
 
   // Settings endpoints
   settings: {
     get: (key: string) => request<{ value: string }>(`/settings/${key}`),
+    update: (key: string, value: string) =>
+      request<void>(`/settings/${key}`, { method: "PUT", body: { value } }),
   },
 };
 
@@ -350,10 +378,38 @@ interface Platform {
   is_active: boolean;
 }
 
+interface PlatformFull {
+  id: string;
+  name: string;
+  slug: string;
+  title_max_chars: number | null;
+  tag_count: number | null;
+  tag_max_chars: number | null;
+  audience: string;
+  tone: string;
+  seo_style: string;
+  description_style: string;
+  cta_style: string;
+  forbidden_words: string;
+  is_active: boolean;
+}
+
 interface SocialChannel {
   id: string;
   name: string;
   slug: string;
+  is_active: boolean;
+}
+
+interface SocialChannelFull {
+  id: string;
+  name: string;
+  slug: string;
+  caption_max_chars: number | null;
+  hashtag_count: number | null;
+  tone: string;
+  format: string;
+  content_types: string[];
   is_active: boolean;
 }
 
@@ -371,6 +427,8 @@ export type {
   PublishableProduct,
   Asset,
   Platform,
+  PlatformFull,
   SocialChannel,
+  SocialChannelFull,
   ApiResponse,
 };
