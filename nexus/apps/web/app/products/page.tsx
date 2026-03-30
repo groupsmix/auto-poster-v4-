@@ -409,6 +409,10 @@ export default function ProductsPage() {
             </div>
           )}
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16">
+          <p className="text-muted text-sm">No products match your filters.</p>
+        </div>
       ) : (
         <div className="rounded-xl border border-card-border bg-card-bg overflow-hidden">
           <ProductTable
@@ -425,12 +429,6 @@ export default function ProductsPage() {
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAll}
           />
-        </div>
-      )}
-
-      {filtered.length === 0 && !loading && !batchView && (
-        <div className="text-center py-16">
-          <p className="text-muted text-sm">No products match your filters.</p>
         </div>
       )}
 

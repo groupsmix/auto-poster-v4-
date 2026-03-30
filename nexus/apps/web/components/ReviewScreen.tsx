@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { useReviewCounts } from "@/lib/ReviewCountContext";
 import AIStatusBadge from "./AIStatusBadge";
 import AIHealthBar from "./AIHealthBar";
 import CacheIndicator from "./CacheIndicator";
@@ -110,6 +111,7 @@ const MOCK_REVIEW: ReviewData = {
 
 export default function ReviewScreen({ productId }: ReviewScreenProps) {
   const router = useRouter();
+  const { refetch: refreshCounts } = useReviewCounts();
   const [review, setReview] = useState<ReviewData>(MOCK_REVIEW);
   const [activePlatformTab, setActivePlatformTab] = useState(0);
   const [activeSocialTab, setActiveSocialTab] = useState(0);
@@ -143,6 +145,7 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
     try {
       await api.post(`/reviews/${productId}/approve`, {});
       toast.success("Product approved — sending to publish");
+      refreshCounts();
       router.push("/publish");
     } catch {
       toast.error("Failed to approve — please try again");
@@ -157,6 +160,7 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
     try {
       await api.post(`/reviews/${productId}/reject`, { feedback });
       toast.success("Rejected — sending back to AI with feedback");
+      refreshCounts();
       router.push(`/workflow/${productId}`);
     } catch {
       toast.error("Failed to reject — please try again");
