@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 interface BatchProduct {
   id: string;
@@ -45,6 +46,7 @@ const MOCK_BATCH: BatchData = {
 export default function BatchProgress({ batchId }: BatchProgressProps) {
   const router = useRouter();
   const [batch, setBatch] = useState<BatchData>(MOCK_BATCH);
+  const errorShownRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,9 +57,13 @@ export default function BatchProgress({ batchId }: BatchProgressProps) {
         if (!cancelled && response.success && response.data) {
           setBatch(response.data);
         }
-      } catch {
-        // Keep showing current state
-      }
+        } catch {
+          // Only show error toast once to avoid spamming during polling
+          if (!errorShownRef.current) {
+            errorShownRef.current = true;
+            toast.error("Failed to fetch batch progress");
+          }
+        }
     };
 
     fetchBatch();

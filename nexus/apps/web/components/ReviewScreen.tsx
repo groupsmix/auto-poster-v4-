@@ -129,9 +129,9 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
         if (!cancelled && response.success && response.data) {
           setReview(response.data);
         }
-      } catch {
-        // Keep mock data on error
-      }
+        } catch {
+          toast.error("Failed to load review data");
+        }
     };
 
     fetchReview();
@@ -247,10 +247,12 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
             Platform Variants
           </h3>
           {/* Tabs */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4" role="tablist" aria-label="Platform variants">
             {review.platform_variants.map((v, i) => (
               <button
                 key={v.platform}
+                role="tab"
+                aria-selected={activePlatformTab === i}
                 onClick={() => setActivePlatformTab(i)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                   activePlatformTab === i
@@ -276,10 +278,12 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
             Social Content
           </h3>
           {/* Tabs */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4" role="tablist" aria-label="Social variants">
             {review.social_variants.map((v, i) => (
               <button
                 key={v.channel}
+                role="tab"
+                aria-selected={activeSocialTab === i}
                 onClick={() => setActiveSocialTab(i)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                   activeSocialTab === i

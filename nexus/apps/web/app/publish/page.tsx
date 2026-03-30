@@ -105,7 +105,7 @@ export default function PublishPage() {
         }));
       }, 2000);
     } catch {
-      // Clipboard API not available
+      toast.error("Failed to copy to clipboard");
     }
   };
 

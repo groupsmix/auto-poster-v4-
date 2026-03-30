@@ -81,7 +81,7 @@ export default function ProductSetupForm({
       socialEnabled, postingMode, priceAI, priceManual,
       audienceAI, audienceManual, designAI, designManual, batchCount,
     };
-    try { localStorage.setItem("nexus_form_defaults", JSON.stringify(defaults)); } catch { /* quota exceeded */ }
+    try { localStorage.setItem("nexus_form_defaults", JSON.stringify(defaults)); } catch { toast.error("Failed to save form defaults — storage quota exceeded"); }
   }, [
     language, niche, selectedPlatforms, selectedChannels,
     socialEnabled, postingMode, priceAI, priceManual,

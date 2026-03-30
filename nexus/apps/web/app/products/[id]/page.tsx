@@ -261,10 +261,12 @@ export default function ProductDetailPage({
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
               Platform Variants
             </h2>
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap gap-2 mb-4" role="tablist" aria-label="Platform variants">
               {product.platform_variants.map((v, i) => (
                 <button
                   key={v.platform}
+                  role="tab"
+                  aria-selected={activePlatformTab === i}
                   onClick={() => setActivePlatformTab(i)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                     activePlatformTab === i
@@ -288,10 +290,12 @@ export default function ProductDetailPage({
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
               Social Variants
             </h2>
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap gap-2 mb-4" role="tablist" aria-label="Social variants">
               {product.social_variants.map((v, i) => (
                 <button
                   key={v.channel}
+                  role="tab"
+                  aria-selected={activeSocialTab === i}
                   onClick={() => setActiveSocialTab(i)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                     activeSocialTab === i
