@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PlatformSelector from "./PlatformSelector";
 import SocialChannelSelector from "./SocialChannelSelector";
+import Modal from "./Modal";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -37,6 +38,7 @@ export default function ProductSetupForm({
 }: ProductSetupFormProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Load saved defaults from localStorage (5.6)
   const savedDefaults = typeof window !== "undefined"
@@ -114,7 +116,16 @@ export default function ProductSetupForm({
     batch_count: batchCount,
   });
 
-  const handleStartWorkflow = async () => {
+  const handleStartWorkflow = () => {
+    if (selectedPlatforms.length === 0) {
+      toast.error("Please select at least one platform before starting the workflow");
+      return;
+    }
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmStart = async () => {
+    setShowConfirmDialog(false);
     setSubmitting(true);
     try {
       const payload = buildPayload();
@@ -433,6 +444,38 @@ export default function ProductSetupForm({
       <p className="text-xs text-muted text-center pb-4">
         Every field is optional. If left empty, AI researches and decides everything itself.
       </p>
+
+      {/* Confirmation Dialog (1.5) */}
+      <Modal
+        isOpen={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
+        title="Start AI Workflow?"
+        maxWidth="sm"
+      >
+        <p className="text-sm text-muted mb-2">
+          AI will research and decide the best approach for your product based on the settings you provided.
+        </p>
+        <ul className="text-xs text-muted space-y-1 mb-4 list-disc list-inside">
+          <li>{selectedPlatforms.length} platform{selectedPlatforms.length !== 1 ? "s" : ""} selected</li>
+          {socialEnabled && <li>{selectedChannels.length} social channel{selectedChannels.length !== 1 ? "s" : ""}</li>}
+          <li>Batch: {batchCount} product{batchCount > 1 ? "s" : ""}</li>
+          <li>Language: {language}</li>
+        </ul>
+        <div className="flex gap-3">
+          <button
+            onClick={handleConfirmStart}
+            className="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent-hover transition-colors"
+          >
+            Confirm &mdash; Start Workflow
+          </button>
+          <button
+            onClick={() => setShowConfirmDialog(false)}
+            className="flex-1 px-4 py-2 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -33,6 +33,8 @@ const COMMANDS: CommandItem[] = [
   { id: "history", label: "Go to History", section: "Navigation", href: "/history", icon: NAV_ICON },
   { id: "settings", label: "Go to Settings", section: "Navigation", shortcut: "G S", href: "/settings", icon: NAV_ICON },
   { id: "new-product", label: "New Product", section: "Actions", shortcut: "N", href: "/products", icon: ACTION_ICON },
+  { id: "approve-product", label: "Approve Product (Review page)", section: "Actions", shortcut: "A", icon: ACTION_ICON },
+  { id: "reject-product", label: "Reject Product (Review page)", section: "Actions", shortcut: "R", icon: ACTION_ICON },
 ];
 
 export default function CommandPalette() {

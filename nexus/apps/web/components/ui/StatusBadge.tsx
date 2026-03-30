@@ -3,7 +3,11 @@
  * Single source of truth for status → color mappings.
  */
 
-const STATUS_COLORS: Record<string, string> = {
+import type { ProductStatus, AIModelStatus, WorkflowStatus } from "@nexus/shared";
+
+type KnownStatus = ProductStatus | AIModelStatus | WorkflowStatus | "error" | "waiting";
+
+const STATUS_COLORS: Partial<Record<KnownStatus, string>> = {
   // Product / workflow statuses
   draft: "bg-gray-500/10 text-gray-400",
   running: "bg-blue-500/10 text-blue-400",
@@ -24,10 +28,10 @@ const STATUS_COLORS: Record<string, string> = {
   error: "bg-red-500/10 text-red-400",
 };
 
-export default function StatusBadge({ status }: { status: string }) {
+export default function StatusBadge({ status }: { status: KnownStatus | (string & {}) }) {
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[status] ?? "bg-gray-500/10 text-gray-400"}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[status as KnownStatus] ?? "bg-gray-500/10 text-gray-400"}`}
     >
       {status.replace(/_/g, " ")}
     </span>

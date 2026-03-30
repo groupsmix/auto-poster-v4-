@@ -10,7 +10,9 @@ interface ModalProps {
   children: ReactNode;
 }
 
-const MAX_WIDTH_CLASSES: Record<string, string> = {
+type MaxWidth = NonNullable<ModalProps["maxWidth"]>;
+
+const MAX_WIDTH_CLASSES: Record<MaxWidth, string> = {
   sm: "max-w-sm",
   md: "max-w-md",
   lg: "max-w-lg",
