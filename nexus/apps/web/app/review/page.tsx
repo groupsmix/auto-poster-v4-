@@ -56,10 +56,12 @@ export default function ReviewCenterPage() {
       {isUsingMock && <MockDataBanner />}
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6" role="tablist" aria-label="Review tabs">
         {tabs.map((tab) => (
           <button
             key={tab.key}
+            role="tab"
+            aria-selected={activeTab === tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeTab === tab.key

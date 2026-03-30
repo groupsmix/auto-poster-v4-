@@ -77,6 +77,7 @@ export default function ProductTable({
                   checked={selectedIds.size > 0 && products.every((p) => selectedIds.has(p.id))}
                   onChange={onToggleSelectAll}
                   className="rounded border-card-border text-accent focus:ring-accent"
+                  aria-label="Select all products"
                 />
               </th>
             )}
@@ -113,6 +114,7 @@ export default function ProductTable({
                     checked={selectedIds.has(product.id)}
                     onChange={() => onToggleSelect(product.id)}
                     className="rounded border-card-border text-accent focus:ring-accent"
+                    aria-label={`Select ${product.name}`}
                   />
                 </td>
               )}

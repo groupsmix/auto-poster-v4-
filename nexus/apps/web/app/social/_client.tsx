@@ -221,6 +221,9 @@ export default function SocialClient() {
             Manual
           </span>
           <button
+            role="switch"
+            aria-checked={postingMode === "auto"}
+            aria-label="Toggle auto posting mode"
             onClick={handleTogglePostingMode}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
               postingMode === "auto" ? "bg-accent" : "bg-card-border"
@@ -271,6 +274,9 @@ export default function SocialClient() {
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  role="switch"
+                  aria-checked={channel.is_active}
+                  aria-label={`Toggle ${channel.name} active`}
                   onClick={() => handleToggleActive(channel)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     channel.is_active ? "bg-success" : "bg-card-border"

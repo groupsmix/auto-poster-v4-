@@ -206,12 +206,14 @@ export default function PromptsPage() {
       </div>
 
       {/* Layer Tabs */}
-      <div className={`mb-6 flex flex-wrap gap-2 ${searchQuery ? "opacity-50 pointer-events-none" : ""}`}>
+      <div className={`mb-6 flex flex-wrap gap-2 ${searchQuery ? "opacity-50 pointer-events-none" : ""}`} role="tablist" aria-label="Prompt layers">
         {PROMPT_LAYERS.map((layer) => {
           const count = prompts.filter((p) => p.layer === layer.key).length;
           return (
             <button
               key={layer.key}
+              role="tab"
+              aria-selected={activeLayer === layer.key}
               onClick={() => {
                 setActiveLayer(layer.key);
                 setEditingId(null);
