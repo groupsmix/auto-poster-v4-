@@ -84,7 +84,7 @@ export default function HistoryPage() {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (
-        !r.product_name.toLowerCase().includes(q) &&
+        !(r.product_name ?? "").toLowerCase().includes(q) &&
         !(r.domain_name ?? "").toLowerCase().includes(q) &&
         !(r.category_name ?? "").toLowerCase().includes(q)
       )
@@ -221,7 +221,7 @@ export default function HistoryPage() {
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
                         <div className="flex flex-wrap gap-1">
-                          {run.ai_models_used.map((m) => (
+                          {(run.ai_models_used ?? []).map((m) => (
                             <span
                               key={m}
                               className="px-1.5 py-0.5 rounded bg-accent/10 text-accent text-xs"
@@ -243,7 +243,7 @@ export default function HistoryPage() {
                           : "—"}
                       </td>
                       <td className="px-4 py-3 text-muted text-xs">
-                        {formatDateTime(run.started_at)}
+                        {formatDateTime(run.started_at ?? "")}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
@@ -320,10 +320,10 @@ export default function HistoryPage() {
                                             {step.ai_used ?? "—"}
                                           </td>
                                           <td className="py-2 pr-3 text-muted">
-                                            {step.ai_tried.join(", ") || "—"}
+                                            {(step.ai_tried ?? []).join(", ") || "—"}
                                           </td>
                                           <td className="py-2 pr-3 text-muted font-mono">
-                                            {step.tokens_used.toLocaleString()}
+                                            {(step.tokens_used ?? 0).toLocaleString()}
                                           </td>
                                           <td className="py-2 pr-3 text-muted font-mono">
                                             ${step.cost.toFixed(4)}

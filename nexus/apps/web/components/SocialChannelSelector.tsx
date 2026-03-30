@@ -36,13 +36,13 @@ export default function SocialChannelSelector({
     DEFAULT_CHANNELS,
   );
   const activeChannels = fetchedChannels.filter(
-    (c: { is_active?: boolean }) => c.is_active !== false,
+    (c) => (c as { is_active?: boolean }).is_active !== false,
   );
   const [channels, setChannels] = useState(DEFAULT_CHANNELS);
   const mergedChannels = [
     ...activeChannels,
     ...channels.filter(
-      (c) => !activeChannels.some((ac: { slug: string }) => ac.slug === c.slug),
+      (c) => !activeChannels.some((ac) => ac.slug === c.slug),
     ),
   ];
   const [adding, setAdding] = useState(false);
@@ -79,6 +79,8 @@ export default function SocialChannelSelector({
         <div className="flex gap-2">
           <button
             type="button"
+            role="switch"
+            aria-checked={enabled}
             onClick={() => onToggle(true)}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
               enabled
@@ -90,6 +92,8 @@ export default function SocialChannelSelector({
           </button>
           <button
             type="button"
+            role="switch"
+            aria-checked={!enabled}
             onClick={() => onToggle(false)}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
               !enabled
@@ -166,6 +170,8 @@ export default function SocialChannelSelector({
             <div className="flex gap-2">
               <button
                 type="button"
+                role="switch"
+                aria-checked={postingMode === "auto"}
                 onClick={() => onPostingModeChange("auto")}
                 className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                   postingMode === "auto"
@@ -177,6 +183,8 @@ export default function SocialChannelSelector({
               </button>
               <button
                 type="button"
+                role="switch"
+                aria-checked={postingMode === "manual"}
                 onClick={() => onPostingModeChange("manual")}
                 className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                   postingMode === "manual"

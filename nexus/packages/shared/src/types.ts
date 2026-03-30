@@ -29,7 +29,8 @@ export type TaskType =
   | "humanizer"
   | "review"
   | "image"
-  | "audio";
+  | "audio"
+  | "reasoning";
 
 export type PromptLayer =
   | "master"
@@ -134,6 +135,9 @@ export interface Product {
   user_input?: Record<string, unknown>;
   batch_id?: string;
   status: ProductStatus;
+  domain_name?: string;
+  category_name?: string;
+  platforms?: string[];
   created_at: string;
   updated_at?: string;
 }
@@ -143,6 +147,7 @@ export interface Product {
 export interface WorkflowRun {
   id: string;
   product_id: string;
+  product_name?: string;
   batch_id?: string;
   status: WorkflowStatus;
   started_at?: string;
@@ -152,6 +157,10 @@ export interface WorkflowRun {
   total_tokens: number;
   total_cost: number;
   cache_hits: number;
+  domain_name?: string;
+  category_name?: string;
+  ai_models_used?: string[];
+  duration_ms?: number;
   error?: string;
 }
 
@@ -178,6 +187,7 @@ export interface WorkflowStep {
 export interface Asset {
   id: string;
   product_id: string;
+  product_name?: string;
   asset_type: AssetType;
   r2_key: string;
   cf_image_id?: string;

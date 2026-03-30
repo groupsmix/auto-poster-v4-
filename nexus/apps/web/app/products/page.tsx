@@ -86,7 +86,7 @@ export default function ProductsPage() {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         if (
-          !p.name.toLowerCase().includes(q) &&
+          !(p.name ?? "").toLowerCase().includes(q) &&
           !(p.niche ?? "").toLowerCase().includes(q) &&
           !(p.domain_name ?? "").toLowerCase().includes(q) &&
           !(p.category_name ?? "").toLowerCase().includes(q)
@@ -159,7 +159,7 @@ export default function ProductsPage() {
       ...items.map((p) =>
         [
           p.id,
-          `"${p.name.replace(/"/g, '""')}"`,
+          `"${(p.name ?? "").replace(/"/g, '""')}"`,
           p.status,
           p.domain_name ?? "",
           p.category_name ?? "",

@@ -378,9 +378,9 @@ interface PublishableProduct {
 // PlatformFull and SocialChannelFull are the same as the shared types
 // but with all optional fields required (used when fetching a single record).
 interface PlatformFull extends Platform {
-  title_max_chars: number | null;
-  tag_count: number | null;
-  tag_max_chars: number | null;
+  title_max_chars: number | undefined;
+  tag_count: number | undefined;
+  tag_max_chars: number | undefined;
   audience: string;
   tone: string;
   seo_style: string;
@@ -390,8 +390,8 @@ interface PlatformFull extends Platform {
 }
 
 interface SocialChannelFull extends SocialChannel {
-  caption_max_chars: number | null;
-  hashtag_count: number | null;
+  caption_max_chars: number | undefined;
+  hashtag_count: number | undefined;
   tone: string;
   format: string;
   content_types: string[];

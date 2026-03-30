@@ -129,7 +129,7 @@ export default function ReviewCenterPage() {
                     </h3>
                     <ScoreBadge score={item.ai_score} />
                     {item.decision && (
-                      <DecisionBadge decision={item.decision} />
+                      <DecisionBadge decision={item.decision as import("@nexus/shared").ReviewDecision} />
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">

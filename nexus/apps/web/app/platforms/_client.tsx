@@ -11,9 +11,9 @@ import type { PlatformFull } from "@/lib/api";
 const EMPTY_PLATFORM: Omit<PlatformFull, "id"> = {
   name: "",
   slug: "",
-  title_max_chars: null,
-  tag_count: null,
-  tag_max_chars: null,
+  title_max_chars: undefined,
+  tag_count: undefined,
+  tag_max_chars: undefined,
   audience: "",
   tone: "",
   seo_style: "",

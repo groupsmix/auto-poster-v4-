@@ -27,8 +27,8 @@ const CONTENT_TYPE_OPTIONS = [
 const EMPTY_CHANNEL: Omit<SocialChannelFull, "id"> = {
   name: "",
   slug: "",
-  caption_max_chars: null,
-  hashtag_count: null,
+  caption_max_chars: undefined,
+  hashtag_count: undefined,
   tone: "",
   format: "",
   content_types: [],

@@ -189,11 +189,11 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
           <div className="flex items-center gap-2 mt-1">
             <AIStatusBadge
               status={
-                workflow.status === "running"
+                (workflow.status === "running"
                   ? "active"
                   : workflow.status === "cancelled"
                     ? "sleeping"
-                    : workflow.status
+                    : workflow.status) as import("@nexus/shared").AIModelStatus
               }
             />
             <span className="text-sm text-muted">

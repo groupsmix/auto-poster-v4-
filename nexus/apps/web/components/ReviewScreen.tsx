@@ -202,7 +202,7 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
           </div>
           <div className="flex flex-wrap gap-3 text-xs">
             <div className="flex items-center gap-1.5">
-              <AIStatusBadge status={review.ai_status} />
+              <AIStatusBadge status={review.ai_status as import("@nexus/shared").AIModelStatus} />
             </div>
             <CacheIndicator hit={review.cache_hits > 0} />
             <span className="px-2 py-0.5 rounded bg-card-hover text-muted">
