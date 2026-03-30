@@ -119,7 +119,7 @@ export default function SettingsClient() {
 
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
   const savedSettingsRef = useRef<SettingsState>(DEFAULT_SETTINGS);
-  const [apiKeys, setApiKeys] = useState<APIKeyEntry[]>(MOCK_API_KEYS);
+  const [apiKeys, setApiKeys] = useState<APIKeyEntry[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [addKeyModal, setAddKeyModal] = useState<string | null>(null);

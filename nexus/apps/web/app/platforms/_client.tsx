@@ -36,7 +36,7 @@ export default function PlatformsClient() {
     MOCK_PLATFORMS,
   );
 
-  const [platforms, setPlatforms] = useState<PlatformFull[]>(MOCK_PLATFORMS);
+  const [platforms, setPlatforms] = useState<PlatformFull[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<PlatformFull | null>(null);
   const [saving, setSaving] = useState(false);

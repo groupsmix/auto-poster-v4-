@@ -48,7 +48,7 @@ export default function SocialClient() {
     MOCK_CHANNELS,
   );
 
-  const [channels, setChannels] = useState<SocialChannelFull[]>(MOCK_CHANNELS);
+  const [channels, setChannels] = useState<SocialChannelFull[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<SocialChannelFull | null>(null);
   const [saving, setSaving] = useState(false);
