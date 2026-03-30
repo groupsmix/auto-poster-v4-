@@ -7,6 +7,7 @@ import type {
   PromptTemplate,
   AIModel,
   Product,
+  ProductStatus,
   Asset,
   WorkflowRun,
   WorkflowStep,
@@ -325,7 +326,7 @@ interface ReviewItem {
   feedback?: string;
   version: number;
   reviewed_at: string;
-  status: string;
+  status: ProductStatus;
 }
 
 interface ReviewDetail {
@@ -368,10 +369,10 @@ interface PublishableProduct {
   domain_name?: string;
   category_name?: string;
   ai_score: number;
-  status: string;
+  status: ProductStatus;
   platform_variants: PlatformVariantData[];
   social_variants: SocialVariantData[];
-  posting_mode: string;
+  posting_mode: "auto" | "manual";
 }
 
 // PlatformFull and SocialChannelFull are the same as the shared types
@@ -485,6 +486,7 @@ export type {
   PromptVersion,
   AIModel,
   Product,
+  ProductStatus,
   ReviewItem,
   ReviewDetail,
   PlatformVariantData,

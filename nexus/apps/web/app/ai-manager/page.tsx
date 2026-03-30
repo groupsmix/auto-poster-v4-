@@ -182,6 +182,7 @@ export default function AIManagerPage() {
 
     try {
       await api.aiModels.reorder(taskType, updatedModels.map((m) => m.id));
+      toast.success("Model priority updated");
     } catch {
       toast.error("Failed to save model order");
     }

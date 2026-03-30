@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -81,6 +81,7 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [manualRefresh, setManualRefresh] = useState(0);
+  const errorShownRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,9 +101,13 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
             cancelled = true;
           }
         }
-      } catch {
-        // Keep showing current state on error
-      }
+        } catch {
+          // Only show error toast once to avoid spamming during polling
+          if (!errorShownRef.current) {
+            errorShownRef.current = true;
+            toast.error("Failed to fetch workflow progress");
+          }
+        }
     };
 
     fetchProgress();
