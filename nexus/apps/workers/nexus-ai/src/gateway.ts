@@ -57,17 +57,32 @@ export async function callAIviaGateway(
   const provider = model.provider;
   const modelId = model.model ?? model.id;
 
-  // Build the request based on provider type
-  const apiUrl = PROVIDER_API_URL[provider];
-  if (!apiUrl) {
-    throw new Error(`Unknown provider for gateway: ${provider}`);
+  // Build the request URL — route through AI Gateway if configured, otherwise direct
+  const gatewayPath = PROVIDER_GATEWAY_MAP[provider];
+  const accountId = env.CF_ACCOUNT_ID as string | undefined;
+  const gatewayId = env.AI_GATEWAY_ID as string | undefined;
+  let apiUrl: string;
+
+  if (gatewayPath && accountId && gatewayId) {
+    // Route through CF AI Gateway for logging, caching, rate limiting, analytics
+    apiUrl = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/${gatewayPath}`;
+  } else {
+    // Fallback to direct API call if gateway is not configured
+    const directUrl = PROVIDER_API_URL[provider];
+    if (!directUrl) {
+      throw new Error(`Unknown provider for gateway: ${provider}`);
+    }
+    apiUrl = directUrl;
   }
 
   let response: Response;
 
   if (provider === "huggingface") {
     // HuggingFace uses a different API format
-    response = await fetch(`${apiUrl}/${modelId}`, {
+    const url = gatewayPath && accountId && gatewayId
+      ? `${apiUrl}/${modelId}`
+      : `${apiUrl}/${modelId}`;
+    response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

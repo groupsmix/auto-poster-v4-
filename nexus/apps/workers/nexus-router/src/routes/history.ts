@@ -16,9 +16,9 @@ history.get("/", async (c) => {
     const countResult = (await storageQuery(
       c.env,
       "SELECT COUNT(*) as total FROM workflow_runs"
-    )) as Array<{ total: number }>;
+    )) as { results?: Array<{ total: number }> };
 
-    const total = countResult?.[0]?.total ?? 0;
+    const total = countResult?.results?.[0]?.total ?? 0;
 
     const data = await storageQuery(
       c.env,
@@ -47,16 +47,17 @@ history.get("/:runId", async (c) => {
   try {
     const runId = c.req.param("runId");
 
-    const runs = (await storageQuery(
+    const runsResult = (await storageQuery(
       c.env,
       `SELECT wr.*, p.name as product_name, p.domain_id, p.category_id, p.niche
        FROM workflow_runs wr
        LEFT JOIN products p ON p.id = wr.product_id
        WHERE wr.id = ?`,
       [runId]
-    )) as Array<Record<string, unknown>>;
+    )) as { results?: Array<Record<string, unknown>> };
 
-    if (!runs || (runs as unknown[]).length === 0) {
+    const runs = runsResult?.results ?? [];
+    if (runs.length === 0) {
       return c.json<ApiResponse>(
         { success: false, error: "Workflow run not found" },
         404

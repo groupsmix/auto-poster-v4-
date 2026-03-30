@@ -118,7 +118,16 @@ export async function storageQuery(
 
 // --- Helper: update workflow run in D1 ---
 
-const ALLOWED_RUN_COLUMNS = new Set([
+type AllowedRunColumn =
+  | "status"
+  | "current_step"
+  | "total_tokens"
+  | "total_cost"
+  | "cache_hits"
+  | "completed_at"
+  | "error";
+
+const ALLOWED_RUN_COLUMNS: ReadonlySet<string> = new Set<AllowedRunColumn>([
   "status",
   "current_step",
   "total_tokens",
@@ -131,14 +140,14 @@ const ALLOWED_RUN_COLUMNS = new Set([
 async function updateWorkflowRun(
   env: Env,
   runId: string,
-  fields: Record<string, unknown>
+  fields: Partial<Record<AllowedRunColumn, unknown>>
 ): Promise<void> {
   const setClauses: string[] = [];
   const values: unknown[] = [];
 
   for (const [key, value] of Object.entries(fields)) {
     if (!ALLOWED_RUN_COLUMNS.has(key)) continue;
-    setClauses.push(`${key} = ?`);
+    setClauses.push(`"${key}" = ?`);
     values.push(value);
   }
 
@@ -204,14 +213,18 @@ export class WorkflowEngine {
       [runId, productId, now(), WORKFLOW_STEPS[0], totalSteps]
     );
 
-    // Create step records in D1 for all 9 steps (batched single INSERT — 8.2)
-    const stepValues = WORKFLOW_STEPS.map((step, i) =>
-      `('${generateId()}', '${runId}', '${step}', ${i + 1}, 'waiting', 0, 0)`
-    ).join(", ");
+    // Create step records in D1 for all 9 steps (parameterized)
+    const stepPlaceholders: string[] = [];
+    const stepParams: unknown[] = [];
+    for (let i = 0; i < WORKFLOW_STEPS.length; i++) {
+      stepPlaceholders.push("(?, ?, ?, ?, 'waiting', 0, 0)");
+      stepParams.push(generateId(), runId, WORKFLOW_STEPS[i], i + 1);
+    }
     await storageQuery(
       this.env,
       `INSERT INTO workflow_steps (id, run_id, step_name, step_order, status, cost, cached)
-       VALUES ${stepValues}`
+       VALUES ${stepPlaceholders.join(", ")}`,
+      stepParams
     );
 
     // Update product status to running

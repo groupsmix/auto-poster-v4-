@@ -106,7 +106,7 @@ export async function runWithFailover(
       if (model.isWorkersAI) {
         // Workers AI — direct on-platform call, no external dependency
         const aiResult = await runTextGeneration(
-          env as unknown as { AI: { run(model: string, inputs: Record<string, unknown>): Promise<unknown> } },
+          env,
           prompt
         );
         result = aiResult.text;
@@ -132,11 +132,11 @@ export async function runWithFailover(
       return { result, model: model.name, cached: false, tokens };
     } catch (err: unknown) {
       // (f) On error: handle specific error types
-      const latency = Date.now() - start;
+      const errorLatency = Date.now() - start;
       const error = err as { status?: number; code?: string; message?: string };
       const errorMsg = error.message ?? String(err);
 
-      await updateHealthScore(model.id, model.name, false, latency, env, errorMsg);
+      await updateHealthScore(model.id, model.name, false, errorLatency, env, errorMsg);
 
       if (error.status === 429) {
         // Rate limited — sleep for 1 hour
