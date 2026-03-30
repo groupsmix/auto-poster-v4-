@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { api } from "@/lib/api";
+import { useApiQuery } from "@/lib/useApiQuery";
 
 const DEFAULT_PLATFORMS = [
   { name: "Etsy", slug: "etsy" },
@@ -20,7 +22,20 @@ export default function PlatformSelector({
   selected,
   onChange,
 }: PlatformSelectorProps) {
+  const { data: fetchedPlatforms } = useApiQuery(
+    () => api.platforms.list(),
+    DEFAULT_PLATFORMS,
+  );
+  const activePlatforms = fetchedPlatforms.filter(
+    (p: { is_active?: boolean }) => p.is_active !== false,
+  );
   const [platforms, setPlatforms] = useState(DEFAULT_PLATFORMS);
+  const mergedPlatforms = [
+    ...activePlatforms,
+    ...platforms.filter(
+      (p) => !activePlatforms.some((ap: { slug: string }) => ap.slug === p.slug),
+    ),
+  ];
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
 
@@ -50,7 +65,7 @@ export default function PlatformSelector({
   return (
     <div>
       <div className="flex flex-wrap gap-2">
-        {platforms.map((platform) => (
+        {mergedPlatforms.map((platform) => (
           <button
             key={platform.slug}
             type="button"

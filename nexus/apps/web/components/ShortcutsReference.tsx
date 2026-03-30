@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Modal from "@/components/Modal";
 
 interface ShortcutEntry {
   keys: string[];
@@ -83,73 +84,47 @@ export default function ShortcutsReference() {
       </button>
 
       {/* Modal */}
-      {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setIsOpen(false)}
-          />
-
-          {/* Content */}
-          <div className="relative w-full max-w-md mx-4 rounded-xl border border-card-border bg-sidebar-bg shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-card-border">
-              <h2 className="text-sm font-semibold text-foreground">
-                Keyboard Shortcuts
-              </h2>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-muted hover:text-foreground transition-colors"
-                aria-label="Close"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="px-5 py-4 space-y-5 max-h-[60vh] overflow-y-auto">
-              {SHORTCUT_SECTIONS.map((section) => (
-                <div key={section.title}>
-                  <h3 className="text-[10px] uppercase tracking-wider text-muted mb-2">
-                    {section.title}
-                  </h3>
-                  <div className="space-y-2">
-                    {section.shortcuts.map((shortcut) => (
-                      <div
-                        key={shortcut.description}
-                        className="flex items-center justify-between"
-                      >
-                        <span className="text-sm text-foreground">
-                          {shortcut.description}
+      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Keyboard Shortcuts">
+        <div className="space-y-5 max-h-[60vh] overflow-y-auto">
+          {SHORTCUT_SECTIONS.map((section) => (
+            <div key={section.title}>
+              <h3 className="text-[10px] uppercase tracking-wider text-muted mb-2">
+                {section.title}
+              </h3>
+              <div className="space-y-2">
+                {section.shortcuts.map((shortcut) => (
+                  <div
+                    key={shortcut.description}
+                    className="flex items-center justify-between"
+                  >
+                    <span className="text-sm text-foreground">
+                      {shortcut.description}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      {shortcut.keys.map((k, i) => (
+                        <span key={k} className="flex items-center gap-1">
+                          {i > 0 && (
+                            <span className="text-[10px] text-muted">+</span>
+                          )}
+                          <kbd className="inline-flex items-center justify-center min-w-[24px] px-1.5 py-0.5 rounded border border-card-border bg-card-hover text-[11px] text-muted font-mono">
+                            {k}
+                          </kbd>
                         </span>
-                        <span className="flex items-center gap-1">
-                          {shortcut.keys.map((k, i) => (
-                            <span key={k} className="flex items-center gap-1">
-                              {i > 0 && (
-                                <span className="text-[10px] text-muted">+</span>
-                              )}
-                              <kbd className="inline-flex items-center justify-center min-w-[24px] px-1.5 py-0.5 rounded border border-card-border bg-card-hover text-[11px] text-muted font-mono">
-                                {k}
-                              </kbd>
-                            </span>
-                          ))}
-                        </span>
-                      </div>
-                    ))}
+                      ))}
+                    </span>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-
-            <div className="px-5 py-3 border-t border-card-border">
-              <p className="text-[11px] text-muted text-center">
-                Press <kbd className="px-1 py-0.5 rounded border border-card-border text-[10px] font-mono">?</kbd> to toggle this reference
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
-      )}
+
+        <div className="mt-4 pt-3 border-t border-card-border">
+          <p className="text-[11px] text-muted text-center">
+            Press <kbd className="px-1 py-0.5 rounded border border-card-border text-[10px] font-mono">?</kbd> to toggle this reference
+          </p>
+        </div>
+      </Modal>
     </>
   );
 }

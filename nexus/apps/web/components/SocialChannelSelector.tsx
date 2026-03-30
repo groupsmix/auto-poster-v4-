@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { api } from "@/lib/api";
+import { useApiQuery } from "@/lib/useApiQuery";
 
 const DEFAULT_CHANNELS = [
   { name: "Instagram", slug: "instagram" },
@@ -29,7 +31,20 @@ export default function SocialChannelSelector({
   postingMode,
   onPostingModeChange,
 }: SocialChannelSelectorProps) {
+  const { data: fetchedChannels } = useApiQuery(
+    () => api.socialChannels.list(),
+    DEFAULT_CHANNELS,
+  );
+  const activeChannels = fetchedChannels.filter(
+    (c: { is_active?: boolean }) => c.is_active !== false,
+  );
   const [channels, setChannels] = useState(DEFAULT_CHANNELS);
+  const mergedChannels = [
+    ...activeChannels,
+    ...channels.filter(
+      (c) => !activeChannels.some((ac: { slug: string }) => ac.slug === c.slug),
+    ),
+  ];
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
 
@@ -91,7 +106,7 @@ export default function SocialChannelSelector({
         <>
           {/* Channel checkboxes */}
           <div className="flex flex-wrap gap-2">
-            {channels.map((channel) => (
+            {mergedChannels.map((channel) => (
               <button
                 key={channel.slug}
                 type="button"
