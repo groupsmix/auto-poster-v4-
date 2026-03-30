@@ -27,13 +27,13 @@ export default function PlatformSelector({
     DEFAULT_PLATFORMS,
   );
   const activePlatforms = fetchedPlatforms.filter(
-    (p: { is_active?: boolean }) => p.is_active !== false,
+    (p) => (p as { is_active?: boolean }).is_active !== false,
   );
   const [platforms, setPlatforms] = useState(DEFAULT_PLATFORMS);
   const mergedPlatforms = [
     ...activePlatforms,
     ...platforms.filter(
-      (p) => !activePlatforms.some((ap: { slug: string }) => ap.slug === p.slug),
+      (p) => !activePlatforms.some((ap) => ap.slug === p.slug),
     ),
   ];
   const [adding, setAdding] = useState(false);

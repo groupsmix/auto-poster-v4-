@@ -33,6 +33,7 @@ export const CACHE_TTL_MAP: Record<TaskType, number> = {
   image: 0, // never cache
   audio: 0, // never cache
   humanizer: 86400, // 24 hours (same as writing)
+  reasoning: 3600, // 1 hour (same as research)
 };
 
 // --- Runtime Constants ---
