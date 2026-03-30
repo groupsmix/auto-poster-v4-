@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PlatformSelector from "./PlatformSelector";
 import SocialChannelSelector from "./SocialChannelSelector";
+import Modal from "./Modal";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -72,6 +73,9 @@ export default function ProductSetupForm({
   // Batch
   const [batchCount, setBatchCount] = useState(savedDefaults?.batchCount ?? 1);
 
+  // Confirmation dialog state (1.5)
+  const [showConfirm, setShowConfirm] = useState(false);
+
   // Persist form defaults on change (5.6)
   useEffect(() => {
     const defaults = {
@@ -114,7 +118,18 @@ export default function ProductSetupForm({
     batch_count: batchCount,
   });
 
+  const handleRequestStart = () => {
+    // 1.5: Validate at least one platform is selected
+    if (selectedPlatforms.length === 0) {
+      toast.error("Please select at least one platform before starting the workflow.");
+      return;
+    }
+    // 1.5: Show confirmation dialog
+    setShowConfirm(true);
+  };
+
   const handleStartWorkflow = async () => {
+    setShowConfirm(false);
     setSubmitting(true);
     try {
       const payload = buildPayload();
@@ -413,7 +428,7 @@ export default function ProductSetupForm({
       <div className="border-t border-card-border pt-6 flex gap-3">
         <button
           type="button"
-          onClick={handleStartWorkflow}
+          onClick={handleRequestStart}
           disabled={submitting}
           className="flex-1 px-6 py-3 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
@@ -433,6 +448,34 @@ export default function ProductSetupForm({
       <p className="text-xs text-muted text-center pb-4">
         Every field is optional. If left empty, AI researches and decides everything itself.
       </p>
+
+      {/* 1.5: Confirmation dialog before starting workflow */}
+      <Modal isOpen={showConfirm} onClose={() => setShowConfirm(false)} title="Start Workflow?" maxWidth="sm">
+        <p className="text-sm text-muted mb-2">
+          AI will research your domain, generate product content, create listings, and prepare everything for your review.
+        </p>
+        <ul className="text-sm text-muted mb-4 list-disc list-inside space-y-1">
+          <li>{batchCount} product{batchCount > 1 ? "s" : ""} will be generated</li>
+          <li>{selectedPlatforms.length} platform{selectedPlatforms.length !== 1 ? "s" : ""} selected</li>
+          {socialEnabled && <li>Social media posting enabled</li>}
+        </ul>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setShowConfirm(false)}
+            className="flex-1 px-4 py-2.5 rounded-lg border border-card-border text-foreground text-sm font-medium hover:bg-card-hover transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleStartWorkflow}
+            className="flex-1 px-4 py-2.5 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent-hover transition-colors"
+          >
+            Confirm &amp; Start
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
