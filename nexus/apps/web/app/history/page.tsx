@@ -17,9 +17,8 @@ export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: runs, loading, isUsingMock } = useApiQuery(
-    () => api.history.listRuns(filterStatus ? { status: filterStatus } : undefined),
+    () => api.history.listRuns(),
     MOCK_RUNS,
-    [filterStatus],
   );
 
   const [expandedRun, setExpandedRun] = useState<string | null>(null);

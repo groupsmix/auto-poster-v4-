@@ -6,6 +6,7 @@ import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { MOCK_PUBLISHABLE } from "@/lib/mock-data";
 import { toast } from "sonner";
+import { useReviewCounts } from "@/lib/ReviewCountContext";
 import type { PublishableProduct } from "@/lib/api";
 
 interface ProductPublishState {
@@ -20,6 +21,7 @@ export default function PublishPage() {
     () => api.publishing.ready(),
     MOCK_PUBLISHABLE,
   );
+  const { refetch: refreshCounts } = useReviewCounts();
 
   const [publishStates, setPublishStates] = useState<
     Record<string, ProductPublishState>
@@ -124,6 +126,7 @@ export default function PublishPage() {
         platforms,
         channels,
       });
+      refreshCounts();
     } catch {
       toast.error("Failed to publish. Please try again.");
     } finally {
