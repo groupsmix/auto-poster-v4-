@@ -2,12 +2,10 @@
 
 import { useState, Fragment } from "react";
 import { api } from "@/lib/api";
-import MockDataBanner from "@/components/MockDataBanner";
 import Modal from "@/components/Modal";
 import { useApiQuery } from "@/lib/useApiQuery";
 import StatusBadge from "@/components/StatusBadge";
 import { SearchIcon } from "@/components/icons/Icons";
-import { MOCK_RUNS, MOCK_STEPS, MOCK_REVISIONS } from "@/lib/mock-data";
 import { formatDateTime, formatDuration } from "@/lib/format";
 import { toast } from "sonner";
 import type { WorkflowStep, RevisionEntry } from "@/lib/api";
@@ -18,9 +16,9 @@ export default function HistoryPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: runs, loading, isUsingMock } = useApiQuery(
+  const { data: runs, loading } = useApiQuery(
     () => api.history.listRuns(),
-    MOCK_RUNS,
+    [],
   );
 
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
@@ -45,14 +43,14 @@ export default function HistoryPage() {
         } else {
           setSteps((prev) => ({
             ...prev,
-            [runId]: MOCK_STEPS[runId] ?? [],
+            [runId]: [],
           }));
         }
       } catch {
         toast.error("Failed to load workflow steps");
         setSteps((prev) => ({
           ...prev,
-          [runId]: MOCK_STEPS[runId] ?? [],
+          [runId]: [],
         }));
       } finally {
         setStepsLoading((prev) => ({ ...prev, [runId]: false }));
@@ -68,11 +66,11 @@ export default function HistoryPage() {
       if (response.success && response.data) {
         setRevisions(response.data);
       } else {
-        setRevisions(MOCK_REVISIONS[productId] ?? []);
+        setRevisions([]);
       }
     } catch {
       toast.error("Failed to load revisions");
-      setRevisions(MOCK_REVISIONS[productId] ?? []);
+      setRevisions([]);
     } finally {
       setRevisionsLoading(false);
     }
@@ -101,8 +99,6 @@ export default function HistoryPage() {
           Past workflow runs and revision history
         </p>
       </div>
-
-      {isUsingMock && <MockDataBanner />}
 
       {/* Filters */}
       <div className="rounded-xl border border-card-border bg-card-bg p-4 mb-6">

@@ -4,23 +4,12 @@ import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import DomainCard, { AddDomainCard } from "@/components/DomainCard";
 import LoadingState from "@/components/LoadingState";
-import MockDataBanner from "@/components/MockDataBanner";
 import AddDomainModal from "@/components/AddDomainModal";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { DEFAULT_DOMAINS, DEFAULT_CATEGORIES } from "@/lib/domains";
 import type { DomainData } from "@/lib/domains";
 import type { Domain } from "@nexus/shared";
-import { MOCK_PRODUCTS } from "@/lib/mock-data";
-
-const MOCK_DOMAIN_API: Domain[] = DEFAULT_DOMAINS.map((d, i) => ({
-  ...d,
-  id: d.slug,
-  description: "",
-  sort_order: i,
-  is_active: true,
-  created_at: new Date().toISOString(),
-}));
 
 export default function HomePage() {
   const router = useRouter();
@@ -36,9 +25,9 @@ export default function HomePage() {
     localStorage.setItem("nexus_onboarding_dismissed", "1");
   };
 
-  const { data: apiDomains, loading, isUsingMock, refetch } = useApiQuery(
+  const { data: apiDomains, loading, refetch } = useApiQuery(
     () => api.domains.list(),
-    MOCK_DOMAIN_API,
+    [] as Domain[],
   );
 
   const domains: DomainData[] = useMemo(() => {
@@ -55,12 +44,8 @@ export default function HomePage() {
     const subtitles: Record<string, string> = {};
     for (const d of domains) {
       const catCount = (DEFAULT_CATEGORIES[d.slug] ?? []).length;
-      const prodCount = MOCK_PRODUCTS.filter(
-        (p) => p.domain_name === d.name
-      ).length;
       const parts: string[] = [];
       if (catCount > 0) parts.push(`${catCount} categories`);
-      if (prodCount > 0) parts.push(`${prodCount} products`);
       subtitles[d.slug] = parts.join(" \u00B7 ") || "No activity yet";
     }
     return subtitles;
@@ -120,8 +105,6 @@ export default function HomePage() {
           Select a domain to get started
         </p>
       </div>
-
-      {isUsingMock && <MockDataBanner />}
 
       {showOnboarding && (
         <div className="rounded-xl border border-accent/30 bg-accent/5 p-5 mb-6">

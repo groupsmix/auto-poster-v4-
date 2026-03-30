@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { api } from "@/lib/api";
-import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
-import { MOCK_CHANNELS } from "@/lib/mock-data";
 import { toast } from "sonner";
 import type { SocialChannelFull } from "@/lib/api";
 
@@ -43,9 +41,9 @@ function generateSlug(name: string): string {
 }
 
 export default function SocialClient() {
-  const { data: fetchedChannels, loading, isUsingMock, refetch: fetchChannels } = useApiQuery(
+  const { data: fetchedChannels, loading, refetch: fetchChannels } = useApiQuery(
     () => api.socialChannels.list(),
-    MOCK_CHANNELS,
+    [],
   );
 
   const [localEdits, setLocalEdits] = useState<SocialChannelFull[] | null>(null);
@@ -210,8 +208,6 @@ export default function SocialClient() {
           </button>
         </div>
       </div>
-
-      {isUsingMock && <MockDataBanner />}
 
       {/* Global posting mode toggle */}
       <div className="rounded-xl border border-card-border bg-card-bg px-6 py-4 mb-6 flex items-center justify-between">

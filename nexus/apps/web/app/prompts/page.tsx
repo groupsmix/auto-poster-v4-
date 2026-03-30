@@ -2,11 +2,9 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { api } from "@/lib/api";
-import MockDataBanner from "@/components/MockDataBanner";
 import Modal from "@/components/Modal";
 import { SearchIcon } from "@/components/icons/Icons";
 import { useApiQuery } from "@/lib/useApiQuery";
-import { MOCK_PROMPTS } from "@/lib/mock-data";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import type { PromptTemplate } from "@/lib/api";
@@ -42,9 +40,9 @@ function LayerIcon({ layer }: { layer: string }) {
 }
 
 export default function PromptsPage() {
-  const { data: fetchedPrompts, loading, isUsingMock } = useApiQuery(
+  const { data: fetchedPrompts, loading } = useApiQuery(
     () => api.prompts.list(),
-    MOCK_PROMPTS,
+    [],
   );
 
   const [localEdits, setLocalEdits] = useState<Map<string, PromptTemplate>>(new Map());
@@ -128,11 +126,6 @@ export default function PromptsPage() {
 
 
   const handleTest = async (id: string) => {
-    // 5.9: Show honest message in mock mode
-    if (isUsingMock) {
-      toast.info("Test unavailable — connect to Workers to test prompts");
-      return;
-    }
     setTestingId(id);
     setTestResult(null);
     try {
@@ -158,8 +151,6 @@ export default function PromptsPage() {
           Edit prompts across all 9 layers (A-I) of the layered prompt architecture
         </p>
       </div>
-
-      {isUsingMock && <MockDataBanner />}
 
       {/* Search (5.7) */}
       <div className="mb-4">

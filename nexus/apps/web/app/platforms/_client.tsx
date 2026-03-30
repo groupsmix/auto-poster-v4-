@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
-import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
-import { MOCK_PLATFORMS } from "@/lib/mock-data";
 import { toast } from "sonner";
 import type { PlatformFull } from "@/lib/api";
 
@@ -31,12 +29,12 @@ function generateSlug(name: string): string {
 }
 
 export default function PlatformsClient() {
-  const { data: fetchedPlatforms, loading, isUsingMock, refetch: fetchPlatforms } = useApiQuery(
+  const { data: fetchedPlatforms, loading, refetch: fetchPlatforms } = useApiQuery(
     () => api.platforms.list(),
-    MOCK_PLATFORMS,
+    [],
   );
 
-  const [platforms, setPlatforms] = useState<PlatformFull[]>(MOCK_PLATFORMS);
+  const [platforms, setPlatforms] = useState<PlatformFull[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<PlatformFull | null>(null);
   const [saving, setSaving] = useState(false);
@@ -164,8 +162,6 @@ export default function PlatformsClient() {
           + Add New Platform
         </button>
       </div>
-
-      {isUsingMock && <MockDataBanner />}
 
       {showAddForm && (
         <div className="rounded-xl border border-accent/30 bg-card-bg p-6 mb-6">

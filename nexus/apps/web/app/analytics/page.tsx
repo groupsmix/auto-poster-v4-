@@ -1,9 +1,8 @@
 "use client";
 
 import { api } from "@/lib/api";
-import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
-import { MOCK_DASHBOARD } from "@/lib/mock-data";
+import type { AnalyticsDashboard } from "@/lib/api";
 import AnalyticsCharts from "@/components/AnalyticsCharts";
 
 function SummaryCard({
@@ -49,9 +48,13 @@ function formatDuration(ms: number): string {
 
 export default function AnalyticsPage() {
   // Single dashboard query instead of 7 separate API calls (5.4)
-  const { data: dashboard, loading, isUsingMock } = useApiQuery(
+  const emptyDashboard: AnalyticsDashboard = {
+    summary: { total_products_all_time: 0, total_products_this_month: 0, total_ai_calls_all_time: 0, total_ai_calls_this_month: 0, cache_hit_rate: 0, total_cost: 0, avg_workflow_time_ms: 0, cost_savings: 0 },
+    aiUsage: [], costBreakdown: [], cacheHitTrend: [], productsByDomain: [], productsByCategory: [], leaderboard: [],
+  };
+  const { data: dashboard, loading } = useApiQuery(
     () => api.analytics.dashboard(),
-    MOCK_DASHBOARD,
+    emptyDashboard,
   );
 
   const { summary, aiUsage, costBreakdown, cacheHitTrend, productsByDomain, productsByCategory, leaderboard } = dashboard;
@@ -101,8 +104,6 @@ export default function AnalyticsPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {isUsingMock && <MockDataBanner />}
-
           {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <SummaryCard

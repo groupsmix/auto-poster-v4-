@@ -3,10 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { ScoreBadge, DecisionBadge } from "@/components/StatusBadge";
-import { MOCK_PENDING, MOCK_IN_REVISION, MOCK_REVIEW_HISTORY } from "@/lib/mock-data";
 import { formatDateTime } from "@/lib/format";
 
 type Tab = "pending" | "in_revision" | "history";
@@ -14,21 +12,20 @@ type Tab = "pending" | "in_revision" | "history";
 export default function ReviewCenterPage() {
   const [activeTab, setActiveTab] = useState<Tab>("pending");
 
-  const { data: pending, loading: loadingPending, isUsingMock: mockPending } = useApiQuery(
+  const { data: pending, loading: loadingPending } = useApiQuery(
     () => api.reviews.pending(),
-    MOCK_PENDING,
+    [],
   );
-  const { data: inRevision, loading: loadingRevision, isUsingMock: mockRevision } = useApiQuery(
+  const { data: inRevision, loading: loadingRevision } = useApiQuery(
     () => api.reviews.inRevision(),
-    MOCK_IN_REVISION,
+    [],
   );
-  const { data: history, loading: loadingHistory, isUsingMock: mockHistory } = useApiQuery(
+  const { data: history, loading: loadingHistory } = useApiQuery(
     () => api.reviews.history(),
-    MOCK_REVIEW_HISTORY,
+    [],
   );
 
   const loading = loadingPending || loadingRevision || loadingHistory;
-  const isUsingMock = mockPending || mockRevision || mockHistory;
 
 
   const tabs: { key: Tab; label: string; count: number }[] = [
@@ -52,8 +49,6 @@ export default function ReviewCenterPage() {
           CEO approval queue and revision history
         </p>
       </div>
-
-      {isUsingMock && <MockDataBanner />}
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 mb-6" role="tablist" aria-label="Review tabs">
