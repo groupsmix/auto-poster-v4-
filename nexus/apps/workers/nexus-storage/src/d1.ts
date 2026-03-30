@@ -24,6 +24,50 @@ import type {
 } from "@nexus/shared";
 import { generateId, now } from "@nexus/shared";
 
+// --- Generic update builder to reduce repetitive CRUD boilerplate ---
+
+interface FieldSpec {
+  column: string;
+  transform?: (value: unknown) => unknown;
+}
+
+/**
+ * Build a parameterized UPDATE statement from a data object.
+ * Only includes fields present in `allowedFields` and defined in `data`.
+ * Automatically appends `updated_at` if the table has that column.
+ */
+function buildUpdate(
+  table: string,
+  id: string,
+  data: Record<string, unknown>,
+  allowedFields: FieldSpec[],
+  options?: { autoUpdatedAt?: boolean }
+): { sql: string; values: unknown[] } | null {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+
+  for (const spec of allowedFields) {
+    const value = data[spec.column];
+    if (value !== undefined) {
+      fields.push(`${spec.column} = ?`);
+      values.push(spec.transform ? spec.transform(value) : value);
+    }
+  }
+
+  if (options?.autoUpdatedAt) {
+    fields.push("updated_at = ?");
+    values.push(new Date().toISOString());
+  }
+
+  if (fields.length === 0) return null;
+
+  values.push(id);
+  return {
+    sql: `UPDATE ${table} SET ${fields.join(", ")} WHERE id = ?`,
+    values,
+  };
+}
+
 // --- Generic query executor ---
 
 export class D1Queries {
@@ -43,6 +87,19 @@ export class D1Queries {
       .prepare(sql)
       .bind(...params)
       .run();
+  }
+
+  /** Generic update helper — delegates to buildUpdate */
+  private async executeUpdate(
+    table: string,
+    id: string,
+    data: Record<string, unknown>,
+    allowedFields: FieldSpec[],
+    options?: { autoUpdatedAt?: boolean }
+  ): Promise<void> {
+    const update = buildUpdate(table, id, data, allowedFields, options);
+    if (!update) return;
+    await this.db.prepare(update.sql).bind(...update.values).run();
   }
 
   // ============================================================
@@ -87,23 +144,14 @@ export class D1Queries {
     id: string,
     data: Partial<Omit<Domain, "id" | "created_at">>
   ): Promise<void> {
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.name !== undefined) { fields.push("name = ?"); values.push(data.name); }
-    if (data.slug !== undefined) { fields.push("slug = ?"); values.push(data.slug); }
-    if (data.description !== undefined) { fields.push("description = ?"); values.push(data.description); }
-    if (data.icon !== undefined) { fields.push("icon = ?"); values.push(data.icon); }
-    if (data.sort_order !== undefined) { fields.push("sort_order = ?"); values.push(data.sort_order); }
-    if (data.is_active !== undefined) { fields.push("is_active = ?"); values.push(data.is_active ? 1 : 0); }
-
-    if (fields.length === 0) return;
-    values.push(id);
-
-    await this.db
-      .prepare(`UPDATE domains SET ${fields.join(", ")} WHERE id = ?`)
-      .bind(...values)
-      .run();
+    await this.executeUpdate("domains", id, data as Record<string, unknown>, [
+      { column: "name" },
+      { column: "slug" },
+      { column: "description" },
+      { column: "icon" },
+      { column: "sort_order" },
+      { column: "is_active", transform: (v) => (v ? 1 : 0) },
+    ]);
   }
 
   async deleteDomain(id: string): Promise<void> {
@@ -157,23 +205,14 @@ export class D1Queries {
     id: string,
     data: Partial<Omit<Category, "id">>
   ): Promise<void> {
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.domain_id !== undefined) { fields.push("domain_id = ?"); values.push(data.domain_id); }
-    if (data.name !== undefined) { fields.push("name = ?"); values.push(data.name); }
-    if (data.slug !== undefined) { fields.push("slug = ?"); values.push(data.slug); }
-    if (data.description !== undefined) { fields.push("description = ?"); values.push(data.description); }
-    if (data.sort_order !== undefined) { fields.push("sort_order = ?"); values.push(data.sort_order); }
-    if (data.is_active !== undefined) { fields.push("is_active = ?"); values.push(data.is_active ? 1 : 0); }
-
-    if (fields.length === 0) return;
-    values.push(id);
-
-    await this.db
-      .prepare(`UPDATE categories SET ${fields.join(", ")} WHERE id = ?`)
-      .bind(...values)
-      .run();
+    await this.executeUpdate("categories", id, data as Record<string, unknown>, [
+      { column: "domain_id" },
+      { column: "name" },
+      { column: "slug" },
+      { column: "description" },
+      { column: "sort_order" },
+      { column: "is_active", transform: (v) => (v ? 1 : 0) },
+    ]);
   }
 
   async deleteCategory(id: string): Promise<void> {
@@ -226,29 +265,20 @@ export class D1Queries {
     id: string,
     data: Partial<Omit<Platform, "id">>
   ): Promise<void> {
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.name !== undefined) { fields.push("name = ?"); values.push(data.name); }
-    if (data.slug !== undefined) { fields.push("slug = ?"); values.push(data.slug); }
-    if (data.title_max_chars !== undefined) { fields.push("title_max_chars = ?"); values.push(data.title_max_chars); }
-    if (data.tag_count !== undefined) { fields.push("tag_count = ?"); values.push(data.tag_count); }
-    if (data.tag_max_chars !== undefined) { fields.push("tag_max_chars = ?"); values.push(data.tag_max_chars); }
-    if (data.audience !== undefined) { fields.push("audience = ?"); values.push(data.audience); }
-    if (data.tone !== undefined) { fields.push("tone = ?"); values.push(data.tone); }
-    if (data.seo_style !== undefined) { fields.push("seo_style = ?"); values.push(data.seo_style); }
-    if (data.description_style !== undefined) { fields.push("description_style = ?"); values.push(data.description_style); }
-    if (data.cta_style !== undefined) { fields.push("cta_style = ?"); values.push(data.cta_style); }
-    if (data.rules_json !== undefined) { fields.push("rules_json = ?"); values.push(JSON.stringify(data.rules_json)); }
-    if (data.is_active !== undefined) { fields.push("is_active = ?"); values.push(data.is_active ? 1 : 0); }
-
-    if (fields.length === 0) return;
-    values.push(id);
-
-    await this.db
-      .prepare(`UPDATE platforms SET ${fields.join(", ")} WHERE id = ?`)
-      .bind(...values)
-      .run();
+    await this.executeUpdate("platforms", id, data as Record<string, unknown>, [
+      { column: "name" },
+      { column: "slug" },
+      { column: "title_max_chars" },
+      { column: "tag_count" },
+      { column: "tag_max_chars" },
+      { column: "audience" },
+      { column: "tone" },
+      { column: "seo_style" },
+      { column: "description_style" },
+      { column: "cta_style" },
+      { column: "rules_json", transform: (v) => JSON.stringify(v) },
+      { column: "is_active", transform: (v) => (v ? 1 : 0) },
+    ]);
   }
 
   async deletePlatform(id: string): Promise<void> {
@@ -297,25 +327,16 @@ export class D1Queries {
     id: string,
     data: Partial<Omit<SocialChannel, "id">>
   ): Promise<void> {
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.name !== undefined) { fields.push("name = ?"); values.push(data.name); }
-    if (data.slug !== undefined) { fields.push("slug = ?"); values.push(data.slug); }
-    if (data.caption_max_chars !== undefined) { fields.push("caption_max_chars = ?"); values.push(data.caption_max_chars); }
-    if (data.hashtag_count !== undefined) { fields.push("hashtag_count = ?"); values.push(data.hashtag_count); }
-    if (data.tone !== undefined) { fields.push("tone = ?"); values.push(data.tone); }
-    if (data.format !== undefined) { fields.push("format = ?"); values.push(data.format); }
-    if (data.content_types !== undefined) { fields.push("content_types = ?"); values.push(JSON.stringify(data.content_types)); }
-    if (data.is_active !== undefined) { fields.push("is_active = ?"); values.push(data.is_active ? 1 : 0); }
-
-    if (fields.length === 0) return;
-    values.push(id);
-
-    await this.db
-      .prepare(`UPDATE social_channels SET ${fields.join(", ")} WHERE id = ?`)
-      .bind(...values)
-      .run();
+    await this.executeUpdate("social_channels", id, data as Record<string, unknown>, [
+      { column: "name" },
+      { column: "slug" },
+      { column: "caption_max_chars" },
+      { column: "hashtag_count" },
+      { column: "tone" },
+      { column: "format" },
+      { column: "content_types", transform: (v) => JSON.stringify(v) },
+      { column: "is_active", transform: (v) => (v ? 1 : 0) },
+    ]);
   }
 
   async deleteSocialChannel(id: string): Promise<void> {
@@ -393,26 +414,16 @@ export class D1Queries {
     id: string,
     data: Partial<Omit<Product, "id" | "created_at">>
   ): Promise<void> {
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.domain_id !== undefined) { fields.push("domain_id = ?"); values.push(data.domain_id); }
-    if (data.category_id !== undefined) { fields.push("category_id = ?"); values.push(data.category_id); }
-    if (data.name !== undefined) { fields.push("name = ?"); values.push(data.name); }
-    if (data.niche !== undefined) { fields.push("niche = ?"); values.push(data.niche); }
-    if (data.language !== undefined) { fields.push("language = ?"); values.push(data.language); }
-    if (data.user_input !== undefined) { fields.push("user_input = ?"); values.push(JSON.stringify(data.user_input)); }
-    if (data.batch_id !== undefined) { fields.push("batch_id = ?"); values.push(data.batch_id); }
-    if (data.status !== undefined) { fields.push("status = ?"); values.push(data.status); }
-
-    fields.push("updated_at = ?");
-    values.push(now());
-    values.push(id);
-
-    await this.db
-      .prepare(`UPDATE products SET ${fields.join(", ")} WHERE id = ?`)
-      .bind(...values)
-      .run();
+    await this.executeUpdate("products", id, data as Record<string, unknown>, [
+      { column: "domain_id" },
+      { column: "category_id" },
+      { column: "name" },
+      { column: "niche" },
+      { column: "language" },
+      { column: "user_input", transform: (v) => JSON.stringify(v) },
+      { column: "batch_id" },
+      { column: "status" },
+    ], { autoUpdatedAt: true });
   }
 
   async deleteProduct(id: string): Promise<void> {
@@ -468,28 +479,19 @@ export class D1Queries {
     id: string,
     data: Partial<Omit<WorkflowRun, "id">>
   ): Promise<void> {
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.product_id !== undefined) { fields.push("product_id = ?"); values.push(data.product_id); }
-    if (data.batch_id !== undefined) { fields.push("batch_id = ?"); values.push(data.batch_id); }
-    if (data.status !== undefined) { fields.push("status = ?"); values.push(data.status); }
-    if (data.started_at !== undefined) { fields.push("started_at = ?"); values.push(data.started_at); }
-    if (data.completed_at !== undefined) { fields.push("completed_at = ?"); values.push(data.completed_at); }
-    if (data.current_step !== undefined) { fields.push("current_step = ?"); values.push(data.current_step); }
-    if (data.total_steps !== undefined) { fields.push("total_steps = ?"); values.push(data.total_steps); }
-    if (data.total_tokens !== undefined) { fields.push("total_tokens = ?"); values.push(data.total_tokens); }
-    if (data.total_cost !== undefined) { fields.push("total_cost = ?"); values.push(data.total_cost); }
-    if (data.cache_hits !== undefined) { fields.push("cache_hits = ?"); values.push(data.cache_hits); }
-    if (data.error !== undefined) { fields.push("error = ?"); values.push(data.error); }
-
-    if (fields.length === 0) return;
-    values.push(id);
-
-    await this.db
-      .prepare(`UPDATE workflow_runs SET ${fields.join(", ")} WHERE id = ?`)
-      .bind(...values)
-      .run();
+    await this.executeUpdate("workflow_runs", id, data as Record<string, unknown>, [
+      { column: "product_id" },
+      { column: "batch_id" },
+      { column: "status" },
+      { column: "started_at" },
+      { column: "completed_at" },
+      { column: "current_step" },
+      { column: "total_steps" },
+      { column: "total_tokens" },
+      { column: "total_cost" },
+      { column: "cache_hits" },
+      { column: "error" },
+    ]);
   }
 
   async deleteWorkflowRun(id: string): Promise<void> {
@@ -591,31 +593,22 @@ export class D1Queries {
     id: string,
     data: Partial<Omit<WorkflowStep, "id">>
   ): Promise<void> {
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.run_id !== undefined) { fields.push("run_id = ?"); values.push(data.run_id); }
-    if (data.step_name !== undefined) { fields.push("step_name = ?"); values.push(data.step_name); }
-    if (data.step_order !== undefined) { fields.push("step_order = ?"); values.push(data.step_order); }
-    if (data.status !== undefined) { fields.push("status = ?"); values.push(data.status); }
-    if (data.ai_used !== undefined) { fields.push("ai_used = ?"); values.push(data.ai_used); }
-    if (data.ai_tried !== undefined) { fields.push("ai_tried = ?"); values.push(JSON.stringify(data.ai_tried)); }
-    if (data.input !== undefined) { fields.push("input = ?"); values.push(JSON.stringify(data.input)); }
-    if (data.output !== undefined) { fields.push("output = ?"); values.push(JSON.stringify(data.output)); }
-    if (data.tokens_used !== undefined) { fields.push("tokens_used = ?"); values.push(data.tokens_used); }
-    if (data.cost !== undefined) { fields.push("cost = ?"); values.push(data.cost); }
-    if (data.cached !== undefined) { fields.push("cached = ?"); values.push(data.cached ? 1 : 0); }
-    if (data.latency_ms !== undefined) { fields.push("latency_ms = ?"); values.push(data.latency_ms); }
-    if (data.started_at !== undefined) { fields.push("started_at = ?"); values.push(data.started_at); }
-    if (data.completed_at !== undefined) { fields.push("completed_at = ?"); values.push(data.completed_at); }
-
-    if (fields.length === 0) return;
-    values.push(id);
-
-    await this.db
-      .prepare(`UPDATE workflow_steps SET ${fields.join(", ")} WHERE id = ?`)
-      .bind(...values)
-      .run();
+    await this.executeUpdate("workflow_steps", id, data as Record<string, unknown>, [
+      { column: "run_id" },
+      { column: "step_name" },
+      { column: "step_order" },
+      { column: "status" },
+      { column: "ai_used" },
+      { column: "ai_tried", transform: (v) => JSON.stringify(v) },
+      { column: "input", transform: (v) => JSON.stringify(v) },
+      { column: "output", transform: (v) => JSON.stringify(v) },
+      { column: "tokens_used" },
+      { column: "cost" },
+      { column: "cached", transform: (v) => (v ? 1 : 0) },
+      { column: "latency_ms" },
+      { column: "started_at" },
+      { column: "completed_at" },
+    ]);
   }
 
   /** Helper: update step status with optional output */
@@ -696,23 +689,14 @@ export class D1Queries {
     id: string,
     data: Partial<Omit<Asset, "id" | "created_at">>
   ): Promise<void> {
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.product_id !== undefined) { fields.push("product_id = ?"); values.push(data.product_id); }
-    if (data.asset_type !== undefined) { fields.push("asset_type = ?"); values.push(data.asset_type); }
-    if (data.r2_key !== undefined) { fields.push("r2_key = ?"); values.push(data.r2_key); }
-    if (data.cf_image_id !== undefined) { fields.push("cf_image_id = ?"); values.push(data.cf_image_id); }
-    if (data.url !== undefined) { fields.push("url = ?"); values.push(data.url); }
-    if (data.metadata !== undefined) { fields.push("metadata = ?"); values.push(JSON.stringify(data.metadata)); }
-
-    if (fields.length === 0) return;
-    values.push(id);
-
-    await this.db
-      .prepare(`UPDATE assets SET ${fields.join(", ")} WHERE id = ?`)
-      .bind(...values)
-      .run();
+    await this.executeUpdate("assets", id, data as Record<string, unknown>, [
+      { column: "product_id" },
+      { column: "asset_type" },
+      { column: "r2_key" },
+      { column: "cf_image_id" },
+      { column: "url" },
+      { column: "metadata", transform: (v) => JSON.stringify(v) },
+    ]);
   }
 
   async deleteAsset(id: string): Promise<void> {
@@ -769,26 +753,17 @@ export class D1Queries {
     id: string,
     data: Partial<Omit<PlatformVariant, "id">>
   ): Promise<void> {
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.product_id !== undefined) { fields.push("product_id = ?"); values.push(data.product_id); }
-    if (data.platform_id !== undefined) { fields.push("platform_id = ?"); values.push(data.platform_id); }
-    if (data.title !== undefined) { fields.push("title = ?"); values.push(data.title); }
-    if (data.description !== undefined) { fields.push("description = ?"); values.push(data.description); }
-    if (data.tags !== undefined) { fields.push("tags = ?"); values.push(JSON.stringify(data.tags)); }
-    if (data.price !== undefined) { fields.push("price = ?"); values.push(data.price); }
-    if (data.metadata !== undefined) { fields.push("metadata = ?"); values.push(JSON.stringify(data.metadata)); }
-    if (data.status !== undefined) { fields.push("status = ?"); values.push(data.status); }
-    if (data.published_at !== undefined) { fields.push("published_at = ?"); values.push(data.published_at); }
-
-    if (fields.length === 0) return;
-    values.push(id);
-
-    await this.db
-      .prepare(`UPDATE platform_variants SET ${fields.join(", ")} WHERE id = ?`)
-      .bind(...values)
-      .run();
+    await this.executeUpdate("platform_variants", id, data as Record<string, unknown>, [
+      { column: "product_id" },
+      { column: "platform_id" },
+      { column: "title" },
+      { column: "description" },
+      { column: "tags", transform: (v) => JSON.stringify(v) },
+      { column: "price" },
+      { column: "metadata", transform: (v) => JSON.stringify(v) },
+      { column: "status" },
+      { column: "published_at" },
+    ]);
   }
 
   async deletePlatformVariant(id: string): Promise<void> {
@@ -845,23 +820,14 @@ export class D1Queries {
     id: string,
     data: Partial<Omit<SocialVariant, "id">>
   ): Promise<void> {
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.product_id !== undefined) { fields.push("product_id = ?"); values.push(data.product_id); }
-    if (data.channel_id !== undefined) { fields.push("channel_id = ?"); values.push(data.channel_id); }
-    if (data.content !== undefined) { fields.push("content = ?"); values.push(JSON.stringify(data.content)); }
-    if (data.status !== undefined) { fields.push("status = ?"); values.push(data.status); }
-    if (data.scheduled_at !== undefined) { fields.push("scheduled_at = ?"); values.push(data.scheduled_at); }
-    if (data.published_at !== undefined) { fields.push("published_at = ?"); values.push(data.published_at); }
-
-    if (fields.length === 0) return;
-    values.push(id);
-
-    await this.db
-      .prepare(`UPDATE social_variants SET ${fields.join(", ")} WHERE id = ?`)
-      .bind(...values)
-      .run();
+    await this.executeUpdate("social_variants", id, data as Record<string, unknown>, [
+      { column: "product_id" },
+      { column: "channel_id" },
+      { column: "content", transform: (v) => JSON.stringify(v) },
+      { column: "status" },
+      { column: "scheduled_at" },
+      { column: "published_at" },
+    ]);
   }
 
   async deleteSocialVariant(id: string): Promise<void> {
@@ -921,24 +887,15 @@ export class D1Queries {
     id: string,
     data: Partial<Omit<Review, "id">>
   ): Promise<void> {
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.product_id !== undefined) { fields.push("product_id = ?"); values.push(data.product_id); }
-    if (data.run_id !== undefined) { fields.push("run_id = ?"); values.push(data.run_id); }
-    if (data.version !== undefined) { fields.push("version = ?"); values.push(data.version); }
-    if (data.ai_score !== undefined) { fields.push("ai_score = ?"); values.push(data.ai_score); }
-    if (data.ai_model !== undefined) { fields.push("ai_model = ?"); values.push(data.ai_model); }
-    if (data.decision !== undefined) { fields.push("decision = ?"); values.push(data.decision); }
-    if (data.feedback !== undefined) { fields.push("feedback = ?"); values.push(data.feedback); }
-
-    if (fields.length === 0) return;
-    values.push(id);
-
-    await this.db
-      .prepare(`UPDATE reviews SET ${fields.join(", ")} WHERE id = ?`)
-      .bind(...values)
-      .run();
+    await this.executeUpdate("reviews", id, data as Record<string, unknown>, [
+      { column: "product_id" },
+      { column: "run_id" },
+      { column: "version" },
+      { column: "ai_score" },
+      { column: "ai_model" },
+      { column: "decision" },
+      { column: "feedback" },
+    ]);
   }
 
   async deleteReview(id: string): Promise<void> {
@@ -1044,24 +1001,14 @@ export class D1Queries {
     id: string,
     data: Partial<Omit<PromptTemplate, "id">>
   ): Promise<void> {
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.layer !== undefined) { fields.push("layer = ?"); values.push(data.layer); }
-    if (data.target_id !== undefined) { fields.push("target_id = ?"); values.push(data.target_id); }
-    if (data.name !== undefined) { fields.push("name = ?"); values.push(data.name); }
-    if (data.prompt !== undefined) { fields.push("prompt = ?"); values.push(data.prompt); }
-    if (data.version !== undefined) { fields.push("version = ?"); values.push(data.version); }
-    if (data.is_active !== undefined) { fields.push("is_active = ?"); values.push(data.is_active ? 1 : 0); }
-
-    fields.push("updated_at = ?");
-    values.push(now());
-    values.push(id);
-
-    await this.db
-      .prepare(`UPDATE prompt_templates SET ${fields.join(", ")} WHERE id = ?`)
-      .bind(...values)
-      .run();
+    await this.executeUpdate("prompt_templates", id, data as Record<string, unknown>, [
+      { column: "layer" },
+      { column: "target_id" },
+      { column: "name" },
+      { column: "prompt" },
+      { column: "version" },
+      { column: "is_active", transform: (v) => (v ? 1 : 0) },
+    ], { autoUpdatedAt: true });
   }
 
   async deletePromptTemplate(id: string): Promise<void> {
@@ -1131,32 +1078,23 @@ export class D1Queries {
     id: string,
     data: Partial<Omit<AIModel, "id">>
   ): Promise<void> {
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.name !== undefined) { fields.push("name = ?"); values.push(data.name); }
-    if (data.provider !== undefined) { fields.push("provider = ?"); values.push(data.provider); }
-    if (data.task_type !== undefined) { fields.push("task_type = ?"); values.push(data.task_type); }
-    if (data.rank !== undefined) { fields.push("rank = ?"); values.push(data.rank); }
-    if (data.api_key_secret_name !== undefined) { fields.push("api_key_secret_name = ?"); values.push(data.api_key_secret_name); }
-    if (data.is_workers_ai !== undefined) { fields.push("is_workers_ai = ?"); values.push(data.is_workers_ai ? 1 : 0); }
-    if (data.status !== undefined) { fields.push("status = ?"); values.push(data.status); }
-    if (data.rate_limit_reset_at !== undefined) { fields.push("rate_limit_reset_at = ?"); values.push(data.rate_limit_reset_at); }
-    if (data.daily_limit_reset_at !== undefined) { fields.push("daily_limit_reset_at = ?"); values.push(data.daily_limit_reset_at); }
-    if (data.is_free_tier !== undefined) { fields.push("is_free_tier = ?"); values.push(data.is_free_tier ? 1 : 0); }
-    if (data.health_score !== undefined) { fields.push("health_score = ?"); values.push(data.health_score); }
-    if (data.total_calls !== undefined) { fields.push("total_calls = ?"); values.push(data.total_calls); }
-    if (data.total_failures !== undefined) { fields.push("total_failures = ?"); values.push(data.total_failures); }
-    if (data.avg_latency_ms !== undefined) { fields.push("avg_latency_ms = ?"); values.push(data.avg_latency_ms); }
-    if (data.notes !== undefined) { fields.push("notes = ?"); values.push(data.notes); }
-
-    if (fields.length === 0) return;
-    values.push(id);
-
-    await this.db
-      .prepare(`UPDATE ai_models SET ${fields.join(", ")} WHERE id = ?`)
-      .bind(...values)
-      .run();
+    await this.executeUpdate("ai_models", id, data as Record<string, unknown>, [
+      { column: "name" },
+      { column: "provider" },
+      { column: "task_type" },
+      { column: "rank" },
+      { column: "api_key_secret_name" },
+      { column: "is_workers_ai", transform: (v) => (v ? 1 : 0) },
+      { column: "status" },
+      { column: "rate_limit_reset_at" },
+      { column: "daily_limit_reset_at" },
+      { column: "is_free_tier", transform: (v) => (v ? 1 : 0) },
+      { column: "health_score" },
+      { column: "total_calls" },
+      { column: "total_failures" },
+      { column: "avg_latency_ms" },
+      { column: "notes" },
+    ]);
   }
 
   async deleteAIModel(id: string): Promise<void> {

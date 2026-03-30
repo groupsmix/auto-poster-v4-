@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
-import { forwardToService, errorResponse, storageQuery } from "../helpers";
+import { forwardToService, errorResponse, storageQuery, validateStringField, sanitizeInput } from "../helpers";
 
 const workflows = new Hono<{ Bindings: RouterEnv }>();
 
@@ -10,15 +10,23 @@ workflows.post("/start", async (c) => {
   try {
     const body = await c.req.json();
 
-    if (!body.domain_id || !body.category_id || !body.niche) {
+    const domainId = validateStringField(body, "domain_id");
+    const categoryId = validateStringField(body, "category_id");
+    const niche = validateStringField(body, "niche");
+
+    if (!domainId || !categoryId || !niche) {
       return c.json<ApiResponse>(
         {
           success: false,
-          error: "domain_id, category_id, and niche are required",
+          error: "domain_id, category_id, and niche are required (non-empty strings)",
         },
         400
       );
     }
+    // Replace raw values with sanitized ones
+    body.domain_id = domainId;
+    body.category_id = categoryId;
+    body.niche = niche;
 
     const result = await forwardToService(
       c.env.NEXUS_WORKFLOW,
@@ -118,12 +126,14 @@ workflows.post("/revise/:runId", async (c) => {
         400
       );
     }
-    if (!body.feedback) {
+    const feedback = validateStringField(body as Record<string, unknown>, "feedback");
+    if (!feedback) {
       return c.json<ApiResponse>(
-        { success: false, error: "feedback is required" },
+        { success: false, error: "feedback is required (non-empty string)" },
         400
       );
     }
+    body.feedback = feedback;
 
     const result = await forwardToService(
       c.env.NEXUS_WORKFLOW,
@@ -192,12 +202,14 @@ workflows.post("/retry-from-step/:runId", async (c) => {
         400
       );
     }
-    if (!body.step_name) {
+    const stepName = validateStringField(body as Record<string, unknown>, "step_name");
+    if (!stepName) {
       return c.json<ApiResponse>(
-        { success: false, error: "step_name is required" },
+        { success: false, error: "step_name is required (non-empty string)" },
         400
       );
     }
+    body.step_name = stepName;
 
     const result = await forwardToService(
       c.env.NEXUS_WORKFLOW,

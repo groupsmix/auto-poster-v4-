@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
 import { generateId, slugify, now, DEFAULT_PAGE_SIZE } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
-import { storageQuery, storageCleanup, errorResponse } from "../helpers";
+import { storageQuery, storageCleanup, errorResponse, validateStringField, sanitizeInput } from "../helpers";
 
 const products = new Hono<{ Bindings: RouterEnv }>();
 
@@ -126,12 +126,22 @@ products.post("/", async (c) => {
       keywords?: string;
     }>();
 
-    if (!body.domain_id || !body.category_id) {
+    const domainId = validateStringField(body as Record<string, unknown>, "domain_id");
+    const categoryId = validateStringField(body as Record<string, unknown>, "category_id");
+    if (!domainId || !categoryId) {
       return c.json<ApiResponse>(
-        { success: false, error: "domain_id and category_id are required" },
+        { success: false, error: "domain_id and category_id are required (non-empty strings)" },
         400
       );
     }
+    body.domain_id = domainId;
+    body.category_id = categoryId;
+
+    // Sanitize user-facing text fields
+    if (body.name) body.name = sanitizeInput(body.name);
+    if (body.niche) body.niche = sanitizeInput(body.niche);
+    if (body.description) body.description = sanitizeInput(body.description);
+    if (body.keywords) body.keywords = sanitizeInput(body.keywords);
 
     const id = generateId();
     const productName = body.name ?? body.niche ?? "Untitled";

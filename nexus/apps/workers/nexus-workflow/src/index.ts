@@ -13,6 +13,15 @@ import type { ProductContext, StepName } from "./steps";
 
 const app = new Hono<{ Bindings: Env }>();
 
+/** Safely extract ExecutionContext — returns undefined in test environments */
+function getExecutionCtx(c: { executionCtx: ExecutionContext }): ExecutionContext | undefined {
+  try {
+    return c.executionCtx;
+  } catch {
+    return undefined;
+  }
+}
+
 // --- Health & info routes ---
 
 app.get("/", (c) => {
@@ -168,7 +177,7 @@ app.post("/workflow/start", async (c) => {
     }
 
     // --- Single workflow mode ---
-    const engine = new WorkflowEngine(c.env);
+    const engine = new WorkflowEngine(c.env, getExecutionCtx(c));
     const productId = generateId();
     const productName = body.name ?? body.niche;
     const slug = slugify(productName);
@@ -268,7 +277,7 @@ app.post("/workflow/cancel/:runId", async (c) => {
       );
     }
 
-    const engine = new WorkflowEngine(c.env);
+    const engine = new WorkflowEngine(c.env, getExecutionCtx(c));
     await engine.cancelWorkflow(runId);
 
     return c.json<ApiResponse>({
@@ -300,7 +309,7 @@ app.get("/workflow/status/:runId", async (c) => {
       );
     }
 
-    const engine = new WorkflowEngine(c.env);
+    const engine = new WorkflowEngine(c.env, getExecutionCtx(c));
     const status = await engine.getWorkflowStatus(runId);
 
     if (!status) {
@@ -391,7 +400,7 @@ app.post("/workflow/revise/:runId", async (c) => {
       );
     }
 
-    const engine = new WorkflowEngine(c.env);
+    const engine = new WorkflowEngine(c.env, getExecutionCtx(c));
     const result = await engine.reviseWorkflow(
       runId,
       body.feedback,
@@ -440,7 +449,7 @@ app.post("/workflow/retry-from-step/:runId", async (c) => {
       );
     }
 
-    const engine = new WorkflowEngine(c.env);
+    const engine = new WorkflowEngine(c.env, getExecutionCtx(c));
 
     // Get the workflow status to determine which steps to re-run
     const status = await engine.getWorkflowStatus(runId);
