@@ -88,8 +88,9 @@ export default function PromptsPage() {
     try {
       const response = await api.prompts.update(id, { prompt: editText });
       if (response.success && response.data) {
+        const updated = response.data;
         setPrompts((prev) =>
-          prev.map((p) => (p.id === id ? response.data! : p))
+          prev.map((p) => (p.id === id ? updated : p))
         );
       } else {
         setPrompts((prev) =>

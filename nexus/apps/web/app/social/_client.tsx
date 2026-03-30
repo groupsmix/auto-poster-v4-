@@ -98,7 +98,8 @@ export default function SocialClient() {
     try {
       const response = await api.socialChannels.update(editingId, editData);
       if (response.success && response.data) {
-        setChannels((prev) => prev.map((c) => (c.id === editingId ? response.data! : c)));
+        const updated = response.data;
+        setChannels((prev) => prev.map((c) => (c.id === editingId ? updated : c)));
       } else {
         setChannels((prev) => prev.map((c) => (c.id === editingId ? editData : c)));
       }
@@ -133,7 +134,8 @@ export default function SocialClient() {
     try {
       const response = await api.socialChannels.create(dataToSend);
       if (response.success && response.data) {
-        setChannels((prev) => [...prev, response.data!]);
+        const created = response.data;
+        setChannels((prev) => [...prev, created]);
       } else {
         const mockId = `social-${Date.now()}`;
         setChannels((prev) => [...prev, { id: mockId, ...dataToSend }]);

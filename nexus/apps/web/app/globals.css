@@ -67,7 +67,15 @@ body {
   background: var(--muted);
 }
 
-/* Light mode support */
+/*
+ * Theme strategy (V1):
+ * Dark mode is the default and deliberate design choice for this power-user tool.
+ * Light mode is supported via @media (prefers-color-scheme: light) below,
+ * respecting OS-level preference. A manual theme toggle may be added in a
+ * future release via a [data-theme="light"] CSS variable set + Settings UI.
+ */
+
+/* Light mode support — respects OS-level preference */
 @media (prefers-color-scheme: light) {
   :root {
     --background: #f8f8f8;

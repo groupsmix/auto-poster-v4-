@@ -41,7 +41,7 @@ export default function HistoryPage() {
       try {
         const response = await api.history.getRunSteps(runId);
         if (response.success && response.data) {
-          setSteps((prev) => ({ ...prev, [runId]: response.data! }));
+          setSteps((prev) => ({ ...prev, [runId]: response.data ?? [] }));
         } else {
           setSteps((prev) => ({
             ...prev,

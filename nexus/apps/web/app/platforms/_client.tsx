@@ -65,7 +65,8 @@ export default function PlatformsClient() {
     try {
       const response = await api.platforms.update(editingId, editData);
       if (response.success && response.data) {
-        setPlatforms((prev) => prev.map((p) => (p.id === editingId ? response.data! : p)));
+        const updated = response.data;
+        setPlatforms((prev) => prev.map((p) => (p.id === editingId ? updated : p)));
       } else {
         setPlatforms((prev) => prev.map((p) => (p.id === editingId ? editData : p)));
       }
@@ -100,7 +101,8 @@ export default function PlatformsClient() {
     try {
       const response = await api.platforms.create(dataToSend);
       if (response.success && response.data) {
-        setPlatforms((prev) => [...prev, response.data!]);
+        const created = response.data;
+        setPlatforms((prev) => [...prev, created]);
       } else {
         const mockId = `plat-${Date.now()}`;
         setPlatforms((prev) => [...prev, { id: mockId, ...dataToSend }]);
