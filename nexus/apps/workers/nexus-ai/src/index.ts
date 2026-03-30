@@ -69,9 +69,9 @@ app.post("/ai/run", async (c) => {
 
 // ── GET /ai/health — health report for all models ───────────
 
-app.get("/ai/health", (c) => {
-  const report = getHealthReport();
-  const modelStates = getModelStates();
+app.get("/ai/health", async (c) => {
+  const report = await getHealthReport(c.env);
+  const modelStates = await getModelStates(c.env);
 
   // Check for reorder suggestions across all task types
   const suggestions = getTaskTypes()
@@ -171,10 +171,10 @@ app.post("/ai/registry/reorder", async (c) => {
 
 // ── GET /ai/cache/stats — cache hit/miss statistics ─────────
 
-app.get("/ai/cache/stats", (c) => {
+app.get("/ai/cache/stats", async (c) => {
   return c.json({
     success: true,
-    data: getCacheStats(),
+    data: await getCacheStats(c.env),
   });
 });
 

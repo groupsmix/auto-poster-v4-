@@ -79,13 +79,6 @@ export function getMidnightTimestamp(): number {
 }
 
 /**
- * Build a cache key for AI responses
- */
-export function buildCacheKey(hash: string): string {
-  return `cache:ai:${hash}`;
-}
-
-/**
  * Get current ISO datetime string
  */
 export function now(): string {

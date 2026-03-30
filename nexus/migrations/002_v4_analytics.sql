@@ -254,14 +254,14 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
 INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_tavily',            'Tavily Search',          'tavily.com',    'research', 1, 'TAVILY_API_KEY',       false, 'active', true,  'Purpose-built for AI agents. Returns clean structured web data.'),
   ('ai_exa',               'Exa Neural Search',      'exa.ai',        'research', 2, 'EXA_API_KEY',          false, 'active', true,  'Finds by meaning not keywords. Discovers emerging niches.'),
-  ('ai_serpapi',            'SerpAPI',                'serpapi.com',   'research', 3, 'SERPAPI_API_KEY',      false, 'active', true,  'Raw Google results. Reliable backup for trend data.'),
+  ('ai_serpapi',            'SerpAPI',                'serpapi.com',   'research', 3, 'SERPAPI_KEY',          false, 'active', true,  'Raw Google results. Reliable backup for trend data.'),
   ('ai_deepseek_v3_res',    'DeepSeek-V3',            'deepseek.com',  'research', 4, 'DEEPSEEK_API_KEY',    false, 'active', true,  'Reasoning fallback when search APIs hit limits.'),
   ('ai_workers_research',   'Workers AI (Llama 3.1)', 'Cloudflare',   'research', 5, NULL,                  true,  'active', true,  'Ultimate fallback. On-platform, always available.');
 
 -- Research: Keyword & SEO Research
 INSERT OR IGNORE INTO ai_models (id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, is_free_tier, notes) VALUES
   ('ai_dataforseo',         'DataForSEO',             'dataforseo.com', 'seo',    1, 'DATAFORSEO_API_KEY',  false, 'active', true,  'Most accurate keyword volume + difficulty data.'),
-  ('ai_serpapi_seo',         'SerpAPI',                'serpapi.com',    'seo',    2, 'SERPAPI_API_KEY',     false, 'active', true,  'See exactly what pages rank and why.'),
+  ('ai_serpapi_seo',         'SerpAPI',                'serpapi.com',    'seo',    2, 'SERPAPI_KEY',         false, 'active', true,  'See exactly what pages rank and why.'),
   ('ai_qwen_flash_seo',     'Qwen 3.5 Flash',        'SiliconFlow',   'seo',    3, 'SILICONFLOW_API_KEY', false, 'active', true,  'Cheapest reasoning fallback for keyword clustering.'),
   ('ai_workers_seo',         'Workers AI (Llama 3.1)', 'Cloudflare',   'seo',    4, NULL,                  true,  'active', true,  'Ultimate fallback for keyword analysis.');
 

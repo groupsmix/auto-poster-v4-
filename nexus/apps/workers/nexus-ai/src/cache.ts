@@ -23,6 +23,39 @@ interface CacheStats {
 }
 
 const stats: CacheStats = { hits: 0, misses: 0, writes: 0 };
+let statsRestored = false;
+
+/** KV key for persisted cache stats */
+const CACHE_STATS_KV_KEY = "cache_stats";
+/** TTL for persisted cache stats in KV (1 hour) */
+const CACHE_STATS_KV_TTL = 3600;
+/** Only persist to KV every N operations to avoid excessive writes */
+const CACHE_STATS_PERSIST_INTERVAL = 10;
+
+/** Restore stats from KV if not already restored */
+async function restoreStats(env: Env): Promise<void> {
+  if (statsRestored) return;
+  statsRestored = true;
+  const persisted = await env.KV.get<CacheStats>(CACHE_STATS_KV_KEY, "json").catch(() => null);
+  if (persisted) {
+    stats.hits = persisted.hits;
+    stats.misses = persisted.misses;
+    stats.writes = persisted.writes;
+    console.log(`[CACHE] Restored stats from KV: ${stats.hits} hits, ${stats.misses} misses`);
+  }
+}
+
+/** Persist stats to KV periodically */
+async function maybePersistStats(env: Env): Promise<void> {
+  const total = stats.hits + stats.misses + stats.writes;
+  if (total % CACHE_STATS_PERSIST_INTERVAL === 0) {
+    await env.KV.put(CACHE_STATS_KV_KEY, JSON.stringify(stats), {
+      expirationTtl: CACHE_STATS_KV_TTL,
+    }).catch(() => {
+      console.log("[CACHE] Could not persist cache stats");
+    });
+  }
+}
 
 // ============================================================
 // CHECK CACHE — returns cached response or null
@@ -33,10 +66,14 @@ export async function checkCache(
   taskType: string,
   env: Env
 ): Promise<CacheEntry | null> {
+  // Restore stats from KV on first call
+  await restoreStats(env);
+
   // Don't even check cache for types with TTL = 0
   const ttl = getCacheTTL(taskType);
   if (ttl === 0) {
     stats.misses++;
+    await maybePersistStats(env);
     return null;
   }
 
@@ -45,6 +82,7 @@ export async function checkCache(
 
   if (cached) {
     stats.hits++;
+    await maybePersistStats(env);
     console.log(
       `[CACHE HIT] ${taskType} -- saved tokens (model: ${cached.model_used})`
     );
@@ -52,6 +90,7 @@ export async function checkCache(
   }
 
   stats.misses++;
+  await maybePersistStats(env);
   return null;
 }
 
@@ -83,6 +122,7 @@ export async function writeCache(
   });
 
   stats.writes++;
+  await maybePersistStats(env);
   console.log(`[CACHE WRITE] ${taskType} -- TTL ${ttl}s (key: ${key.slice(0, 20)}...)`);
 }
 
@@ -90,7 +130,8 @@ export async function writeCache(
 // CACHE STATS — for /ai/cache/stats endpoint
 // ============================================================
 
-export function getCacheStats(): CacheStats & { hitRate: string } {
+export async function getCacheStats(env: Env): Promise<CacheStats & { hitRate: string }> {
+  await restoreStats(env);
   const total = stats.hits + stats.misses;
   const hitRate = total > 0 ? ((stats.hits / total) * 100).toFixed(1) + "%" : "0%";
   return { ...stats, hitRate };
