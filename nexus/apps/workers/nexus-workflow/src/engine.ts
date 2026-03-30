@@ -493,7 +493,7 @@ export class WorkflowEngine {
     );
 
     // Call the appropriate service
-    let aiResult: {
+    let aiResult!: {
       result: string;
       model: string;
       cached: boolean;

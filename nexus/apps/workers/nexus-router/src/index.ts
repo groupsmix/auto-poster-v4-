@@ -32,7 +32,7 @@ import history from "./routes/history";
 import settings from "./routes/settings";
 import exportRoutes from "./routes/export";
 
-const app = new Hono<{ Bindings: RouterEnv }>();
+const app = new Hono<{ Bindings: RouterEnv; Variables: { requestId: string } }>();
 
 // ============================================================
 // MIDDLEWARE
