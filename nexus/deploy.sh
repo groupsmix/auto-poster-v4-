@@ -176,7 +176,7 @@ deploy_pages() {
     info "  (dry run) cd $FRONTEND_DIR && pnpm run build"
     info "  (dry run) npx wrangler pages deploy out --project-name=nexus-dashboard"
   else
-    (cd "$FRONTEND_DIR" && pnpm run build)
+    (cd "$FRONTEND_DIR" && NEXT_PUBLIC_API_URL="https://nexus-router.${CF_SUBDOMAIN:-professional-inbox-simo}.workers.dev/api" pnpm run build)
     (cd "$FRONTEND_DIR" && npx wrangler pages deploy out --project-name=nexus-dashboard)
   fi
 

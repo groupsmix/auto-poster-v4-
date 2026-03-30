@@ -7,7 +7,7 @@ import LoadingState from "@/components/LoadingState";
 import AddDomainModal from "@/components/AddDomainModal";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
-import { DEFAULT_DOMAINS, DEFAULT_CATEGORIES } from "@/lib/domains";
+import { DEFAULT_CATEGORIES } from "@/lib/domains";
 import type { DomainData } from "@/lib/domains";
 import type { Domain } from "@nexus/shared";
 
