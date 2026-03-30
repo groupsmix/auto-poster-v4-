@@ -22,37 +22,38 @@ interface CacheStats {
   writes: number;
 }
 
-let stats: CacheStats = { hits: 0, misses: 0, writes: 0 };
+const stats: CacheStats = { hits: 0, misses: 0, writes: 0 };
+let statsRestored = false;
 
 /** KV key for persisted cache stats */
-const KV_CACHE_STATS_KEY = "cache-stats:counters";
+const CACHE_STATS_KV_KEY = "cache_stats";
+/** TTL for persisted cache stats in KV (1 hour) */
+const CACHE_STATS_KV_TTL = 3600;
+/** Only persist to KV every N operations to avoid excessive writes */
+const CACHE_STATS_PERSIST_INTERVAL = 10;
 
-/** Whether we have attempted to hydrate stats from KV this worker instance */
-let statsHydrated = false;
-
-/** Hydrate cache stats from KV on first access */
-async function hydrateStats(env: Env): Promise<void> {
-  if (statsHydrated) return;
-  statsHydrated = true;
-
-  try {
-    const persisted = await env.KV.get<CacheStats>(KV_CACHE_STATS_KEY, "json");
-    if (persisted) {
-      stats = persisted;
-    }
-  } catch {
-    // KV read failed — start fresh
+/** Restore stats from KV if not already restored */
+async function restoreStats(env: Env): Promise<void> {
+  if (statsRestored) return;
+  statsRestored = true;
+  const persisted = await env.KV.get<CacheStats>(CACHE_STATS_KV_KEY, "json").catch(() => null);
+  if (persisted) {
+    stats.hits = persisted.hits;
+    stats.misses = persisted.misses;
+    stats.writes = persisted.writes;
+    console.log(`[CACHE] Restored stats from KV: ${stats.hits} hits, ${stats.misses} misses`);
   }
 }
 
-/** Persist cache stats to KV (best-effort, short TTL) */
-async function persistStats(env: Env): Promise<void> {
-  try {
-    await env.KV.put(KV_CACHE_STATS_KEY, JSON.stringify(stats), {
-      expirationTtl: 86400, // 24 hours
+/** Persist stats to KV periodically */
+async function maybePersistStats(env: Env): Promise<void> {
+  const total = stats.hits + stats.misses + stats.writes;
+  if (total % CACHE_STATS_PERSIST_INTERVAL === 0) {
+    await env.KV.put(CACHE_STATS_KV_KEY, JSON.stringify(stats), {
+      expirationTtl: CACHE_STATS_KV_TTL,
+    }).catch(() => {
+      console.log("[CACHE] Could not persist cache stats");
     });
-  } catch {
-    // Best-effort — don't break the request
   }
 }
 
@@ -65,13 +66,14 @@ export async function checkCache(
   taskType: string,
   env: Env
 ): Promise<CacheEntry | null> {
-  // Don't even check cache for types with TTL = 0
-  // Hydrate stats from KV on first call this worker instance
-  await hydrateStats(env);
+  // Restore stats from KV on first call
+  await restoreStats(env);
 
+  // Don't even check cache for types with TTL = 0
   const ttl = getCacheTTL(taskType);
   if (ttl === 0) {
     stats.misses++;
+    await maybePersistStats(env);
     return null;
   }
 
@@ -80,7 +82,7 @@ export async function checkCache(
 
   if (cached) {
     stats.hits++;
-    await persistStats(env);
+    await maybePersistStats(env);
     console.log(
       `[CACHE HIT] ${taskType} -- saved tokens (model: ${cached.model_used})`
     );
@@ -88,6 +90,7 @@ export async function checkCache(
   }
 
   stats.misses++;
+  await maybePersistStats(env);
   return null;
 }
 
@@ -119,7 +122,7 @@ export async function writeCache(
   });
 
   stats.writes++;
-  await persistStats(env);
+  await maybePersistStats(env);
   console.log(`[CACHE WRITE] ${taskType} -- TTL ${ttl}s (key: ${key.slice(0, 20)}...)`);
 }
 
@@ -128,7 +131,7 @@ export async function writeCache(
 // ============================================================
 
 export async function getCacheStats(env: Env): Promise<CacheStats & { hitRate: string }> {
-  await hydrateStats(env);
+  await restoreStats(env);
   const total = stats.hits + stats.misses;
   const hitRate = total > 0 ? ((stats.hits / total) * 100).toFixed(1) + "%" : "0%";
   return { ...stats, hitRate };

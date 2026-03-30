@@ -71,7 +71,7 @@ app.post("/ai/run", async (c) => {
 
 app.get("/ai/health", async (c) => {
   const report = await getHealthReport(c.env);
-  const modelStates = getModelStates();
+  const modelStates = await getModelStates(c.env);
 
   // Check for reorder suggestions across all task types
   const suggestions = getTaskTypes()

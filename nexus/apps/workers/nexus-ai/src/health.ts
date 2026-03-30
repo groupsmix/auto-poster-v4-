@@ -25,44 +25,12 @@ export interface ModelHealthData {
 /** In-memory health store — keyed by model ID */
 const healthStore: Map<string, ModelHealthData> = new Map();
 
-/** Whether we have attempted to hydrate from D1 this worker instance */
-let healthStoreHydrated = false;
-
-/** Hydrate health store from D1 ai_models table on first access */
-async function hydrateHealthStore(env: Env): Promise<void> {
-  if (healthStoreHydrated) return;
-  healthStoreHydrated = true;
-
-  try {
-    const result = await env.DB.prepare(
-      `SELECT id, name, total_calls, total_failures, avg_latency_ms, health_score
-       FROM ai_models`
-    ).all<{
-      id: string;
-      name: string;
-      total_calls: number;
-      total_failures: number;
-      avg_latency_ms: number;
-      health_score: number;
-    }>();
-
-    if (result.results) {
-      for (const row of result.results) {
-        healthStore.set(row.id, {
-          modelId: row.id,
-          modelName: row.name,
-          totalCalls: row.total_calls,
-          totalFailures: row.total_failures,
-          avgLatencyMs: row.avg_latency_ms,
-          healthScore: row.health_score,
-        });
-      }
-    }
-  } catch {
-    // D1 may not be available — start fresh
-    console.log("[HEALTH] Could not hydrate health store from D1");
-  }
-}
+/** KV key prefix for persisted health data */
+const HEALTH_KV_PREFIX = "health:";
+/** TTL for persisted health data in KV (1 hour) */
+const HEALTH_KV_TTL = 3600;
+/** Only persist to KV every N calls to avoid excessive writes */
+const HEALTH_PERSIST_INTERVAL = 5;
 
 // ============================================================
 // UPDATE HEALTH SCORE — called after every AI call
@@ -76,20 +44,26 @@ export async function updateHealthScore(
   env: Env,
   errorMessage?: string
 ): Promise<void> {
-  // Hydrate from D1 on first call this worker instance
-  await hydrateHealthStore(env);
-
-  // Get or create health data
+  // Get or create health data, restoring from KV if available
   let health = healthStore.get(modelId);
   if (!health) {
-    health = {
-      modelId,
-      modelName,
-      totalCalls: 0,
-      totalFailures: 0,
-      avgLatencyMs: 0,
-      healthScore: 100,
-    };
+    const persisted = await env.KV.get<ModelHealthData>(
+      `${HEALTH_KV_PREFIX}${modelId}`,
+      "json"
+    ).catch(() => null);
+    if (persisted) {
+      health = persisted;
+      console.log(`[HEALTH] Restored ${modelId} from KV (score: ${health.healthScore})`);
+    } else {
+      health = {
+        modelId,
+        modelName,
+        totalCalls: 0,
+        totalFailures: 0,
+        avgLatencyMs: 0,
+        healthScore: 100,
+      };
+    }
     healthStore.set(modelId, health);
   }
 
@@ -112,6 +86,17 @@ export async function updateHealthScore(
     health.totalCalls,
     health.totalFailures
   );
+
+  // Persist health data to KV periodically (survives worker restarts)
+  if (health.totalCalls % HEALTH_PERSIST_INTERVAL === 0) {
+    await env.KV.put(
+      `${HEALTH_KV_PREFIX}${modelId}`,
+      JSON.stringify(health),
+      { expirationTtl: HEALTH_KV_TTL }
+    ).catch(() => {
+      console.log(`[HEALTH] Could not persist health for ${modelId}`);
+    });
+  }
 
   // Persist to D1: update ai_models table
   try {
@@ -161,7 +146,17 @@ export async function updateHealthScore(
 // ============================================================
 
 export async function getHealthReport(env: Env): Promise<ModelHealthData[]> {
-  await hydrateHealthStore(env);
+  // Restore any persisted health data not yet in memory
+  const kvList = await env.KV.list({ prefix: HEALTH_KV_PREFIX }).catch(() => ({ keys: [] }));
+  for (const key of kvList.keys) {
+    const modelId = key.name.slice(HEALTH_KV_PREFIX.length);
+    if (!healthStore.has(modelId)) {
+      const persisted = await env.KV.get<ModelHealthData>(key.name, "json").catch(() => null);
+      if (persisted) {
+        healthStore.set(modelId, persisted);
+      }
+    }
+  }
   return Array.from(healthStore.values()).sort(
     (a, b) => b.healthScore - a.healthScore
   );

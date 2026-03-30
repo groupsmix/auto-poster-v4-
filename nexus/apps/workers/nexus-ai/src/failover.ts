@@ -24,30 +24,25 @@ interface ModelRuntimeState {
 const modelState: Map<string, ModelRuntimeState> = new Map();
 
 /** KV key prefix for persisted model state */
-const KV_MODEL_STATE_PREFIX = "model-state:";
-
+const MODEL_STATE_KV_PREFIX = "model_state:";
 /** TTL for persisted model state in KV (2 hours) */
-const KV_MODEL_STATE_TTL = 7200;
+const MODEL_STATE_KV_TTL = 7200;
 
-/** Get or create runtime state for a model, hydrating from KV if needed */
+/** Get or create runtime state for a model, restoring from KV if available */
 async function getModelState(modelId: string, env: Env): Promise<ModelRuntimeState> {
   let state = modelState.get(modelId);
   if (!state) {
-    // Try to hydrate from KV (survives worker restarts)
-    try {
-      const persisted = await env.KV.get<ModelRuntimeState>(
-        `${KV_MODEL_STATE_PREFIX}${modelId}`,
-        "json"
-      );
-      if (persisted) {
-        state = persisted;
-        modelState.set(modelId, state);
-        return state;
-      }
-    } catch {
-      // KV read failed — fall through to default
+    // Try to restore from KV (survives worker restarts)
+    const persisted = await env.KV.get<ModelRuntimeState>(
+      `${MODEL_STATE_KV_PREFIX}${modelId}`,
+      "json"
+    ).catch(() => null);
+    if (persisted) {
+      state = persisted;
+      console.log(`[STATE] Restored ${modelId} from KV: ${state.status}`);
+    } else {
+      state = { status: "active" };
     }
-    state = { status: "active" };
     modelState.set(modelId, state);
   }
   return state;
@@ -55,16 +50,13 @@ async function getModelState(modelId: string, env: Env): Promise<ModelRuntimeSta
 
 /** Persist model state to KV so it survives worker restarts */
 async function persistModelState(modelId: string, state: ModelRuntimeState, env: Env): Promise<void> {
-  try {
-    await env.KV.put(
-      `${KV_MODEL_STATE_PREFIX}${modelId}`,
-      JSON.stringify(state),
-      { expirationTtl: KV_MODEL_STATE_TTL }
-    );
-  } catch {
-    // Best-effort persistence — don't break the request
-    console.log(`[FAILOVER] Could not persist state for ${modelId}`);
-  }
+  await env.KV.put(
+    `${MODEL_STATE_KV_PREFIX}${modelId}`,
+    JSON.stringify(state),
+    { expirationTtl: MODEL_STATE_KV_TTL }
+  ).catch(() => {
+    console.log(`[STATE] Could not persist state for ${modelId}`);
+  });
 }
 
 // ============================================================
@@ -203,7 +195,15 @@ export async function runWithFailover(
 // GET MODEL RUNTIME STATES — for debugging/admin
 // ============================================================
 
-export function getModelStates(): Record<string, ModelRuntimeState> {
+export async function getModelStates(env: Env): Promise<Record<string, ModelRuntimeState>> {
+  // List all known model state keys from KV to include persisted state
+  const kvList = await env.KV.list({ prefix: MODEL_STATE_KV_PREFIX }).catch(() => ({ keys: [] }));
+  for (const key of kvList.keys) {
+    const modelId = key.name.slice(MODEL_STATE_KV_PREFIX.length);
+    if (!modelState.has(modelId)) {
+      await getModelState(modelId, env);
+    }
+  }
   const result: Record<string, ModelRuntimeState> = {};
   for (const [id, state] of modelState) {
     result[id] = { ...state };

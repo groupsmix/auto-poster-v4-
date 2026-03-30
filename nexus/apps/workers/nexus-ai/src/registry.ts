@@ -26,16 +26,6 @@ const WORKERS_AI_TEXT: AIModelConfig = {
   model: "@cf/meta/llama-3.1-8b-instruct",
 };
 
-const WORKERS_AI_IMAGE: AIModelConfig = {
-  id: "workers-ai-sdxl",
-  name: "Workers AI (SDXL)",
-  provider: "workers-ai",
-  apiKeyEnvName: "",
-  isWorkersAI: true,
-  isFree: true,
-  model: "@cf/stabilityai/stable-diffusion-xl-base-1.0",
-};
-
 // ============================================================
 // TASK_MODEL_REGISTRY — The master registry
 // ============================================================
@@ -47,14 +37,14 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   research: [
     { id: "tavily", name: "Tavily Search", provider: "tavily", apiKeyEnvName: "TAVILY_API_KEY", isWorkersAI: false, isFree: true },
     { id: "exa", name: "Exa Neural Search", provider: "exa", apiKeyEnvName: "EXA_API_KEY", isWorkersAI: false, isFree: true },
-    { id: "serpapi", name: "SerpAPI", provider: "serpapi", apiKeyEnvName: "SERPAPI_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "serpapi", name: "SerpAPI", provider: "serpapi", apiKeyEnvName: "SERPAPI_KEY", isWorkersAI: false, isFree: true },
     { id: "deepseek-v3", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
     WORKERS_AI_TEXT,
   ],
 
   seo: [
     { id: "dataforseo", name: "DataForSEO", provider: "dataforseo", apiKeyEnvName: "DATAFORSEO_KEY", isWorkersAI: false, isFree: true },
-    { id: "serpapi-seo", name: "SerpAPI", provider: "serpapi", apiKeyEnvName: "SERPAPI_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "serpapi-seo", name: "SerpAPI", provider: "serpapi", apiKeyEnvName: "SERPAPI_KEY", isWorkersAI: false, isFree: true },
     { id: "qwen-flash", name: "Qwen 3.5 Flash", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-7B-Instruct" },
     WORKERS_AI_TEXT,
   ],
@@ -67,6 +57,13 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
     { id: "qwen-max", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
     { id: "doubao-pro", name: "Doubao 1.5 Pro", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-pro" },
     { id: "kimi-k15", name: "Kimi k1.5", provider: "moonshot", apiKeyEnvName: "MOONSHOT_API_KEY", isWorkersAI: false, isFree: true, model: "moonshot-v1-8k" },
+    WORKERS_AI_TEXT,
+  ],
+
+  copywriting: [
+    { id: "deepseek-v3-copy", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
+    { id: "doubao-pro-copy", name: "Doubao 1.5 Pro", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-pro" },
+    { id: "qwen-max-copy", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
     WORKERS_AI_TEXT,
   ],
 
@@ -102,7 +99,7 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
 };
 
 // --- Aliases: workflow steps use short TaskType names that must resolve here ---
-TASK_MODEL_REGISTRY.image = TASK_MODEL_REGISTRY.writing; // image prompts are text generation
+TASK_MODEL_REGISTRY.image = TASK_MODEL_REGISTRY.copywriting;
 TASK_MODEL_REGISTRY.review = TASK_MODEL_REGISTRY.quality_review;
 TASK_MODEL_REGISTRY.variation = TASK_MODEL_REGISTRY.platform_variation;
 TASK_MODEL_REGISTRY.social = TASK_MODEL_REGISTRY.social_adaptation;
