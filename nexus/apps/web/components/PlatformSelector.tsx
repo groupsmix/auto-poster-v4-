@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import { useApiQuery } from "@/lib/useApiQuery";
+import { MOCK_PLATFORMS } from "@/lib/mock-data";
 
 const DEFAULT_PLATFORMS = [
   { name: "Etsy", slug: "etsy" },
@@ -20,9 +23,25 @@ export default function PlatformSelector({
   selected,
   onChange,
 }: PlatformSelectorProps) {
+  // Fetch platforms from API, fall back to hardcoded defaults (4.8)
+  const { data: fetchedPlatforms } = useApiQuery(
+    () => api.platforms.list(),
+    MOCK_PLATFORMS,
+  );
+
   const [platforms, setPlatforms] = useState(DEFAULT_PLATFORMS);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
+
+  // Sync fetched platforms into local state, filtering to active only (4.8)
+  useEffect(() => {
+    const active = fetchedPlatforms
+      .filter((p) => p.is_active)
+      .map((p) => ({ name: p.name, slug: p.slug }));
+    if (active.length > 0) {
+      setPlatforms(active);
+    }
+  }, [fetchedPlatforms]);
 
   const toggle = (slug: string) => {
     if (selected.includes(slug)) {

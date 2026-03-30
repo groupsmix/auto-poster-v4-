@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
@@ -28,11 +28,17 @@ export default function PublishPage() {
   >({});
   const [exporting, setExporting] = useState(false);
 
-  // Initialize publish states for each product
+  // Track which product IDs have already been initialized (4.6)
+  const initializedRef = useRef(new Set<string>());
+
+  // Initialize publish states for new products without reading publishStates
   useEffect(() => {
-    const states: Record<string, ProductPublishState> = {};
+    const newStates: Record<string, ProductPublishState> = {};
+    let hasNew = false;
     for (const p of products) {
-      if (!publishStates[p.product_id]) {
+      if (!initializedRef.current.has(p.product_id)) {
+        initializedRef.current.add(p.product_id);
+        hasNew = true;
         const platforms: Record<string, boolean> = {};
         for (const v of p.platform_variants) {
           platforms[v.platform] = true;
@@ -41,20 +47,17 @@ export default function PublishPage() {
         for (const v of p.social_variants) {
           channels[v.channel] = true;
         }
-        states[p.product_id] = {
+        newStates[p.product_id] = {
           selectedPlatforms: platforms,
           selectedChannels: channels,
           copied: null,
           publishing: false,
         };
-      } else {
-        states[p.product_id] = publishStates[p.product_id];
       }
     }
-    if (Object.keys(states).length > 0) {
-      setPublishStates(states);
+    if (hasNew) {
+      setPublishStates((prev) => ({ ...prev, ...newStates }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products]);
 
   const togglePlatform = (productId: string, platform: string) => {

@@ -6,38 +6,7 @@ import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { toast } from "sonner";
 import type { Domain, Category } from "@/lib/api";
-
-// Mock data matching the architecture doc (Part 3)
-const MOCK_DOMAINS: Domain[] = [
-  { id: "dom-1", name: "Digital Planners & Journals", slug: "digital-planners", description: "Printable and digital planners, journals, and trackers", icon: "\uD83D\uDDD3\uFE0F", sort_order: 0, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-2", name: "Social Media Templates", slug: "social-media-templates", description: "Instagram, TikTok, Pinterest content templates", icon: "\uD83D\uDCF1", sort_order: 1, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-3", name: "Business & Finance Tools", slug: "business-finance", description: "Business plans, invoices, budgets, financial trackers", icon: "\uD83D\uDCBC", sort_order: 2, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-4", name: "Educational Resources", slug: "educational-resources", description: "Worksheets, flashcards, study guides, lesson plans", icon: "\uD83C\uDF93", sort_order: 3, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-5", name: "Art & Illustration Packs", slug: "art-illustration", description: "Clipart, illustrations, design elements, brushes", icon: "\uD83C\uDFA8", sort_order: 4, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-6", name: "Music & Audio Assets", slug: "music-audio", description: "Beats, loops, sound effects, production templates", icon: "\uD83C\uDFB5", sort_order: 5, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-7", name: "Website & UI Kits", slug: "website-ui-kits", description: "Website templates, UI components, landing pages", icon: "\uD83D\uDDA5\uFE0F", sort_order: 6, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-8", name: "Print-on-Demand Designs", slug: "print-on-demand", description: "T-shirt designs, stickers, mug prints, phone cases", icon: "\uD83D\uDC55", sort_order: 7, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-9", name: "eBooks & Written Content", slug: "ebooks-written", description: "eBooks, guides, whitepapers, written courses", icon: "\uD83D\uDCDA", sort_order: 8, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-10", name: "Photography & Stock Media", slug: "photography-stock", description: "Stock photos, video clips, Lightroom presets", icon: "\uD83D\uDCF7", sort_order: 9, is_active: false, created_at: "2025-01-01T00:00:00Z" },
-];
-
-const MOCK_CATEGORIES: Record<string, Category[]> = {
-  "dom-1": [
-    { id: "cat-1-1", domain_id: "dom-1", name: "Daily Planners", slug: "daily-planners", description: "Day-by-day planning templates", sort_order: 0, is_active: true },
-    { id: "cat-1-2", domain_id: "dom-1", name: "Budget Trackers", slug: "budget-trackers", description: "Personal finance tracking sheets", sort_order: 1, is_active: true },
-    { id: "cat-1-3", domain_id: "dom-1", name: "Habit Trackers", slug: "habit-trackers", description: "Daily habit tracking templates", sort_order: 2, is_active: true },
-    { id: "cat-1-4", domain_id: "dom-1", name: "Gratitude Journals", slug: "gratitude-journals", description: "Guided gratitude journaling", sort_order: 3, is_active: true },
-  ],
-  "dom-2": [
-    { id: "cat-2-1", domain_id: "dom-2", name: "Instagram Post Templates", slug: "instagram-posts", description: "Feed post templates", sort_order: 0, is_active: true },
-    { id: "cat-2-2", domain_id: "dom-2", name: "Story Templates", slug: "story-templates", description: "Instagram/TikTok story layouts", sort_order: 1, is_active: true },
-    { id: "cat-2-3", domain_id: "dom-2", name: "Pinterest Pin Templates", slug: "pinterest-pins", description: "Tall-format pin designs", sort_order: 2, is_active: true },
-  ],
-  "dom-3": [
-    { id: "cat-3-1", domain_id: "dom-3", name: "Business Plans", slug: "business-plans", description: "Startup and business plan templates", sort_order: 0, is_active: true },
-    { id: "cat-3-2", domain_id: "dom-3", name: "Invoice Templates", slug: "invoices", description: "Professional invoice designs", sort_order: 1, is_active: true },
-  ],
-};
+import { MOCK_DOMAINS, MOCK_CATEGORIES } from "@/lib/mock-data";
 
 export default function DomainsPage() {
   const { data: fetchedDomains, loading, isUsingMock, refetch: fetchDomains } = useApiQuery(

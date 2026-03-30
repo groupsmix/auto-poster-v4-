@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import { useApiQuery } from "@/lib/useApiQuery";
+import { MOCK_CHANNELS } from "@/lib/mock-data";
 
 const DEFAULT_CHANNELS = [
   { name: "Instagram", slug: "instagram" },
@@ -29,9 +32,25 @@ export default function SocialChannelSelector({
   postingMode,
   onPostingModeChange,
 }: SocialChannelSelectorProps) {
+  // Fetch channels from API, fall back to hardcoded defaults (4.8)
+  const { data: fetchedChannels } = useApiQuery(
+    () => api.socialChannels.list(),
+    MOCK_CHANNELS,
+  );
+
   const [channels, setChannels] = useState(DEFAULT_CHANNELS);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
+
+  // Sync fetched channels into local state, filtering to active only (4.8)
+  useEffect(() => {
+    const active = fetchedChannels
+      .filter((c) => c.is_active)
+      .map((c) => ({ name: c.name, slug: c.slug }));
+    if (active.length > 0) {
+      setChannels(active);
+    }
+  }, [fetchedChannels]);
 
   const toggle = (slug: string) => {
     if (selected.includes(slug)) {

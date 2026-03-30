@@ -28,24 +28,50 @@ const LANGUAGES = [
 ];
 
 interface SettingsState {
-  social_posting_mode: string;
+  social_posting_mode: "auto" | "manual";
   default_language: string;
-  ceo_review_required: string;
-  auto_publish_after_approval: string;
-  batch_max_products: string;
-  cache_enabled: string;
-  ai_gateway_enabled: string;
+  ceo_review_required: boolean;
+  auto_publish_after_approval: boolean;
+  batch_max_products: number;
+  cache_enabled: boolean;
+  ai_gateway_enabled: boolean;
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
   social_posting_mode: "manual",
   default_language: "en",
-  ceo_review_required: "true",
-  auto_publish_after_approval: "false",
-  batch_max_products: "10",
-  cache_enabled: "true",
-  ai_gateway_enabled: "true",
+  ceo_review_required: true,
+  auto_publish_after_approval: false,
+  batch_max_products: 10,
+  cache_enabled: true,
+  ai_gateway_enabled: true,
 };
+
+/** Deserialize KV string values into proper SettingsState types (4.7) */
+function deserializeSettings(raw: Record<string, string>): Partial<SettingsState> {
+  const result: Partial<SettingsState> = {};
+  if ("social_posting_mode" in raw) result.social_posting_mode = raw.social_posting_mode as "auto" | "manual";
+  if ("default_language" in raw) result.default_language = raw.default_language;
+  if ("ceo_review_required" in raw) result.ceo_review_required = raw.ceo_review_required === "true";
+  if ("auto_publish_after_approval" in raw) result.auto_publish_after_approval = raw.auto_publish_after_approval === "true";
+  if ("batch_max_products" in raw) result.batch_max_products = Number(raw.batch_max_products) || DEFAULT_SETTINGS.batch_max_products;
+  if ("cache_enabled" in raw) result.cache_enabled = raw.cache_enabled === "true";
+  if ("ai_gateway_enabled" in raw) result.ai_gateway_enabled = raw.ai_gateway_enabled === "true";
+  return result;
+}
+
+/** Serialize SettingsState back to string values for the KV API (4.7) */
+function serializeSettings(settings: SettingsState): Record<string, string> {
+  return {
+    social_posting_mode: settings.social_posting_mode,
+    default_language: settings.default_language,
+    ceo_review_required: String(settings.ceo_review_required),
+    auto_publish_after_approval: String(settings.auto_publish_after_approval),
+    batch_max_products: String(settings.batch_max_products),
+    cache_enabled: String(settings.cache_enabled),
+    ai_gateway_enabled: String(settings.ai_gateway_enabled),
+  };
+}
 
 function ToggleSwitch({
   enabled,
@@ -116,13 +142,12 @@ export default function SettingsClient() {
   useEffect(() => {
     api.settings.getAll().then((settingsRes) => {
       if (settingsRes.success && settingsRes.data) {
-        const merged = {
+        const relevant = Object.fromEntries(
+          Object.entries(settingsRes.data).filter(([k]) => k in DEFAULT_SETTINGS)
+        );
+        const merged: SettingsState = {
           ...DEFAULT_SETTINGS,
-          ...Object.fromEntries(
-            Object.entries(settingsRes.data!).filter(
-              ([k]) => k in DEFAULT_SETTINGS
-            )
-          ),
+          ...deserializeSettings(relevant),
         };
         setSettings(merged);
         savedSettingsRef.current = merged;
@@ -134,7 +159,7 @@ export default function SettingsClient() {
     setSaving(true);
     setSaved(false);
     try {
-      await api.settings.bulkUpdate({ ...settings });
+      await api.settings.bulkUpdate(serializeSettings(settings));
     } catch {
       toast.error("Failed to save settings");
     } finally {
@@ -183,7 +208,7 @@ export default function SettingsClient() {
     setRemoveConfirm(null);
   };
 
-  const updateSetting = (key: keyof SettingsState, value: string) => {
+  const updateSetting = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -366,20 +391,16 @@ export default function SettingsClient() {
             <ToggleSwitch
               label="CEO Review Required"
               description="Require manual approval before publishing"
-              enabled={settings.ceo_review_required === "true"}
-              onChange={(v) =>
-                updateSetting("ceo_review_required", v.toString())
-              }
+              enabled={settings.ceo_review_required}
+              onChange={(v) => updateSetting("ceo_review_required", v)}
             />
 
             {/* Auto Publish */}
             <ToggleSwitch
               label="Auto-Publish After Approval"
               description="Automatically publish to platforms after CEO approval"
-              enabled={settings.auto_publish_after_approval === "true"}
-              onChange={(v) =>
-                updateSetting("auto_publish_after_approval", v.toString())
-              }
+              enabled={settings.auto_publish_after_approval}
+              onChange={(v) => updateSetting("auto_publish_after_approval", v)}
             />
           </div>
         </div>
@@ -410,7 +431,7 @@ export default function SettingsClient() {
                 value={settings.batch_max_products}
                 onChange={(e) => {
                   const val = Math.min(10, Math.max(1, Number(e.target.value)));
-                  updateSetting("batch_max_products", val.toString());
+                  updateSetting("batch_max_products", val);
                 }}
                 className="w-20 px-3 py-1.5 rounded-lg bg-card-hover border border-card-border text-sm text-foreground text-center focus:outline-none focus:border-accent"
               />
@@ -420,18 +441,16 @@ export default function SettingsClient() {
             <ToggleSwitch
               label="AI Response Caching"
               description="Cache identical prompts to save AI calls (30-50% savings)"
-              enabled={settings.cache_enabled === "true"}
-              onChange={(v) => updateSetting("cache_enabled", v.toString())}
+              enabled={settings.cache_enabled}
+              onChange={(v) => updateSetting("cache_enabled", v)}
             />
 
             {/* AI Gateway */}
             <ToggleSwitch
               label="AI Gateway"
               description="Route AI calls through Cloudflare AI Gateway for logging, caching, and rate limiting"
-              enabled={settings.ai_gateway_enabled === "true"}
-              onChange={(v) =>
-                updateSetting("ai_gateway_enabled", v.toString())
-              }
+              enabled={settings.ai_gateway_enabled}
+              onChange={(v) => updateSetting("ai_gateway_enabled", v)}
             />
           </div>
         </div>

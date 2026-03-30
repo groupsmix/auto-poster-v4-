@@ -7,6 +7,7 @@ import { useApiQuery } from "@/lib/useApiQuery";
 import StatusBadge from "@/components/StatusBadge";
 import { toast } from "sonner";
 import type { AIModel } from "@/lib/api";
+import { MOCK_MODELS } from "@/lib/mock-data";
 
 // Task type labels for grouping
 const TASK_TYPES = [
@@ -21,53 +22,6 @@ const TASK_TYPES = [
   { key: "social", label: "Social Adaptation" },
   { key: "review", label: "CEO Review" },
 ] as const;
-
-// Mock AI models matching the architecture doc (Part 5/6)
-const MOCK_MODELS: AIModel[] = [
-  // Research
-  { id: "ai-tavily", name: "Tavily Search", provider: "tavily.com", task_type: "research", rank: 1, api_key_secret_name: "TAVILY_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 95, total_calls: 342, total_failures: 17, avg_latency_ms: 1200, notes: "Purpose-built for AI agents" },
-  { id: "ai-exa", name: "Exa Neural Search", provider: "exa.ai", task_type: "research", rank: 2, api_key_secret_name: "EXA_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 92, total_calls: 210, total_failures: 16, avg_latency_ms: 980, notes: "Finds by meaning not keywords" },
-  { id: "ai-serpapi", name: "SerpAPI", provider: "serpapi.com", task_type: "research", rank: 3, api_key_secret_name: "SERPAPI_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 98, total_calls: 150, total_failures: 3, avg_latency_ms: 800, notes: "Raw Google results" },
-  { id: "ai-deepseek-research", name: "DeepSeek-V3", provider: "deepseek.com", task_type: "research", rank: 4, api_key_secret_name: "DEEPSEEK_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 97, total_calls: 85, total_failures: 2, avg_latency_ms: 1500, notes: "Reasoning fallback" },
-  { id: "ai-workers-research", name: "Workers AI (Llama 3.1)", provider: "Cloudflare", task_type: "research", rank: 5, api_key_secret_name: null, is_workers_ai: true, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 100, total_calls: 30, total_failures: 0, avg_latency_ms: 300, notes: "Ultimate fallback. On-platform, always available." },
-
-  // Writing
-  { id: "ai-deepseek-write", name: "DeepSeek-V3", provider: "deepseek.com", task_type: "writing", rank: 1, api_key_secret_name: "DEEPSEEK_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 94, total_calls: 520, total_failures: 31, avg_latency_ms: 2100, notes: "Best free long-form quality" },
-  { id: "ai-qwen-write", name: "Qwen 3.5 Max", provider: "SiliconFlow", task_type: "writing", rank: 2, api_key_secret_name: "SILICONFLOW_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 91, total_calls: 310, total_failures: 27, avg_latency_ms: 1800, notes: "Strong long-form" },
-  { id: "ai-doubao", name: "Doubao 1.5 Pro", provider: "SiliconFlow", task_type: "writing", rank: 3, api_key_secret_name: "SILICONFLOW_API_KEY", is_workers_ai: false, status: "rate_limited", rate_limit_reset_at: "2025-03-21T12:00:00Z", daily_limit_reset_at: null, is_free_tier: true, health_score: 88, total_calls: 180, total_failures: 21, avg_latency_ms: 1600, notes: "Most human-like narrative flow" },
-  { id: "ai-kimi", name: "Kimi k1.5", provider: "moonshot.cn", task_type: "writing", rank: 4, api_key_secret_name: "MOONSHOT_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 90, total_calls: 95, total_failures: 9, avg_latency_ms: 2500, notes: "10M token context" },
-  { id: "ai-workers-write", name: "Workers AI (Llama 3.1)", provider: "Cloudflare", task_type: "writing", rank: 5, api_key_secret_name: null, is_workers_ai: true, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 100, total_calls: 15, total_failures: 0, avg_latency_ms: 350, notes: "Emergency fallback" },
-  { id: "ai-claude-write", name: "Claude Sonnet 4.5", provider: "anthropic.com", task_type: "writing", rank: 6, api_key_secret_name: "ANTHROPIC_API_KEY", is_workers_ai: false, status: "sleeping", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: false, health_score: 0, total_calls: 0, total_failures: 0, avg_latency_ms: 0, notes: "Best quality writing. Add key to activate." },
-  { id: "ai-gpt-write", name: "GPT-5.4", provider: "openai.com", task_type: "writing", rank: 7, api_key_secret_name: "OPENAI_API_KEY", is_workers_ai: false, status: "sleeping", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: false, health_score: 0, total_calls: 0, total_failures: 0, avg_latency_ms: 0, notes: "Top-tier long-form. Add key to activate." },
-
-  // SEO
-  { id: "ai-qwen-seo", name: "Qwen 3.5 Flash", provider: "SiliconFlow", task_type: "seo", rank: 1, api_key_secret_name: "SILICONFLOW_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 96, total_calls: 420, total_failures: 16, avg_latency_ms: 600, notes: "Fastest + best at constrained output" },
-  { id: "ai-deepseek-seo", name: "DeepSeek-V3", provider: "deepseek.com", task_type: "seo", rank: 2, api_key_secret_name: "DEEPSEEK_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 93, total_calls: 280, total_failures: 19, avg_latency_ms: 900, notes: "Reliable rule-following" },
-  { id: "ai-mistral-seo", name: "Mistral 7B", provider: "Groq", task_type: "seo", rank: 3, api_key_secret_name: "GROQ_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 89, total_calls: 120, total_failures: 13, avg_latency_ms: 400, notes: "Ultra-fast free inference" },
-  { id: "ai-workers-seo", name: "Workers AI (Llama 3.1)", provider: "Cloudflare", task_type: "seo", rank: 4, api_key_secret_name: null, is_workers_ai: true, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 100, total_calls: 10, total_failures: 0, avg_latency_ms: 280, notes: "Structured output fallback" },
-
-  // Image
-  { id: "ai-flux", name: "FLUX.1 Pro", provider: "fal.ai", task_type: "image", rank: 1, api_key_secret_name: "FAL_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 91, total_calls: 200, total_failures: 18, avg_latency_ms: 8000, notes: "#1 for text rendering in images" },
-  { id: "ai-ideogram", name: "Ideogram 3.0", provider: "ideogram.ai", task_type: "image", rank: 2, api_key_secret_name: "IDEOGRAM_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 87, total_calls: 110, total_failures: 14, avg_latency_ms: 12000, notes: "Typography + graphic design" },
-  { id: "ai-sdxl", name: "SDXL", provider: "HuggingFace", task_type: "image", rank: 3, api_key_secret_name: "HF_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 85, total_calls: 90, total_failures: 13, avg_latency_ms: 15000, notes: "Free, open. Good for illustrations" },
-  { id: "ai-workers-img", name: "Workers AI (SDXL)", provider: "Cloudflare", task_type: "image", rank: 4, api_key_secret_name: null, is_workers_ai: true, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 100, total_calls: 8, total_failures: 0, avg_latency_ms: 5000, notes: "On-platform image gen" },
-  { id: "ai-midjourney", name: "Midjourney", provider: "PiAPI", task_type: "image", rank: 5, api_key_secret_name: "PIAPI_KEY", is_workers_ai: false, status: "sleeping", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: false, health_score: 0, total_calls: 0, total_failures: 0, avg_latency_ms: 0, notes: "Highest artistic quality. Add key to activate." },
-
-  // Audio
-  { id: "ai-suno", name: "Suno", provider: "suno.com", task_type: "audio", rank: 1, api_key_secret_name: "SUNO_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 93, total_calls: 75, total_failures: 5, avg_latency_ms: 30000, notes: "50 songs/day free" },
-  { id: "ai-musicgen", name: "MusicGen", provider: "HuggingFace", task_type: "audio", rank: 2, api_key_secret_name: "HF_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 88, total_calls: 40, total_failures: 4, avg_latency_ms: 25000, notes: "Open source. No limits." },
-
-  // Reasoning
-  { id: "ai-deepseek-r1", name: "DeepSeek-R1", provider: "deepseek.com", task_type: "reasoning", rank: 1, api_key_secret_name: "DEEPSEEK_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 96, total_calls: 180, total_failures: 7, avg_latency_ms: 3200, notes: "Best free reasoning model" },
-  { id: "ai-qwen-reason", name: "Qwen 3.5 Max", provider: "SiliconFlow", task_type: "reasoning", rank: 2, api_key_secret_name: "SILICONFLOW_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 93, total_calls: 95, total_failures: 6, avg_latency_ms: 2800, notes: "Strong analytical reasoning" },
-  { id: "ai-workers-reason", name: "Workers AI (Llama 3.1)", provider: "Cloudflare", task_type: "reasoning", rank: 3, api_key_secret_name: null, is_workers_ai: true, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 100, total_calls: 5, total_failures: 0, avg_latency_ms: 320, notes: "Basic reasoning fallback" },
-  { id: "ai-gemini", name: "Gemini 3.1 Pro", provider: "google.com", task_type: "reasoning", rank: 4, api_key_secret_name: "GOOGLE_AI_KEY", is_workers_ai: false, status: "sleeping", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: false, health_score: 0, total_calls: 0, total_failures: 0, avg_latency_ms: 0, notes: "#1 ARC-AGI-2 benchmark. Add key to activate." },
-
-  // Code
-  { id: "ai-deepseek-code", name: "DeepSeek-Coder-V3", provider: "deepseek.com", task_type: "code", rank: 1, api_key_secret_name: "DEEPSEEK_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 95, total_calls: 120, total_failures: 6, avg_latency_ms: 2000, notes: "Purpose-built for software" },
-  { id: "ai-qwen-code", name: "Qwen 3.5 (Coder)", provider: "SiliconFlow", task_type: "code", rank: 2, api_key_secret_name: "SILICONFLOW_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 92, total_calls: 80, total_failures: 6, avg_latency_ms: 1900, notes: "Strong full-stack" },
-  { id: "ai-workers-code", name: "Workers AI (Llama 3.1)", provider: "Cloudflare", task_type: "code", rank: 3, api_key_secret_name: null, is_workers_ai: true, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 100, total_calls: 3, total_failures: 0, avg_latency_ms: 340, notes: "Simple code generation fallback" },
-];
 
 function HealthBar({ score, size = "normal" }: { score: number; size?: "normal" | "small" }) {
   const color =
