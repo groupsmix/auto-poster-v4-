@@ -369,34 +369,34 @@ export default function DomainsPage() {
                 type="text"
                 value={newDomain.name}
                 onChange={(e) => setNewDomain({ ...newDomain, name: e.target.value })}
-                className="w-full px-2 py-1.5 rounded bg-background border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
+                className="w-full px-2 py-1.5 rounded-lg bg-background border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
                 placeholder="Domain name"
               />
               <input
                 type="text"
                 value={newDomain.description}
                 onChange={(e) => setNewDomain({ ...newDomain, description: e.target.value })}
-                className="w-full px-2 py-1.5 rounded bg-background border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
+                className="w-full px-2 py-1.5 rounded-lg bg-background border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
                 placeholder="Description"
               />
               <input
                 type="text"
                 value={newDomain.icon}
                 onChange={(e) => setNewDomain({ ...newDomain, icon: e.target.value })}
-                className="w-full px-2 py-1.5 rounded bg-background border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
+                className="w-full px-2 py-1.5 rounded-lg bg-background border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
                 placeholder="Icon (emoji)"
               />
               <div className="flex gap-2">
                 <button
                   onClick={handleAddDomain}
                   disabled={saving || !newDomain.name.trim()}
-                  className="px-3 py-1 rounded bg-accent text-white text-xs font-medium hover:bg-accent-hover disabled:opacity-50"
+                  className="px-3 py-1 rounded-lg bg-accent text-white text-xs font-medium hover:bg-accent-hover disabled:opacity-50"
                 >
                   {saving ? "Adding..." : "Add Domain"}
                 </button>
                 <button
                   onClick={() => { setShowAddDomain(false); setNewDomain({ name: "", description: "", icon: "" }); }}
-                  className="px-3 py-1 rounded text-xs text-muted hover:bg-card-hover"
+                  className="px-3 py-1 rounded-lg text-xs text-muted hover:bg-card-hover"
                 >
                   Cancel
                 </button>
@@ -431,27 +431,27 @@ export default function DomainsPage() {
                       type="text"
                       value={editDomainData.name ?? domain.name}
                       onChange={(e) => setEditDomainData({ ...editDomainData, name: e.target.value })}
-                      className="w-full px-2 py-1 rounded bg-background border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
+                      className="w-full px-2 py-1 rounded-lg bg-background border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
                     />
                     <input
                       type="text"
                       value={editDomainData.description ?? domain.description ?? ""}
                       onChange={(e) => setEditDomainData({ ...editDomainData, description: e.target.value })}
-                      className="w-full px-2 py-1 rounded bg-background border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
+                      className="w-full px-2 py-1 rounded-lg bg-background border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
                       placeholder="Description"
                     />
                     <input
                       type="text"
                       value={editDomainData.icon ?? domain.icon ?? ""}
                       onChange={(e) => setEditDomainData({ ...editDomainData, icon: e.target.value })}
-                      className="w-full px-2 py-1 rounded bg-background border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
+                      className="w-full px-2 py-1 rounded-lg bg-background border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
                       placeholder="Icon (emoji)"
                     />
                     <div className="flex gap-2">
-                      <button onClick={handleSaveDomain} disabled={saving} className="px-2 py-1 rounded bg-accent text-white text-xs hover:bg-accent-hover disabled:opacity-50">
+                      <button onClick={handleSaveDomain} disabled={saving} className="px-2 py-1 rounded-lg bg-accent text-white text-xs hover:bg-accent-hover disabled:opacity-50">
                         {saving ? "..." : "Save"}
                       </button>
-                      <button onClick={() => setEditingDomainId(null)} className="px-2 py-1 rounded text-xs text-muted hover:bg-card-hover">
+                      <button onClick={() => setEditingDomainId(null)} className="px-2 py-1 rounded-lg text-xs text-muted hover:bg-card-hover">
                         Cancel
                       </button>
                     </div>
@@ -546,27 +546,27 @@ export default function DomainsPage() {
                       type="text"
                       value={newCategory.name}
                       onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                      className="w-full px-2 py-1.5 rounded bg-card-bg border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
+                      className="w-full px-2 py-1.5 rounded-lg bg-card-bg border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
                       placeholder="Category name"
                     />
                     <input
                       type="text"
                       value={newCategory.description}
                       onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-                      className="w-full px-2 py-1.5 rounded bg-card-bg border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
+                      className="w-full px-2 py-1.5 rounded-lg bg-card-bg border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
                       placeholder="Description"
                     />
                     <div className="flex gap-2">
                       <button
                         onClick={handleAddCategory}
                         disabled={saving || !newCategory.name.trim()}
-                        className="px-3 py-1 rounded bg-accent text-white text-xs font-medium hover:bg-accent-hover disabled:opacity-50"
+                        className="px-3 py-1 rounded-lg bg-accent text-white text-xs font-medium hover:bg-accent-hover disabled:opacity-50"
                       >
                         {saving ? "Adding..." : "Add Category"}
                       </button>
                       <button
                         onClick={() => { setShowAddCategory(false); setNewCategory({ name: "", description: "" }); }}
-                        className="px-3 py-1 rounded text-xs text-muted hover:bg-card-hover"
+                        className="px-3 py-1 rounded-lg text-xs text-muted hover:bg-card-hover"
                       >
                         Cancel
                       </button>
@@ -607,20 +607,20 @@ export default function DomainsPage() {
                               type="text"
                               value={editCategoryData.name ?? category.name}
                               onChange={(e) => setEditCategoryData({ ...editCategoryData, name: e.target.value })}
-                              className="w-full px-2 py-1 rounded bg-card-bg border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
+                              className="w-full px-2 py-1 rounded-lg bg-card-bg border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
                             />
                             <input
                               type="text"
                               value={editCategoryData.description ?? category.description ?? ""}
                               onChange={(e) => setEditCategoryData({ ...editCategoryData, description: e.target.value })}
-                              className="w-full px-2 py-1 rounded bg-card-bg border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
+                              className="w-full px-2 py-1 rounded-lg bg-card-bg border border-card-border text-foreground text-sm focus:outline-none focus:border-accent"
                               placeholder="Description"
                             />
                             <div className="flex gap-2">
-                              <button onClick={handleSaveCategory} disabled={saving} className="px-2 py-1 rounded bg-accent text-white text-xs hover:bg-accent-hover disabled:opacity-50">
+                              <button onClick={handleSaveCategory} disabled={saving} className="px-2 py-1 rounded-lg bg-accent text-white text-xs hover:bg-accent-hover disabled:opacity-50">
                                 {saving ? "..." : "Save"}
                               </button>
-                              <button onClick={() => setEditingCategoryId(null)} className="px-2 py-1 rounded text-xs text-muted hover:bg-card-hover">
+                              <button onClick={() => setEditingCategoryId(null)} className="px-2 py-1 rounded-lg text-xs text-muted hover:bg-card-hover">
                                 Cancel
                               </button>
                             </div>

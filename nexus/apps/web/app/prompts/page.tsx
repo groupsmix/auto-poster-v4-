@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import Modal from "@/components/Modal";
 import { SearchIcon } from "@/components/icons/Icons";
 import { useApiQuery } from "@/lib/useApiQuery";
-import { MOCK_PROMPTS, MOCK_VERSIONS } from "@/lib/mock-data";
+import { MOCK_PROMPTS } from "@/lib/mock-data";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import type { PromptTemplate, PromptVersion } from "@/lib/api";
+import type { PromptTemplate } from "@/lib/api";
 
 // Prompt layer configuration matching the architecture doc (Layers A-I)
 const PROMPT_LAYERS = [
@@ -47,21 +47,32 @@ export default function PromptsPage() {
     MOCK_PROMPTS,
   );
 
-  const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
+  const [localEdits, setLocalEdits] = useState<Map<string, PromptTemplate>>(new Map());
   const [activeLayer, setActiveLayer] = useState<string>("master");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [saving, setSaving] = useState(false);
-  const [showHistory, setShowHistory] = useState<string | null>(null);
-  const [versions, setVersions] = useState<PromptVersion[]>([]);
-  const [loadingVersions, setLoadingVersions] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    setPrompts(fetchedPrompts);
-  }, [fetchedPrompts]);
+  // Merge fetched data with local edits to avoid mock data flash (6.4)
+  const prompts = useMemo(() => {
+    if (localEdits.size === 0) return fetchedPrompts;
+    return fetchedPrompts.map((p) => localEdits.get(p.id) ?? p);
+  }, [fetchedPrompts, localEdits]);
+
+  const setPrompts = useCallback((updater: PromptTemplate[] | ((prev: PromptTemplate[]) => PromptTemplate[])) => {
+    const updated = typeof updater === "function" ? updater(prompts) : updater;
+    const edits = new Map<string, PromptTemplate>();
+    for (const p of updated) {
+      const fetched = fetchedPrompts.find((f) => f.id === p.id);
+      if (!fetched || JSON.stringify(fetched) !== JSON.stringify(p)) {
+        edits.set(p.id, p);
+      }
+    }
+    setLocalEdits(edits);
+  }, [prompts, fetchedPrompts]);
 
   // Filter prompts by search query across all layers (5.7)
   const searchResults = useMemo(() => {
@@ -79,7 +90,6 @@ export default function PromptsPage() {
   const handleEdit = (prompt: PromptTemplate) => {
     setEditingId(prompt.id);
     setEditText(prompt.prompt);
-    setShowHistory(null);
     setTestResult(null);
   };
 
@@ -116,47 +126,6 @@ export default function PromptsPage() {
     }
   };
 
-  const handleShowHistory = async (id: string) => {
-    if (showHistory === id) {
-      setShowHistory(null);
-      return;
-    }
-    setShowHistory(id);
-    setLoadingVersions(true);
-    try {
-      const response = await api.prompts.history(id);
-      if (response.success && response.data) {
-        setVersions(response.data);
-      } else {
-        setVersions(MOCK_VERSIONS[id] ?? []);
-      }
-    } catch {
-      toast.error("Failed to load version history");
-      setVersions(MOCK_VERSIONS[id] ?? []);
-    } finally {
-      setLoadingVersions(false);
-    }
-  };
-
-  const handleRevert = async (promptId: string, version: number) => {
-    const versionData = versions.find((v) => v.version === version);
-    if (!versionData) return;
-
-    try {
-      await api.prompts.revert(promptId, version);
-    } catch {
-      toast.error("Failed to revert prompt version");
-    }
-
-    setPrompts((prev) =>
-      prev.map((p) =>
-        p.id === promptId
-          ? { ...p, prompt: versionData.prompt, version, updated_at: new Date().toISOString() }
-          : p
-      )
-    );
-    setShowHistory(null);
-  };
 
   const handleTest = async (id: string) => {
     // 5.9: Show honest message in mock mode
@@ -218,7 +187,6 @@ export default function PromptsPage() {
               onClick={() => {
                 setActiveLayer(layer.key);
                 setEditingId(null);
-                setShowHistory(null);
                 setTestResult(null);
               }}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
@@ -297,16 +265,6 @@ export default function PromptsPage() {
                   >
                     {testingId === prompt.id ? "Testing..." : "Test Prompt"}
                   </button>
-                  <button
-                    onClick={() => handleShowHistory(prompt.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border border-card-border transition-colors ${
-                      showHistory === prompt.id
-                        ? "bg-accent/10 text-accent border-accent/30"
-                        : "text-muted hover:text-foreground hover:bg-card-hover"
-                    }`}
-                  >
-                    History
-                  </button>
                   {editingId === prompt.id ? (
                     <div className="flex gap-2">
                       <button
@@ -350,59 +308,6 @@ export default function PromptsPage() {
                 )}
               </div>
 
-              {/* Version history panel */}
-              {showHistory === prompt.id && (
-                <div className="border-t border-card-border px-6 py-4 bg-[#0d0d0d]">
-                  <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-3">
-                    Version History
-                  </h4>
-                  {loadingVersions ? (
-                    <div className="space-y-2">
-                      {[1, 2].map((i) => (
-                        <div key={i} className="h-16 bg-card-hover rounded animate-pulse" />
-                      ))}
-                    </div>
-                  ) : versions.length === 0 ? (
-                    <p className="text-sm text-muted">No version history available.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {versions.map((v) => (
-                        <div
-                          key={v.id}
-                          className="flex items-start justify-between gap-4 p-3 rounded-lg border border-card-border bg-card-bg hover:bg-card-hover transition-colors"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-semibold text-foreground">
-                                v{v.version}
-                              </span>
-                              {v.version === prompt.version && (
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-green-500/10 text-green-400">
-                                  current
-                                </span>
-                              )}
-                              <span className="text-xs text-muted">
-                                {formatDateTime(v.updated_at)}
-                              </span>
-                            </div>
-                            <pre className="text-xs text-muted whitespace-pre-wrap font-mono line-clamp-3">
-                              {v.prompt}
-                            </pre>
-                          </div>
-                          {v.version !== prompt.version && (
-                            <button
-                              onClick={() => handleRevert(prompt.id, v.version)}
-                              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-card-border text-muted hover:text-foreground hover:bg-card-hover transition-colors shrink-0"
-                            >
-                              Revert
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           ))}
         </div>
