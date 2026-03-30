@@ -13,7 +13,7 @@ export default function MockDataBanner() {
   if (dismissed) return null;
 
   return (
-    <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-2.5">
+    <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2.5">
       <p className="text-xs text-yellow-300">
         You&apos;re viewing demo data. Connect your Cloudflare Workers to see
         real data.{" "}

@@ -6,38 +6,13 @@ import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { toast } from "sonner";
 import type { Domain, Category } from "@/lib/api";
+import { MOCK_DOMAINS, MOCK_CATEGORIES } from "@/lib/mock-data";
 
-// Mock data matching the architecture doc (Part 3)
-const MOCK_DOMAINS: Domain[] = [
-  { id: "dom-1", name: "Digital Planners & Journals", slug: "digital-planners", description: "Printable and digital planners, journals, and trackers", icon: "\uD83D\uDDD3\uFE0F", sort_order: 0, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-2", name: "Social Media Templates", slug: "social-media-templates", description: "Instagram, TikTok, Pinterest content templates", icon: "\uD83D\uDCF1", sort_order: 1, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-3", name: "Business & Finance Tools", slug: "business-finance", description: "Business plans, invoices, budgets, financial trackers", icon: "\uD83D\uDCBC", sort_order: 2, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-4", name: "Educational Resources", slug: "educational-resources", description: "Worksheets, flashcards, study guides, lesson plans", icon: "\uD83C\uDF93", sort_order: 3, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-5", name: "Art & Illustration Packs", slug: "art-illustration", description: "Clipart, illustrations, design elements, brushes", icon: "\uD83C\uDFA8", sort_order: 4, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-6", name: "Music & Audio Assets", slug: "music-audio", description: "Beats, loops, sound effects, production templates", icon: "\uD83C\uDFB5", sort_order: 5, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-7", name: "Website & UI Kits", slug: "website-ui-kits", description: "Website templates, UI components, landing pages", icon: "\uD83D\uDDA5\uFE0F", sort_order: 6, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-8", name: "Print-on-Demand Designs", slug: "print-on-demand", description: "T-shirt designs, stickers, mug prints, phone cases", icon: "\uD83D\uDC55", sort_order: 7, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-9", name: "eBooks & Written Content", slug: "ebooks-written", description: "eBooks, guides, whitepapers, written courses", icon: "\uD83D\uDCDA", sort_order: 8, is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "dom-10", name: "Photography & Stock Media", slug: "photography-stock", description: "Stock photos, video clips, Lightroom presets", icon: "\uD83D\uDCF7", sort_order: 9, is_active: false, created_at: "2025-01-01T00:00:00Z" },
-];
-
-const MOCK_CATEGORIES: Record<string, Category[]> = {
-  "dom-1": [
-    { id: "cat-1-1", domain_id: "dom-1", name: "Daily Planners", slug: "daily-planners", description: "Day-by-day planning templates", sort_order: 0, is_active: true },
-    { id: "cat-1-2", domain_id: "dom-1", name: "Budget Trackers", slug: "budget-trackers", description: "Personal finance tracking sheets", sort_order: 1, is_active: true },
-    { id: "cat-1-3", domain_id: "dom-1", name: "Habit Trackers", slug: "habit-trackers", description: "Daily habit tracking templates", sort_order: 2, is_active: true },
-    { id: "cat-1-4", domain_id: "dom-1", name: "Gratitude Journals", slug: "gratitude-journals", description: "Guided gratitude journaling", sort_order: 3, is_active: true },
-  ],
-  "dom-2": [
-    { id: "cat-2-1", domain_id: "dom-2", name: "Instagram Post Templates", slug: "instagram-posts", description: "Feed post templates", sort_order: 0, is_active: true },
-    { id: "cat-2-2", domain_id: "dom-2", name: "Story Templates", slug: "story-templates", description: "Instagram/TikTok story layouts", sort_order: 1, is_active: true },
-    { id: "cat-2-3", domain_id: "dom-2", name: "Pinterest Pin Templates", slug: "pinterest-pins", description: "Tall-format pin designs", sort_order: 2, is_active: true },
-  ],
-  "dom-3": [
-    { id: "cat-3-1", domain_id: "dom-3", name: "Business Plans", slug: "business-plans", description: "Startup and business plan templates", sort_order: 0, is_active: true },
-    { id: "cat-3-2", domain_id: "dom-3", name: "Invoice Templates", slug: "invoices", description: "Professional invoice designs", sort_order: 1, is_active: true },
-  ],
-};
+/*
+ * Emoji icons (3.7): Acceptable for V1 with the fallback "📁" for missing icons.
+ * For production, consider replacing emoji with SVG icons (Heroicons/Lucide)
+ * or using twemoji for consistent cross-platform rendering.
+ */
 
 export default function DomainsPage() {
   const { data: fetchedDomains, loading, isUsingMock, refetch: fetchDomains } = useApiQuery(
@@ -127,7 +102,9 @@ export default function DomainsPage() {
   const handleSaveDomain = async () => {
     if (!editingDomainId || !editDomainData.name?.trim()) return;
     setSaving(true);
-    const updated = { ...domains.find((d) => d.id === editingDomainId)!, ...editDomainData };
+    const existing = domains.find((d) => d.id === editingDomainId);
+    if (!existing) return;
+    const updated = { ...existing, ...editDomainData };
     setDomains((prev) => prev.map((d) => (d.id === editingDomainId ? updated : d)));
     if (selectedDomain?.id === editingDomainId) setSelectedDomain(updated);
     try {
@@ -146,7 +123,8 @@ export default function DomainsPage() {
     try {
       const response = await api.domains.create(newDomain);
       if (response.success && response.data) {
-        setDomains((prev) => [...prev, response.data!]);
+        const created = response.data;
+        setDomains((prev) => [...prev, created]);
       } else {
         const mock: Domain = {
           id: `dom-${Date.now()}`,
@@ -213,7 +191,9 @@ export default function DomainsPage() {
   const handleSaveCategory = async () => {
     if (!editingCategoryId || !editCategoryData.name?.trim() || !selectedDomain) return;
     setSaving(true);
-    const updated = { ...categories.find((c) => c.id === editingCategoryId)!, ...editCategoryData };
+    const existing = categories.find((c) => c.id === editingCategoryId);
+    if (!existing) return;
+    const updated = { ...existing, ...editCategoryData };
     setCategories((prev) => prev.map((c) => (c.id === editingCategoryId ? updated : c)));
     try {
       await api.categories.update(selectedDomain.id, editingCategoryId, editCategoryData);
@@ -231,7 +211,8 @@ export default function DomainsPage() {
     try {
       const response = await api.categories.create(selectedDomain.id, newCategory);
       if (response.success && response.data) {
-        setCategories((prev) => [...prev, response.data!]);
+        const created = response.data;
+        setCategories((prev) => [...prev, created]);
       } else {
         const mock: Category = {
           id: `cat-${Date.now()}`,
@@ -344,7 +325,7 @@ export default function DomainsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="rounded-lg border border-card-border bg-card-bg p-4 animate-pulse">
+              <div key={i} className="rounded-xl border border-card-border bg-card-bg p-4 animate-pulse">
                 <div className="h-4 bg-card-border rounded w-40" />
               </div>
             ))}
@@ -383,7 +364,7 @@ export default function DomainsPage() {
           </div>
 
           {showAddDomain && (
-            <div className="rounded-lg border border-accent/30 bg-card-bg p-3 space-y-2">
+            <div className="rounded-xl border border-accent/30 bg-card-bg p-3 space-y-2">
               <input
                 type="text"
                 value={newDomain.name}
@@ -489,6 +470,9 @@ export default function DomainsPage() {
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
+                        role="switch"
+                        aria-checked={domain.is_active}
+                        aria-label={`Toggle ${domain.name} active`}
                         onClick={(e) => { e.stopPropagation(); handleToggleDomainActive(domain); }}
                         className={`w-2 h-2 rounded-full ${domain.is_active ? "bg-success" : "bg-muted"}`}
                         title={domain.is_active ? "Active" : "Inactive"}
@@ -497,6 +481,7 @@ export default function DomainsPage() {
                         onClick={(e) => { e.stopPropagation(); setEditingDomainId(domain.id); setEditDomainData({ name: domain.name, description: domain.description, icon: domain.icon }); }}
                         className="p-1 text-xs text-muted hover:text-accent"
                         title="Edit"
+                        aria-label={`Edit ${domain.name}`}
                       >
                         {"\u270E"}
                       </button>
@@ -514,6 +499,7 @@ export default function DomainsPage() {
                           onClick={(e) => { e.stopPropagation(); setDeleteDomainConfirm(domain.id); }}
                           className="p-1 text-xs text-muted hover:text-danger"
                           title="Delete (will delete all categories + products)"
+                          aria-label={`Delete ${domain.name}`}
                         >
                           {"\uD83D\uDDD1"}
                         </button>
@@ -525,7 +511,7 @@ export default function DomainsPage() {
             ))}
 
           {domains.length === 0 && !showAddDomain && (
-            <div className="rounded-lg border border-card-border bg-card-bg p-4 text-center">
+            <div className="rounded-xl border border-card-border bg-card-bg p-4 text-center">
               <p className="text-muted text-xs">No domains yet</p>
             </div>
           )}
@@ -555,7 +541,7 @@ export default function DomainsPage() {
 
               <div className="p-4 space-y-2">
                 {showAddCategory && (
-                  <div className="rounded-lg border border-accent/30 bg-background p-3 space-y-2">
+                  <div className="rounded-xl border border-accent/30 bg-background p-3 space-y-2">
                     <input
                       type="text"
                       value={newCategory.name}
@@ -652,6 +638,9 @@ export default function DomainsPage() {
                             </div>
                             <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
+                                role="switch"
+                                aria-checked={category.is_active}
+                                aria-label={`Toggle ${category.name} active`}
                                 onClick={() => handleToggleCategoryActive(category)}
                                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                                   category.is_active ? "bg-success" : "bg-card-border"
@@ -663,6 +652,7 @@ export default function DomainsPage() {
                                 onClick={() => { setEditingCategoryId(category.id); setEditCategoryData({ name: category.name, description: category.description }); }}
                                 className="p-1 text-xs text-muted hover:text-accent"
                                 title="Edit"
+                                aria-label={`Edit ${category.name}`}
                               >
                                 {"\u270E"}
                               </button>
@@ -680,6 +670,7 @@ export default function DomainsPage() {
                                   onClick={() => setDeleteCategoryConfirm(category.id)}
                                   className="p-1 text-xs text-muted hover:text-danger"
                                   title="Delete (will delete all products in this category)"
+                                  aria-label={`Delete ${category.name}`}
                                 >
                                   {"\uD83D\uDDD1"}
                                 </button>

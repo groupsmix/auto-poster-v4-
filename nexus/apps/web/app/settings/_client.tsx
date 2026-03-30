@@ -144,8 +144,9 @@ export default function SettingsClient() {
   useEffect(() => {
     api.settings.getAll().then((settingsRes) => {
       if (settingsRes.success && settingsRes.data) {
+        const data = settingsRes.data;
         const raw = Object.fromEntries(
-          Object.entries(settingsRes.data!).filter(
+          Object.entries(data).filter(
             ([k]) => k in DEFAULT_SETTINGS
           )
         ) as Record<string, string>;
