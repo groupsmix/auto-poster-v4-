@@ -175,6 +175,8 @@ jobs:
 
       - name: Build frontend
         run: pnpm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://nexus-router.professional-inbox-simo.workers.dev/api
 
       - name: Deploy to CF Pages
         run: cd apps/web && npx wrangler pages deploy out --project-name=nexus-dashboard

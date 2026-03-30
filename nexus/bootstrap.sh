@@ -10,7 +10,7 @@
 #   2. Creates Cloudflare resources (D1, KV, R2) — skips if they exist
 #   3. Auto-updates all wrangler.toml files with real resource IDs
 #   4. Builds the entire monorepo
-#   5. Runs D1 database migrations (all 3 migration files)
+#   5. Runs D1 database migrations (all 4 migration files)
 #   6. Seeds prompt templates, domains, categories, platforms, etc.
 #   7. Deploys all 5 workers in dependency order
 #   8. Deploys the Next.js frontend to CF Pages
@@ -334,6 +334,8 @@ build_project() {
     return
   fi
 
+  # Set API URL for frontend build (uses the router worker URL)
+  export NEXT_PUBLIC_API_URL="https://nexus-router.${CF_SUBDOMAIN:-professional-inbox-simo}.workers.dev/api"
   pnpm run build
   log "Build completed successfully"
 }
