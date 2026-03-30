@@ -20,13 +20,13 @@ service = "nexus-variation"
 [[d1_databases]]
 binding = "DB"
 database_name = "nexus-db"
-database_id = "placeholder-d1-id"
+database_id = "f73cd60b-1baa-4e80-8e13-afb88960051d"
 # Replace placeholder-d1-id after running: wrangler d1 create nexus-db
 
 # ── KV Namespace (prompt templates, config cache) ──
 [[kv_namespaces]]
 binding = "KV"
-id = "placeholder-kv-id"
+id = "4b1067e47d0e4cbd8c7c91592ba5238c"
 # Replace placeholder-kv-id after running: wrangler kv namespace create CACHE
 
 # ── CF Workflows (multi-step product workflow orchestration) ──
