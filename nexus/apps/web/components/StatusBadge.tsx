@@ -8,7 +8,10 @@ import type { ProductStatus, AIModelStatus, WorkflowStatus, ReviewDecision } fro
 /** All possible status values across products, workflows, and AI models (4.9) */
 type AnyStatus = ProductStatus | AIModelStatus | WorkflowStatus | ReviewDecision;
 
-const STATUS_COLORS: Partial<Record<AnyStatus, string>> & Record<string, string> = {
+/** Extra status values not covered by shared types but used in the UI */
+type ExtraStatus = "waiting" | "not_set";
+
+const STATUS_COLORS: Partial<Record<AnyStatus | ExtraStatus, string>> = {
   // Product statuses
   draft: "bg-gray-500/10 text-gray-400",
   running: "bg-blue-500/10 text-blue-400",
@@ -36,7 +39,7 @@ export type { AnyStatus };
 export default function StatusBadge({ status }: { status: AnyStatus | (string & {}) }) {
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[status] ?? "bg-gray-500/10 text-gray-400"}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[status as AnyStatus | ExtraStatus] ?? "bg-gray-500/10 text-gray-400"}`}
     >
       {status.replace(/_/g, " ")}
     </span>

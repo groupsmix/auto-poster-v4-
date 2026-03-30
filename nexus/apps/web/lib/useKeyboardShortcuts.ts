@@ -51,16 +51,18 @@ export function useKeyboardShortcuts() {
           prefixTimer.current = null;
         }
 
-        const routes: Record<string, string> = {
+        type RouteKey = "h" | "p" | "r" | "s";
+        const routes: Record<RouteKey, string> = {
           h: "/",
           p: "/products",
           r: "/review",
           s: "/settings",
         };
 
-        if (routes[key]) {
+        const route = routes[key as RouteKey];
+        if (route) {
           e.preventDefault();
-          router.push(routes[key]);
+          router.push(route);
           return;
         }
         // Unknown second key — ignore

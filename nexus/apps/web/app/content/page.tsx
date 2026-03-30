@@ -217,6 +217,7 @@ export default function ContentPage() {
                       rel="noopener noreferrer"
                       className="p-1.5 rounded-lg text-muted hover:text-accent hover:bg-accent/10 transition-colors"
                       title="Download"
+                      aria-label={`Download ${getFileName(asset.r2_key)}`}
                     >
                       <svg
                         className="w-4 h-4"
@@ -237,6 +238,7 @@ export default function ContentPage() {
                       onClick={() => setDeleteConfirm(asset.id)}
                       className="p-1.5 rounded-lg text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
                       title="Delete"
+                      aria-label={`Delete ${getFileName(asset.r2_key)}`}
                     >
                       <svg
                         className="w-4 h-4"
