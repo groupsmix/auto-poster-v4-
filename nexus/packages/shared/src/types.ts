@@ -375,10 +375,16 @@ export interface Env {
   R2: R2Bucket;
 
   // Workers AI
-  AI: Fetcher;
+  AI: Fetcher & {
+    run(model: string, inputs: Record<string, unknown>): Promise<unknown>;
+  };
 
   // AI Gateway
   AI_GATEWAY: Fetcher;
+
+  // Cloudflare Account Config (used by AI Gateway routing)
+  CF_ACCOUNT_ID?: string;
+  AI_GATEWAY_ID?: string;
 
   // Service Bindings (used by nexus-workflow, nexus-variation)
   NEXUS_AI: Fetcher;

@@ -41,9 +41,9 @@ products.get("/", async (c) => {
       c.env,
       `SELECT COUNT(*) as total FROM products WHERE ${where}`,
       params
-    )) as Array<{ total: number }>;
+    )) as { results?: Array<{ total: number }> };
 
-    const total = countResult?.[0]?.total ?? 0;
+    const total = countResult?.results?.[0]?.total ?? 0;
 
     const data = await storageQuery(
       c.env,
@@ -68,13 +68,14 @@ products.get("/:id", async (c) => {
   try {
     const id = c.req.param("id");
 
-    const rows = (await storageQuery(
+    const queryResult = (await storageQuery(
       c.env,
       "SELECT * FROM products WHERE id = ?",
       [id]
-    )) as Array<Record<string, unknown>>;
+    )) as { results?: Array<Record<string, unknown>> };
 
-    if (!rows || (rows as unknown[]).length === 0) {
+    const rows = queryResult?.results ?? [];
+    if (rows.length === 0) {
       return c.json<ApiResponse>(
         { success: false, error: "Product not found" },
         404
