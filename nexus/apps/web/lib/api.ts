@@ -275,6 +275,8 @@ export const api = {
     productsByDomain: () => request<DomainBreakdownItem[]>("/analytics/products-by-domain"),
     productsByCategory: () => request<CategoryBreakdownItem[]>("/analytics/products-by-category"),
     aiLeaderboard: () => request<AILeaderboardEntry[]>("/analytics/ai-leaderboard"),
+    /** Single dashboard endpoint that returns all analytics data in one request (5.4) */
+    dashboard: () => request<AnalyticsDashboard>("/analytics/dashboard"),
   },
 
   // History endpoints
@@ -442,6 +444,17 @@ interface AILeaderboardEntry {
   total_failures: number;
 }
 
+/** Combined analytics dashboard response (5.4) */
+interface AnalyticsDashboard {
+  summary: AnalyticsSummary;
+  aiUsage: AIUsageOverTime[];
+  costBreakdown: CostBreakdownItem[];
+  cacheHitTrend: CacheHitTrendItem[];
+  productsByDomain: DomainBreakdownItem[];
+  productsByCategory: CategoryBreakdownItem[];
+  leaderboard: AILeaderboardEntry[];
+}
+
 interface RevisionEntry {
   id: string;
   product_id: string;
@@ -489,6 +502,7 @@ export type {
   DomainBreakdownItem,
   CategoryBreakdownItem,
   AILeaderboardEntry,
+  AnalyticsDashboard,
   WorkflowRun,
   WorkflowStep,
   RevisionEntry,

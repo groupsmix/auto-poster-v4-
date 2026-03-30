@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PlatformSelector from "./PlatformSelector";
 import SocialChannelSelector from "./SocialChannelSelector";
@@ -37,34 +37,53 @@ export default function ProductSetupForm({
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
+  // Load saved defaults from localStorage (5.6)
+  const savedDefaults = typeof window !== "undefined"
+    ? (() => { try { return JSON.parse(localStorage.getItem("nexus_form_defaults") ?? "null"); } catch { return null; } })()
+    : null;
+
   // Form state
-  const [language, setLanguage] = useState("English");
+  const [language, setLanguage] = useState(savedDefaults?.language ?? "English");
   const [showLangAdd, setShowLangAdd] = useState(false);
   const [newLang, setNewLang] = useState("");
   const [languages, setLanguages] = useState(LANGUAGES);
-  const [niche, setNiche] = useState("");
+  const [niche, setNiche] = useState(savedDefaults?.niche ?? "");
   const [productName, setProductName] = useState("");
   const [description, setDescription] = useState("");
   const [keywords, setKeywords] = useState("");
 
   // Platforms
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(savedDefaults?.selectedPlatforms ?? []);
 
   // Social
-  const [socialEnabled, setSocialEnabled] = useState(false);
-  const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
-  const [postingMode, setPostingMode] = useState<"auto" | "manual">("auto");
+  const [socialEnabled, setSocialEnabled] = useState(savedDefaults?.socialEnabled ?? false);
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(savedDefaults?.selectedChannels ?? []);
+  const [postingMode, setPostingMode] = useState<"auto" | "manual">(savedDefaults?.postingMode ?? "auto");
 
   // AI Options
-  const [priceAI, setPriceAI] = useState(true);
-  const [priceManual, setPriceManual] = useState("");
-  const [audienceAI, setAudienceAI] = useState(true);
-  const [audienceManual, setAudienceManual] = useState("");
-  const [designAI, setDesignAI] = useState(true);
-  const [designManual, setDesignManual] = useState("");
+  const [priceAI, setPriceAI] = useState(savedDefaults?.priceAI ?? true);
+  const [priceManual, setPriceManual] = useState(savedDefaults?.priceManual ?? "");
+  const [audienceAI, setAudienceAI] = useState(savedDefaults?.audienceAI ?? true);
+  const [audienceManual, setAudienceManual] = useState(savedDefaults?.audienceManual ?? "");
+  const [designAI, setDesignAI] = useState(savedDefaults?.designAI ?? true);
+  const [designManual, setDesignManual] = useState(savedDefaults?.designManual ?? "");
 
   // Batch
-  const [batchCount, setBatchCount] = useState(1);
+  const [batchCount, setBatchCount] = useState(savedDefaults?.batchCount ?? 1);
+
+  // Persist form defaults on change (5.6)
+  useEffect(() => {
+    const defaults = {
+      language, niche, selectedPlatforms, selectedChannels,
+      socialEnabled, postingMode, priceAI, priceManual,
+      audienceAI, audienceManual, designAI, designManual, batchCount,
+    };
+    try { localStorage.setItem("nexus_form_defaults", JSON.stringify(defaults)); } catch { /* quota exceeded */ }
+  }, [
+    language, niche, selectedPlatforms, selectedChannels,
+    socialEnabled, postingMode, priceAI, priceManual,
+    audienceAI, audienceManual, designAI, designManual, batchCount,
+  ]);
 
   const handleAddLanguage = () => {
     if (!newLang.trim()) return;

@@ -320,6 +320,7 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
         {!showRejectForm ? (
           <div className="flex gap-3">
             <button
+              data-action="approve"
               onClick={handleApprove}
               disabled={submitting}
               className="flex-1 px-6 py-3 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
@@ -327,6 +328,7 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
               {submitting ? "Publishing..." : "APPROVE — SEND TO PUBLISH"}
             </button>
             <button
+              data-action="reject"
               onClick={() => setShowRejectForm(true)}
               disabled={submitting}
               className="flex-1 px-6 py-3 rounded-lg bg-red-600/10 border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-600/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"

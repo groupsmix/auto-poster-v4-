@@ -8,6 +8,7 @@ import MockDataBanner from "@/components/MockDataBanner";
 import StatusBadge from "@/components/StatusBadge";
 import { MOCK_PRODUCTS } from "@/lib/mock-data";
 import { formatDate as sharedFormatDate } from "@/lib/format";
+import { toast } from "sonner";
 import type { Product } from "@/lib/api";
 
 
@@ -38,6 +39,8 @@ export default function ProductsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<"name" | "status" | "created_at" | "">("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Bulk actions state (5.8)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const effectiveProducts = localProducts ?? products;
 
@@ -118,6 +121,69 @@ export default function ProductsPage() {
   }, [filtered, batchView]);
 
   const formatDate = sharedFormatDate;
+
+  // Bulk action handlers (5.8)
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((p) => p.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
+      try { await api.products.delete(id); } catch { /* best-effort */ }
+    }
+    setLocalProducts((prev) => (prev ?? products).filter((p) => !selectedIds.has(p.id)));
+    toast.success(`Deleted ${ids.length} product${ids.length > 1 ? "s" : ""}`);
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkExport = () => {
+    const items = filtered.filter((p) => selectedIds.has(p.id));
+    const csv = [
+      ["ID", "Name", "Status", "Domain", "Category", "Platforms", "Created"].join(","),
+      ...items.map((p) =>
+        [
+          p.id,
+          `"${p.name.replace(/"/g, '""')}"`,
+          p.status,
+          p.domain_name ?? "",
+          p.category_name ?? "",
+          (p.platforms ?? []).join(";"),
+          p.created_at,
+        ].join(",")
+      ),
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `nexus-products-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${items.length} product${items.length > 1 ? "s" : ""}`);
+  };
+
+  const handleBulkRetry = async () => {
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
+      try { await api.post(`/workflow/retry/${id}`, {}); } catch { /* best-effort */ }
+    }
+    toast.success(`Retried ${ids.length} product${ids.length > 1 ? "s" : ""}`);
+    setSelectedIds(new Set());
+  };
 
   return (
     <div>
@@ -223,11 +289,44 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Results count */}
+      {/* Results count + Bulk actions bar (5.8) */}
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-muted">
           {filtered.length} product{filtered.length !== 1 ? "s" : ""}
+          {selectedIds.size > 0 && (
+            <span className="ml-2 text-accent font-medium">
+              ({selectedIds.size} selected)
+            </span>
+          )}
         </p>
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleBulkRetry}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-card-border text-muted hover:text-foreground hover:bg-card-hover transition-colors"
+            >
+              Retry
+            </button>
+            <button
+              onClick={handleBulkExport}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-card-border text-muted hover:text-foreground hover:bg-card-hover transition-colors"
+            >
+              Export CSV
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600/10 border border-red-500/30 text-red-400 hover:bg-red-600/20 transition-colors"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted hover:text-foreground transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -262,17 +361,20 @@ export default function ProductsPage() {
                 </span>
               </div>
               <div className="rounded-xl border border-card-border bg-card-bg overflow-hidden">
-                <ProductTable
-                  products={batchProducts}
-                  onDelete={(id) => setDeleteConfirm(id)}
-                  formatDate={formatDate}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={(key) => {
-                    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
-                    else { setSortKey(key as "name" | "status" | "created_at"); setSortDir("asc"); }
-                  }}
-                />
+                  <ProductTable
+                    products={batchProducts}
+                    onDelete={(id) => setDeleteConfirm(id)}
+                    formatDate={formatDate}
+                    sortKey={sortKey}
+                    sortDir={sortDir}
+                    onSort={(key) => {
+                      if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+                      else { setSortKey(key as "name" | "status" | "created_at"); setSortDir("asc"); }
+                    }}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
+                    onToggleSelectAll={toggleSelectAll}
+                  />
               </div>
             </div>
           ))}
@@ -289,17 +391,20 @@ export default function ProductsPage() {
                 </span>
               </div>
               <div className="rounded-xl border border-card-border bg-card-bg overflow-hidden">
-                <ProductTable
-                  products={batchGroups.ungrouped}
-                  onDelete={(id) => setDeleteConfirm(id)}
-                  formatDate={formatDate}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={(key) => {
-                    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
-                    else { setSortKey(key as "name" | "status" | "created_at"); setSortDir("asc"); }
-                  }}
-                />
+                  <ProductTable
+                    products={batchGroups.ungrouped}
+                    onDelete={(id) => setDeleteConfirm(id)}
+                    formatDate={formatDate}
+                    sortKey={sortKey}
+                    sortDir={sortDir}
+                    onSort={(key) => {
+                      if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+                      else { setSortKey(key as "name" | "status" | "created_at"); setSortDir("asc"); }
+                    }}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
+                    onToggleSelectAll={toggleSelectAll}
+                  />
               </div>
             </div>
           )}
@@ -316,6 +421,9 @@ export default function ProductsPage() {
               if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
               else { setSortKey(key as "name" | "status" | "created_at"); setSortDir("asc"); }
             }}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAll}
           />
         </div>
       )}
@@ -395,6 +503,9 @@ function ProductTable({
   sortKey: currentSort = "",
   sortDir: currentDir = "desc",
   onSort,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
 }: {
   products: Product[];
   onDelete: (id: string) => void;
@@ -402,6 +513,9 @@ function ProductTable({
   sortKey?: string;
   sortDir?: "asc" | "desc";
   onSort?: (key: string) => void;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onToggleSelectAll?: () => void;
 }) {
   const handleSort = (key: string) => {
     onSort?.(key);
@@ -412,6 +526,16 @@ function ProductTable({
       <table className="w-full text-sm min-w-[800px]">
         <thead>
           <tr className="border-b border-card-border text-left">
+            {selectedIds && onToggleSelectAll && (
+              <th className="px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size > 0 && products.every((p) => selectedIds.has(p.id))}
+                  onChange={onToggleSelectAll}
+                  className="rounded border-card-border text-accent focus:ring-accent"
+                />
+              </th>
+            )}
             <SortHeader label="Name" sortKey="name" currentSort={currentSort} currentDir={currentDir} onSort={handleSort} />
             <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider hidden md:table-cell">
               Domain
@@ -438,6 +562,16 @@ function ProductTable({
               key={product.id}
               className="border-b border-card-border last:border-0 hover:bg-card-hover transition-colors"
             >
+              {selectedIds && onToggleSelect && (
+                <td className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(product.id)}
+                    onChange={() => onToggleSelect(product.id)}
+                    className="rounded border-card-border text-accent focus:ring-accent"
+                  />
+                </td>
+              )}
               <td className="px-4 py-3">
                 <Link
                   href={`/products/${product.id}`}

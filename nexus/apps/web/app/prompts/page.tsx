@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { MOCK_PROMPTS, MOCK_VERSIONS } from "@/lib/mock-data";
 import { formatDateTime } from "@/lib/format";
+import { toast } from "sonner";
 import type { PromptTemplate, PromptVersion } from "@/lib/api";
 
 // Prompt layer configuration matching the architecture doc (Layers A-I)
@@ -54,12 +55,24 @@ export default function PromptsPage() {
   const [loadingVersions, setLoadingVersions] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     setPrompts(fetchedPrompts);
   }, [fetchedPrompts]);
 
-  const layerPrompts = prompts.filter((p) => p.layer === activeLayer);
+  // Filter prompts by search query across all layers (5.7)
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return null;
+    const q = searchQuery.toLowerCase();
+    return prompts.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.prompt.toLowerCase().includes(q)
+    );
+  }, [prompts, searchQuery]);
+
+  const layerPrompts = searchResults ?? prompts.filter((p) => p.layer === activeLayer);
 
   const handleEdit = (prompt: PromptTemplate) => {
     setEditingId(prompt.id);
@@ -141,6 +154,11 @@ export default function PromptsPage() {
   };
 
   const handleTest = async (id: string) => {
+    // 5.9: Show honest message in mock mode
+    if (isUsingMock) {
+      toast.info("Test unavailable — connect to Workers to test prompts");
+      return;
+    }
     setTestingId(id);
     setTestResult(null);
     try {
@@ -148,23 +166,10 @@ export default function PromptsPage() {
       if (response.success && response.data) {
         setTestResult(response.data.assembled);
       } else {
-        const prompt = prompts.find((p) => p.id === id);
-        if (prompt) {
-          const master = prompts.find((p) => p.layer === "master");
-          setTestResult(
-            `=== ASSEMBLED PROMPT PREVIEW ===\n\n` +
-            `--- Layer A: Master ---\n${master?.prompt ?? "(no master prompt)"}\n\n` +
-            `--- Current Layer: ${prompt.name} ---\n${prompt.prompt}\n\n` +
-            `--- Layer I: Context ---\n(context from previous workflow steps would be injected here)\n\n` +
-            `--- Output Schema ---\n{ "title": "...", "description": "...", "tags": [...], "price": 0 }`
-          );
-        }
+        toast.error("Test failed — no data returned");
       }
     } catch {
-      const prompt = prompts.find((p) => p.id === id);
-      setTestResult(
-        `=== ASSEMBLED PROMPT PREVIEW (mock) ===\n\n${prompt?.prompt ?? ""}\n\n(In production, this shows the full assembled prompt with all layers combined for a sample product.)`
-      );
+      toast.error("Test failed — could not reach Workers");
     } finally {
       setTestingId(null);
     }
@@ -182,8 +187,24 @@ export default function PromptsPage() {
 
       {isUsingMock && <MockDataBanner />}
 
+      {/* Search (5.7) */}
+      <div className="mb-4">
+        <div className="relative max-w-sm">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search prompts by name or content..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 rounded-lg bg-card-bg border border-card-border text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-accent"
+          />
+        </div>
+      </div>
+
       {/* Layer Tabs */}
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className={`mb-6 flex flex-wrap gap-2 ${searchQuery ? "opacity-50 pointer-events-none" : ""}`}>
         {PROMPT_LAYERS.map((layer) => {
           const count = prompts.filter((p) => p.layer === layer.key).length;
           return (

@@ -28,6 +28,9 @@ const SHORTCUT_SECTIONS: { title: string; shortcuts: ShortcutEntry[] }[] = [
     title: "Actions",
     shortcuts: [
       { keys: ["N"], description: "New Product (from Home)" },
+      { keys: ["A"], description: "Approve product (Review page)" },
+      { keys: ["R"], description: "Reject product (Review page)" },
+      { keys: ["Esc"], description: "Go back" },
     ],
   },
 ];
