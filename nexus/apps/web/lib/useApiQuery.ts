@@ -8,6 +8,8 @@ interface UseApiQueryResult<T> {
   error: string | null;
   isUsingMock: boolean;
   refetch: () => void;
+  /** Optimistically update the cached data without re-fetching */
+  mutate: (updater: T | ((prev: T) => T)) => void;
 }
 
 /**
@@ -65,5 +67,9 @@ export function useApiQuery<T>(
     doFetch();
   }, [doFetch]);
 
-  return { data, loading, error, isUsingMock, refetch: doFetch };
+  const mutate = useCallback((updater: T | ((prev: T) => T)) => {
+    setData((prev) => (typeof updater === "function" ? (updater as (prev: T) => T)(prev) : updater));
+  }, []);
+
+  return { data, loading, error, isUsingMock, refetch: doFetch, mutate };
 }

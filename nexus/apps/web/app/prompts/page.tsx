@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import Modal from "@/components/Modal";
@@ -42,12 +42,11 @@ function LayerIcon({ layer }: { layer: string }) {
 }
 
 export default function PromptsPage() {
-  const { data: fetchedPrompts, loading, isUsingMock } = useApiQuery(
+  const { data: prompts, loading, isUsingMock, mutate: setPrompts } = useApiQuery(
     () => api.prompts.list(),
     MOCK_PROMPTS,
   );
 
-  const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
   const [activeLayer, setActiveLayer] = useState<string>("master");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
@@ -58,10 +57,6 @@ export default function PromptsPage() {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-
-  useEffect(() => {
-    setPrompts(fetchedPrompts);
-  }, [fetchedPrompts]);
 
   // Filter prompts by search query across all layers (5.7)
   const searchResults = useMemo(() => {
