@@ -43,11 +43,46 @@ export interface GatewayCallResult {
   success: boolean;
 }
 
+/** Retry configuration */
+const RETRY_MAX_ATTEMPTS = 1;
+const RETRY_BASE_DELAY_MS = 1000;
+
+/** Retryable HTTP status codes */
+const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+
 // ============================================================
 // CALL AI VIA GATEWAY — route external AI calls through CF AI Gateway
 // ============================================================
 
 export async function callAIviaGateway(
+  model: AIModelConfig,
+  apiKey: string,
+  prompt: string,
+  env: Env
+): Promise<{ text: string; tokens?: number }> {
+  // Retry wrapper: attempt once, retry on transient errors before failing
+  for (let attempt = 0; attempt <= RETRY_MAX_ATTEMPTS; attempt++) {
+    try {
+      return await callAIviaGatewayInternal(model, apiKey, prompt, env);
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      const isRetryable = status !== undefined && RETRYABLE_STATUSES.has(status);
+      if (attempt < RETRY_MAX_ATTEMPTS && isRetryable) {
+        const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+        console.log(
+          `[GATEWAY RETRY] ${model.provider}/${model.model ?? model.id} -- attempt ${attempt + 1}, waiting ${delay}ms`
+        );
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      throw err;
+    }
+  }
+  // Unreachable, but TypeScript requires a return
+  throw new Error("Unexpected: retry loop exited without return or throw");
+}
+
+async function callAIviaGatewayInternal(
   model: AIModelConfig,
   apiKey: string,
   prompt: string,

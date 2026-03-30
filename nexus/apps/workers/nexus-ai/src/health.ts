@@ -98,46 +98,50 @@ export async function updateHealthScore(
     });
   }
 
-  // Persist to D1: update ai_models table
-  try {
-    await env.DB.prepare(
-      `UPDATE ai_models
-       SET total_calls = ?, total_failures = ?, avg_latency_ms = ?, health_score = ?
-       WHERE id = ?`
-    )
-      .bind(
-        health.totalCalls,
-        health.totalFailures,
-        Math.round(health.avgLatencyMs),
-        health.healthScore,
-        modelId
-      )
-      .run();
-  } catch {
-    // D1 may not have this model yet — that's okay, analytics still logs it
-    console.log(`[HEALTH] Could not update D1 for model ${modelId}`);
-  }
+  // Persist to D1 via nexus-storage service binding (consistent with architecture)
+  if (env.NEXUS_STORAGE) {
+    try {
+      await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sql: `UPDATE ai_models SET total_calls = ?, total_failures = ?, avg_latency_ms = ?, health_score = ? WHERE id = ?`,
+          params: [
+            health.totalCalls,
+            health.totalFailures,
+            Math.round(health.avgLatencyMs),
+            health.healthScore,
+            modelId,
+          ],
+        }),
+      });
+    } catch {
+      console.log(`[HEALTH] Could not update D1 for model ${modelId}`);
+    }
 
-  // Log to D1 analytics table
-  try {
-    await env.DB.prepare(
-      `INSERT INTO analytics (id, event_type, ai_model, tokens_used, cost, latency_ms, cached, metadata, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(
-        generateId(),
-        "ai_call",
-        modelName,
-        0,
-        0,
-        Math.round(latencyMs),
-        0,
-        JSON.stringify({ success, error: errorMessage }),
-        now()
-      )
-      .run();
-  } catch {
-    console.log(`[HEALTH] Could not write analytics for ${modelId}`);
+    // Log to D1 analytics table via nexus-storage
+    try {
+      await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sql: `INSERT INTO analytics (id, event_type, ai_model, tokens_used, cost, latency_ms, cached, metadata, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          params: [
+            generateId(),
+            "ai_call",
+            modelName,
+            0,
+            0,
+            Math.round(latencyMs),
+            0,
+            JSON.stringify({ success, error: errorMessage }),
+            now(),
+          ],
+        }),
+      });
+    } catch {
+      console.log(`[HEALTH] Could not write analytics for ${modelId}`);
+    }
   }
 }
 

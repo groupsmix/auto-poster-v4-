@@ -164,23 +164,101 @@ async function updateWorkflowRun(
 
 // --- Helper: parse AI response as JSON ---
 
+/** Step-level timeout in milliseconds (5 minutes per step) */
+const STEP_TIMEOUT_MS = 5 * 60 * 1000;
+/** Maximum retries per step */
+const STEP_MAX_RETRIES = 1;
+
+/**
+ * Estimate token cost for quota tracking.
+ * Even free-tier models have implicit costs (rate limits, quota usage).
+ */
+function estimateTokenCost(model: string | undefined, tokens: number): number {
+  if (!model || tokens === 0) return 0;
+  // Approximate costs per 1K tokens for common providers
+  const costPer1K: Record<string, number> = {
+    deepseek: 0.0001,
+    qwen: 0.0,
+    groq: 0.0,
+    fireworks: 0.0002,
+    moonshot: 0.0001,
+  };
+  const provider = model.split("/")[0] ?? model;
+  const rate = costPer1K[provider] ?? 0;
+  return (tokens / 1000) * rate;
+}
+
+/**
+ * Execute a promise with a timeout.
+ * Rejects with a timeout error if the promise doesn't resolve within the limit.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 function parseAIResponse(raw: string): Record<string, unknown> {
-  // Try direct parse first
+  // Strategy 1: Direct JSON.parse
   try {
     return JSON.parse(raw) as Record<string, unknown>;
   } catch {
-    // Try to extract JSON from markdown code blocks
-    const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch?.[1]) {
-      return JSON.parse(jsonMatch[1].trim()) as Record<string, unknown>;
-    }
-    // Try to find JSON object in the response
-    const objectMatch = raw.match(/\{[\s\S]*\}/);
-    if (objectMatch) {
-      return JSON.parse(objectMatch[0]) as Record<string, unknown>;
-    }
-    throw new Error("Failed to parse AI response as JSON");
+    // continue to next strategy
   }
+
+  // Strategy 2: Extract from markdown code blocks
+  const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (jsonMatch?.[1]) {
+    try {
+      return JSON.parse(jsonMatch[1].trim()) as Record<string, unknown>;
+    } catch {
+      // continue to next strategy
+    }
+  }
+
+  // Strategy 3: Find balanced JSON object using bracket counting
+  const startIdx = raw.indexOf("{");
+  if (startIdx !== -1) {
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    for (let i = startIdx; i < raw.length; i++) {
+      const ch = raw[i];
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escape = true;
+        continue;
+      }
+      if (ch === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (inString) continue;
+      if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) {
+          try {
+            return JSON.parse(raw.slice(startIdx, i + 1)) as Record<string, unknown>;
+          } catch {
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // All strategies failed — wrap error with raw response for debugging
+  const preview = raw.length > 200 ? raw.slice(0, 200) + "..." : raw;
+  throw new Error(
+    `Failed to parse AI response as JSON. Raw response preview: ${preview}`
+  );
 }
 
 // ============================================================
@@ -189,9 +267,11 @@ function parseAIResponse(raw: string): Record<string, unknown> {
 
 export class WorkflowEngine {
   private env: Env;
+  private ctx?: ExecutionContext;
 
-  constructor(env: Env) {
+  constructor(env: Env, ctx?: ExecutionContext) {
     this.env = env;
+    this.ctx = ctx;
   }
 
   /**
@@ -234,8 +314,10 @@ export class WorkflowEngine {
       [now(), productId]
     );
 
-    // Run the pipeline (non-blocking — CF Workflows handles persistence)
-    this.runPipeline(runId, input).catch(async (err) => {
+    // Run the pipeline.
+    // Use ctx.waitUntil() if available (CF Workers) to keep the worker alive
+    // until the pipeline completes, preventing premature termination.
+    const pipelinePromise = this.runPipeline(runId, input).catch(async (err) => {
       console.error(`[WORKFLOW] Pipeline failed for run ${runId}:`, err);
       try {
         const message = err instanceof Error ? err.message : String(err);
@@ -253,6 +335,11 @@ export class WorkflowEngine {
         console.error(`[WORKFLOW] Failed to update status after pipeline error for run ${runId}:`, updateErr);
       }
     });
+
+    // If an ExecutionContext is provided, use waitUntil to keep worker alive
+    if (this.ctx?.waitUntil) {
+      this.ctx.waitUntil(pipelinePromise);
+    }
 
     return { runId };
   }
@@ -413,15 +500,33 @@ export class WorkflowEngine {
       tokens?: number;
     };
 
-    if (config.usesVariationWorker) {
-      aiResult = await callVariation(this.env, config.taskType, prompt);
-    } else {
-      aiResult = await callAI(this.env, config.taskType, prompt);
+    // Execute with timeout and retry logic
+    const callFn = config.usesVariationWorker
+      ? () => callVariation(this.env, config.taskType, prompt)
+      : () => callAI(this.env, config.taskType, prompt);
+
+    for (let attempt = 0; attempt <= STEP_MAX_RETRIES; attempt++) {
+      try {
+        aiResult = await withTimeout(callFn(), STEP_TIMEOUT_MS, `Step ${stepName}`);
+        break;
+      } catch (retryErr) {
+        if (attempt < STEP_MAX_RETRIES) {
+          console.warn(
+            `[WORKFLOW] Step ${stepName} attempt ${attempt + 1} failed, retrying: ${
+              retryErr instanceof Error ? retryErr.message : String(retryErr)
+            }`
+          );
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        } else {
+          throw retryErr;
+        }
+      }
     }
 
     const latencyMs = Date.now() - startTime;
     const tokens = aiResult.tokens ?? 0;
-    const cost = 0; // Free tier — cost tracking for when paid models are added
+    // Track token cost even for free models (useful for quota monitoring)
+    const cost = estimateTokenCost(aiResult.model, tokens);
 
     // Parse AI response as structured JSON
     const output = parseAIResponse(aiResult.result);
@@ -616,7 +721,7 @@ export class WorkflowEngine {
       revisionSteps: failedSteps,
     };
 
-    this.runPipeline(runId, input).catch(async (err) => {
+    const revisionPromise = this.runPipeline(runId, input).catch(async (err) => {
       console.error(`[WORKFLOW] Revision pipeline failed for run ${runId}:`, err);
       try {
         const message = err instanceof Error ? err.message : String(err);
@@ -634,6 +739,10 @@ export class WorkflowEngine {
         console.error(`[WORKFLOW] Failed to update status after revision pipeline error for run ${runId}:`, updateErr);
       }
     });
+
+    if (this.ctx?.waitUntil) {
+      this.ctx.waitUntil(revisionPromise);
+    }
 
     return { runId };
   }

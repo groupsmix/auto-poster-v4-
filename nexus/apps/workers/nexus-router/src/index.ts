@@ -38,25 +38,54 @@ const app = new Hono<{ Bindings: RouterEnv }>();
 // MIDDLEWARE
 // ============================================================
 
-// CORS — allow dashboard origin
-app.use("*", cors());
+// CORS — restrict to known dashboard origins
+app.use(
+  "*",
+  cors({
+    origin: (origin) => {
+      // Allow CF Pages domains and localhost for development
+      if (!origin) return origin;
+      if (
+        origin.endsWith(".pages.dev") ||
+        origin.endsWith(".workers.dev") ||
+        origin.startsWith("http://localhost")
+      ) {
+        return origin;
+      }
+      return null;
+    },
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Request-ID"],
+    exposeHeaders: ["X-Request-ID"],
+    maxAge: 86400,
+  })
+);
+
+// Request ID tracing middleware — generate or propagate X-Request-ID
+app.use("/api/*", async (c, next) => {
+  const requestId =
+    c.req.header("X-Request-ID") ?? crypto.randomUUID();
+  c.set("requestId", requestId);
+  c.header("X-Request-ID", requestId);
+  await next();
+});
 
 // Request/response logging middleware (7.4)
 app.use("/api/*", async (c, next) => {
   const start = Date.now();
+  const requestId = c.get("requestId") ?? "-";
   await next();
   const duration = Date.now() - start;
   console.log(
-    `${c.req.method} ${c.req.path} ${c.res.status} ${duration}ms`
+    `[${requestId}] ${c.req.method} ${c.req.path} ${c.res.status} ${duration}ms`
   );
 });
 
 // Rate limiting middleware (7.3)
-// 100 requests per minute per IP using KV counter
+// 20 requests per minute per IP using KV counter
 app.use("/api/*", async (c, next) => {
   const storage = c.env.NEXUS_STORAGE;
   if (!storage) {
-    // If storage service is unavailable, skip rate limiting
     await next();
     return;
   }
@@ -70,19 +99,19 @@ app.use("/api/*", async (c, next) => {
     const json = (await resp.json()) as { success: boolean; data?: string };
     const count = json.success && json.data ? parseInt(json.data as string, 10) : 0;
 
-    if (count >= 100) {
+    if (count >= 20) {
       return c.json<ApiResponse>(
         { success: false, error: "Rate limit exceeded. Try again in a minute." },
         429
       );
     }
 
-    // Increment counter (fire-and-forget, don't block the request)
-    storage.fetch(`http://nexus-storage/kv/${encodeURIComponent(key)}`, {
+    // Increment counter — await the write to prevent races
+    await storage.fetch(`http://nexus-storage/kv/${encodeURIComponent(key)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: String(count + 1), ttl: 120 }),
-    }).catch(() => { /* ignore rate limit write failures */ });
+    });
   } catch {
     // If rate limit check fails, allow the request through
   }
@@ -94,10 +123,12 @@ app.use("/api/*", async (c, next) => {
 app.use("/api/*", async (c, next) => {
   const secret = c.env.DASHBOARD_SECRET;
 
-  // If no secret is configured, skip auth (development mode)
+  // Fail closed — if no secret is configured, block all requests
   if (!secret) {
-    await next();
-    return;
+    return c.json<ApiResponse>(
+      { success: false, error: "Authentication not configured. Set DASHBOARD_SECRET." },
+      503
+    );
   }
 
   const authHeader = c.req.header("Authorization");
@@ -150,6 +181,77 @@ app.get("/health", async (c) => {
   return c.json({
     status: allHealthy ? "healthy" : "degraded",
     services: results,
+  });
+});
+
+// Dashboard health endpoint — authenticated, returns extended system status
+app.get("/api/health", async (c) => {
+  const checks = await Promise.allSettled([
+    c.env.NEXUS_STORAGE.fetch("http://nexus-storage/health"),
+    c.env.NEXUS_AI.fetch("http://nexus-ai/health"),
+    c.env.NEXUS_WORKFLOW.fetch("http://nexus-workflow/health"),
+  ]);
+
+  const serviceStatus = {
+    storage: checks[0].status === "fulfilled" ? "ok" : "unreachable",
+    ai: checks[1].status === "fulfilled" ? "ok" : "unreachable",
+    workflow: checks[2].status === "fulfilled" ? "ok" : "unreachable",
+  };
+
+  const allHealthy = Object.values(serviceStatus).every((s) => s === "ok");
+
+  // Fetch additional stats if storage is available
+  let dbStats: Record<string, unknown> | null = null;
+  let aiHealth: unknown = null;
+
+  if (serviceStatus.storage === "ok") {
+    try {
+      const statsResp = await c.env.NEXUS_STORAGE.fetch(
+        "http://nexus-storage/d1/query",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sql: `SELECT
+              (SELECT COUNT(*) FROM products) as products,
+              (SELECT COUNT(*) FROM workflow_runs) as workflow_runs,
+              (SELECT COUNT(*) FROM workflow_runs WHERE status = 'running') as running_workflows,
+              (SELECT COUNT(*) FROM workflow_runs WHERE status = 'failed') as failed_workflows,
+              (SELECT COUNT(*) FROM analytics) as analytics_events`,
+            params: [],
+          }),
+        }
+      );
+      const statsJson = (await statsResp.json()) as ApiResponse;
+      if (statsJson.success) {
+        dbStats = (statsJson.data as { results?: Record<string, unknown>[] })?.results?.[0] ?? null;
+      }
+    } catch {
+      // Stats are best-effort
+    }
+  }
+
+  if (serviceStatus.ai === "ok") {
+    try {
+      const aiResp = await c.env.NEXUS_AI.fetch("http://nexus-ai/ai/health");
+      const aiJson = (await aiResp.json()) as ApiResponse;
+      if (aiJson.success) {
+        aiHealth = aiJson.data;
+      }
+    } catch {
+      // AI health is best-effort
+    }
+  }
+
+  return c.json<ApiResponse>({
+    success: true,
+    data: {
+      status: allHealthy ? "healthy" : "degraded",
+      services: serviceStatus,
+      database: dbStats,
+      aiModels: aiHealth,
+      timestamp: new Date().toISOString(),
+    },
   });
 });
 

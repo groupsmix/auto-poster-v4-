@@ -105,13 +105,16 @@ describe("nexus-router: Auth Middleware", () => {
     expect(data.success).toBe(true);
   });
 
-  it("skips auth when DASHBOARD_SECRET is not set", async () => {
+  it("returns 503 when DASHBOARD_SECRET is not configured", async () => {
     const env = buildEnv({ DASHBOARD_SECRET: undefined });
     const res = await app.fetch(
       makeRequest("/api/domains", {}, false),
       env
     );
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(503);
+    const data = await res.json() as Record<string, any>;
+    expect(data.success).toBe(false);
+    expect(data.error).toContain("not configured");
   });
 
   it("allows public routes without auth (GET /)", async () => {
