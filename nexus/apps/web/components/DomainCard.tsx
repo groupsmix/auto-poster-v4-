@@ -3,10 +3,11 @@
 interface DomainCardProps {
   name: string;
   icon?: string;
+  subtitle?: string;
   onClick?: () => void;
 }
 
-export default function DomainCard({ name, icon, onClick }: DomainCardProps) {
+export default function DomainCard({ name, icon, subtitle, onClick }: DomainCardProps) {
   return (
     <button
       onClick={onClick}
@@ -20,6 +21,9 @@ export default function DomainCard({ name, icon, onClick }: DomainCardProps) {
           <h3 className="text-base font-semibold text-foreground group-hover:text-accent transition-colors">
             {name}
           </h3>
+          {subtitle && (
+            <p className="text-xs text-muted mt-1">{subtitle}</p>
+          )}
         </div>
         <span className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all text-lg mt-1">
           &rarr;

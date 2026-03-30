@@ -34,6 +34,14 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/*
+ * Border-radius convention:
+ *   rounded-xl  → outer containers (cards, modals, panels)
+ *   rounded-lg  → interactive elements (buttons, inputs, tabs)
+ *   rounded     → small elements (badges, tags)
+ *   rounded-full → circular elements (avatars, dots, progress bars, toggles)
+ */
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -57,4 +65,35 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
+}
+
+/* Light mode support */
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #f8f8f8;
+    --foreground: #171717;
+    --card-bg: #ffffff;
+    --card-border: #e5e5e5;
+    --card-hover: #f5f5f5;
+    --sidebar-bg: #ffffff;
+    --sidebar-border: #e5e5e5;
+    --accent: #4f46e5;
+    --accent-hover: #6366f1;
+    --muted: #737373;
+    --danger: #dc2626;
+    --success: #16a34a;
+    --warning: #d97706;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f8f8f8;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #d4d4d4;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #a3a3a3;
+  }
 }

@@ -27,6 +27,9 @@ export default function PublishPage() {
     Record<string, ProductPublishState>
   >({});
   const [exporting, setExporting] = useState(false);
+  const [publishedProducts, setPublishedProducts] = useState<
+    Record<string, { platforms: string[]; channels: string[]; publishedAt: string }>
+  >({});
 
   // Initialize publish states for each product
   useEffect(() => {
@@ -127,6 +130,16 @@ export default function PublishPage() {
         channels,
       });
       refreshCounts();
+      const destinations = [...platforms, ...channels].join(", ");
+      toast.success(`Published "${product.product_name}" to ${destinations}`);
+      setPublishedProducts((prev) => ({
+        ...prev,
+        [product.product_id]: {
+          platforms,
+          channels,
+          publishedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      }));
     } catch {
       toast.error("Failed to publish. Please try again.");
     } finally {
@@ -277,9 +290,16 @@ export default function PublishPage() {
                         </span>
                       </div>
                     </div>
-                    <span className="text-sm font-bold text-accent">
-                      Score: {product.ai_score}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      {publishedProducts[product.product_id] && (
+                        <span className="px-2 py-1 rounded text-xs font-medium bg-green-500/10 text-green-400">
+                          Published at {publishedProducts[product.product_id].publishedAt}
+                        </span>
+                      )}
+                      <span className="text-sm font-bold text-accent">
+                        Score: {product.ai_score}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
