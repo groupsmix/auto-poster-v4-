@@ -6,6 +6,7 @@ import { useApiQuery } from "@/lib/useApiQuery";
 import Modal from "@/components/Modal";
 import ProductTable from "@/components/ProductTable";
 import { SearchIcon } from "@/components/icons/Icons";
+import EmptyState from "@/components/EmptyState";
 import { formatDate as sharedFormatDate } from "@/lib/format";
 import { toast } from "sonner";
 import type { Product } from "@/lib/api";
@@ -41,6 +42,7 @@ export default function ProductsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   // Bulk actions state (5.8)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   const effectiveProducts = localProducts ?? products;
 
@@ -148,6 +150,7 @@ export default function ProductsPage() {
     setLocalProducts((prev) => (prev ?? products).filter((p) => !selectedIds.has(p.id)));
     toast.success(`Deleted ${ids.length} product${ids.length > 1 ? "s" : ""}`);
     setSelectedIds(new Set());
+    setBulkDeleteConfirm(false);
   };
 
   const handleBulkExport = () => {
@@ -348,7 +351,7 @@ export default function ProductsPage() {
               Export CSV
             </button>
             <button
-              onClick={handleBulkDelete}
+              onClick={() => setBulkDeleteConfirm(true)}
               className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600/10 border border-red-500/30 text-red-400 hover:bg-red-600/20 transition-colors"
             >
               Delete
@@ -444,9 +447,7 @@ export default function ProductsPage() {
           )}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-muted text-sm">No products match your filters.</p>
-        </div>
+        <EmptyState icon="products" message="No products match your filters." />
       ) : (
         <div className="rounded-xl border border-card-border bg-card-bg overflow-hidden">
           <ProductTable
@@ -490,6 +491,36 @@ export default function ProductsPage() {
             className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
           >
             Delete
+          </button>
+        </div>
+      </Modal>
+
+      {/* Bulk delete confirmation modal */}
+      <Modal
+        isOpen={bulkDeleteConfirm}
+        onClose={() => setBulkDeleteConfirm(false)}
+        title="Delete Selected Products"
+        maxWidth="sm"
+      >
+        <p className="text-sm text-muted mb-6">
+          This will permanently delete{" "}
+          <span className="text-foreground font-semibold">{selectedIds.size}</span>{" "}
+          product{selectedIds.size !== 1 ? "s" : ""} and trigger synced cleanup
+          across all storage (D1, R2, KV, CF Images). This action cannot be
+          undone.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setBulkDeleteConfirm(false)}
+            className="flex-1 px-4 py-2 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleBulkDelete}
+            className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+          >
+            Delete {selectedIds.size} Product{selectedIds.size !== 1 ? "s" : ""}
           </button>
         </div>
       </Modal>

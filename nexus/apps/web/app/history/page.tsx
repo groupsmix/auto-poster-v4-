@@ -10,6 +10,7 @@ import { formatDateTime, formatDuration } from "@/lib/format";
 import { toast } from "sonner";
 import type { WorkflowStep, RevisionEntry } from "@/lib/api";
 import CacheIndicator from "@/components/CacheIndicator";
+import EmptyState from "@/components/EmptyState";
 
 
 export default function HistoryPage() {
@@ -350,9 +351,7 @@ export default function HistoryPage() {
       )}
 
       {filteredRuns.length === 0 && !loading && (
-        <div className="text-center py-16">
-          <p className="text-muted text-sm">No workflow runs found.</p>
-        </div>
+        <EmptyState icon="history" message="No workflow runs found." />
       )}
 
       {/* Revision History Modal */}

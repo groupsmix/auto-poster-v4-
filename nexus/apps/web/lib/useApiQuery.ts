@@ -11,23 +11,23 @@ interface UseApiQueryResult<T> {
 }
 
 /**
- * Centralised hook for fetching API data with automatic mock-data fallback.
+ * Centralised hook for fetching API data.
  *
  * When the API call fails or returns `{ success: false }`, the hook
- * transparently falls back to `mockFallback` and sets `isUsingMock = true`
- * so the UI can display a banner.
+ * keeps `data` at the `fallback` value and sets `error` with the
+ * failure message so the UI can display a proper error state.
  *
  * @param fetcher  — async function that calls the API
- * @param mockFallback — data returned when the API is unreachable
+ * @param fallback — initial/fallback data (e.g. `[]` for lists, `null` for objects)
  * @param deps — optional dependency array; the query re-runs whenever any
  *               value in this array changes (similar to useEffect deps)
  */
 export function useApiQuery<T>(
   fetcher: () => Promise<{ success: boolean; data?: T; error?: string }>,
-  mockFallback: T,
+  fallback: T,
   deps: readonly unknown[] = [],
 ): UseApiQueryResult<T> {
-  const [data, setData] = useState<T>(mockFallback);
+  const [data, setData] = useState<T>(fallback);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUsingMock, setIsUsingMock] = useState(false);
@@ -46,20 +46,23 @@ export function useApiQuery<T>(
       if (response.success && response.data) {
         setData(response.data);
         setIsUsingMock(false);
+        setError(null);
       } else {
-        // API returned an unsuccessful response — fall back to mock data
-        setData(mockFallback);
+        // API returned an unsuccessful response — keep fallback, set error
+        setData(fallback);
+        setError(response.error || "Failed to load data");
         setIsUsingMock(true);
       }
-    } catch {
-      // Network / parse error — fall back to mock data
-      setData(mockFallback);
+    } catch (e) {
+      // Network / parse error — keep fallback, set error
+      setData(fallback);
+      setError(e instanceof Error ? e.message : "Network error");
       setIsUsingMock(true);
     } finally {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mockFallback, ...deps]);
+  }, [fallback, ...deps]);
 
   useEffect(() => {
     doFetch();

@@ -65,6 +65,7 @@ export default function PlatformsClient() {
       if (response.success && response.data) {
         const updated = response.data;
         setPlatforms((prev) => prev.map((p) => (p.id === editingId ? updated : p)));
+        toast.success("Platform saved");
       } else {
         setPlatforms((prev) => prev.map((p) => (p.id === editingId ? editData : p)));
       }
@@ -101,14 +102,12 @@ export default function PlatformsClient() {
       if (response.success && response.data) {
         const created = response.data;
         setPlatforms((prev) => [...prev, created]);
+        toast.success("Platform added");
       } else {
-        const mockId = `plat-${Date.now()}`;
-        setPlatforms((prev) => [...prev, { id: mockId, ...dataToSend }]);
+        toast.error(response.error || "Failed to add platform");
       }
     } catch {
       toast.error("Failed to add platform");
-      const mockId = `plat-${Date.now()}`;
-      setPlatforms((prev) => [...prev, { id: mockId, ...dataToSend }]);
     } finally {
       setSaving(false);
       setShowAddForm(false);
@@ -121,6 +120,7 @@ export default function PlatformsClient() {
     setDeleteConfirm(null);
     try {
       await api.platforms.delete(id);
+      toast.success("Platform deleted");
     } catch {
       toast.error("Failed to delete platform");
       fetchPlatforms();

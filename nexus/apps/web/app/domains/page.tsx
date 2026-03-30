@@ -107,6 +107,7 @@ export default function DomainsPage() {
     if (selectedDomain?.id === editingDomainId) setSelectedDomain(updated);
     try {
       await api.domains.update(editingDomainId, editDomainData);
+      toast.success("Domain saved");
     } catch {
       toast.error("Failed to save domain");
     } finally {
@@ -123,32 +124,12 @@ export default function DomainsPage() {
       if (response.success && response.data) {
         const created = response.data;
         setDomains((prev) => [...prev, created]);
+        toast.success("Domain added");
       } else {
-        const mock: Domain = {
-          id: `dom-${Date.now()}`,
-          name: newDomain.name,
-          slug: newDomain.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-          description: newDomain.description,
-          icon: newDomain.icon,
-          sort_order: domains.length,
-          is_active: true,
-          created_at: new Date().toISOString(),
-        };
-        setDomains((prev) => [...prev, mock]);
+        toast.error(response.error || "Failed to add domain");
       }
     } catch {
       toast.error("Failed to add domain");
-      const mock: Domain = {
-        id: `dom-${Date.now()}`,
-        name: newDomain.name,
-        slug: newDomain.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-        description: newDomain.description,
-        icon: newDomain.icon,
-        sort_order: domains.length,
-        is_active: true,
-        created_at: new Date().toISOString(),
-      };
-      setDomains((prev) => [...prev, mock]);
     } finally {
       setSaving(false);
       setShowAddDomain(false);
@@ -166,6 +147,7 @@ export default function DomainsPage() {
     }
     try {
       await api.domains.delete(id);
+      toast.success("Domain deleted");
     } catch {
       toast.error("Failed to delete domain");
       fetchDomains();
@@ -195,6 +177,7 @@ export default function DomainsPage() {
     setCategories((prev) => prev.map((c) => (c.id === editingCategoryId ? updated : c)));
     try {
       await api.categories.update(selectedDomain.id, editingCategoryId, editCategoryData);
+      toast.success("Category saved");
     } catch {
       toast.error("Failed to save category");
     } finally {
@@ -211,30 +194,12 @@ export default function DomainsPage() {
       if (response.success && response.data) {
         const created = response.data;
         setCategories((prev) => [...prev, created]);
+        toast.success("Category added");
       } else {
-        const mock: Category = {
-          id: `cat-${Date.now()}`,
-          domain_id: selectedDomain.id,
-          name: newCategory.name,
-          slug: newCategory.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-          description: newCategory.description,
-          sort_order: categories.length,
-          is_active: true,
-        };
-        setCategories((prev) => [...prev, mock]);
+        toast.error(response.error || "Failed to add category");
       }
     } catch {
       toast.error("Failed to add category");
-      const mock: Category = {
-        id: `cat-${Date.now()}`,
-        domain_id: selectedDomain.id,
-        name: newCategory.name,
-        slug: newCategory.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-        description: newCategory.description,
-        sort_order: categories.length,
-        is_active: true,
-      };
-      setCategories((prev) => [...prev, mock]);
     } finally {
       setSaving(false);
       setShowAddCategory(false);
@@ -455,8 +420,8 @@ export default function DomainsPage() {
                 ) : (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="cursor-grab text-muted hover:text-foreground text-xs" title="Drag to reorder">{"\u2630"}</span>
-                      <span className="text-lg">{domain.icon || "\uD83D\uDCC1"}</span>
+                                            <span className="cursor-grab text-muted hover:text-foreground text-xs" title="Drag to reorder" aria-label="Drag to reorder">{"\u2630"}</span>
+                                            <span className="text-lg">{domain.icon || "\uD83D\uDCC1"}</span>
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-foreground truncate">{domain.name}</div>
                         {domain.description && (
@@ -624,7 +589,7 @@ export default function DomainsPage() {
                         ) : (
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <span className="cursor-grab text-muted hover:text-foreground text-xs" title="Drag to reorder">{"\u2630"}</span>
+                              <span className="cursor-grab text-muted hover:text-foreground text-xs" title="Drag to reorder" aria-label="Drag to reorder">{"\u2630"}</span>
                               <div>
                                 <div className="text-sm font-medium text-foreground">{category.name}</div>
                                 {category.description && (
