@@ -347,6 +347,7 @@ run_migrations() {
     "${MIGRATIONS_DIR}/001_initial_schema.sql"
     "${MIGRATIONS_DIR}/002_v4_analytics.sql"
     "${MIGRATIONS_DIR}/003_schema_fixes.sql"
+    "${MIGRATIONS_DIR}/004_updated_at_triggers.sql"
   )
 
   for migration in "${migration_files[@]}"; do
