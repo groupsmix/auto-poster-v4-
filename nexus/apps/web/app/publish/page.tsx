@@ -163,6 +163,21 @@ export default function PublishPage() {
     return `${variant.title}\n\n${variant.description}\n\nPrice: $${variant.price.toFixed(2)}\nTags: ${variant.tags.join(", ")}`;
   };
 
+  const copyAllListings = async (product: PublishableProduct) => {
+    const allText = product.platform_variants
+      .map(
+        (v) =>
+          `=== ${v.platform.toUpperCase()} ===\nTitle: ${v.title}\nDescription: ${v.description}\nPrice: $${v.price.toFixed(2)}\nTags: ${v.tags.join(", ")}`
+      )
+      .join("\n\n");
+    try {
+      await navigator.clipboard.writeText(allText);
+      toast.success("All listings copied to clipboard");
+    } catch {
+      toast.error("Failed to copy to clipboard");
+    }
+  };
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -268,9 +283,19 @@ export default function PublishPage() {
                 <div className="p-6 space-y-6">
                   {/* Platform selection */}
                   <div>
-                    <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
-                      Platforms
-                    </h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-semibold text-muted uppercase tracking-wider">
+                        Platforms
+                      </h3>
+                      {isManual && product.platform_variants.length > 1 && (
+                        <button
+                          onClick={() => copyAllListings(product)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+                        >
+                          Copy All Listings
+                        </button>
+                      )}
+                    </div>
                     <div className="space-y-3">
                       {product.platform_variants.map((variant) => (
                         <div

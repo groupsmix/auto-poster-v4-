@@ -3,15 +3,7 @@
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
-import {
-  MOCK_SUMMARY,
-  MOCK_AI_USAGE,
-  MOCK_COST_BREAKDOWN,
-  MOCK_CACHE_TREND,
-  MOCK_BY_DOMAIN,
-  MOCK_BY_CATEGORY,
-  MOCK_LEADERBOARD,
-} from "@/lib/mock-data";
+import { MOCK_DASHBOARD } from "@/lib/mock-data";
 import AnalyticsCharts from "@/components/AnalyticsCharts";
 
 function SummaryCard({
@@ -56,37 +48,13 @@ function formatDuration(ms: number): string {
 }
 
 export default function AnalyticsPage() {
-  const { data: summary, loading: l1, isUsingMock: m1 } = useApiQuery(
-    () => api.analytics.summary(),
-    MOCK_SUMMARY,
-  );
-  const { data: aiUsage, loading: l2, isUsingMock: m2 } = useApiQuery(
-    () => api.analytics.aiUsageOverTime(),
-    MOCK_AI_USAGE,
-  );
-  const { data: costBreakdown, loading: l3, isUsingMock: m3 } = useApiQuery(
-    () => api.analytics.costBreakdown(),
-    MOCK_COST_BREAKDOWN,
-  );
-  const { data: cacheHitTrend, loading: l4, isUsingMock: m4 } = useApiQuery(
-    () => api.analytics.cacheHitTrend(),
-    MOCK_CACHE_TREND,
-  );
-  const { data: productsByDomain, loading: l5, isUsingMock: m5 } = useApiQuery(
-    () => api.analytics.productsByDomain(),
-    MOCK_BY_DOMAIN,
-  );
-  const { data: productsByCategory, loading: l6, isUsingMock: m6 } = useApiQuery(
-    () => api.analytics.productsByCategory(),
-    MOCK_BY_CATEGORY,
-  );
-  const { data: leaderboard, loading: l7, isUsingMock: m7 } = useApiQuery(
-    () => api.analytics.aiLeaderboard(),
-    MOCK_LEADERBOARD,
+  // Single dashboard query instead of 7 separate API calls (5.4)
+  const { data: dashboard, loading, isUsingMock } = useApiQuery(
+    () => api.analytics.dashboard(),
+    MOCK_DASHBOARD,
   );
 
-  const loading = l1 || l2 || l3 || l4 || l5 || l6 || l7;
-  const isUsingMock = m1 || m2 || m3 || m4 || m5 || m6 || m7;
+  const { summary, aiUsage, costBreakdown, cacheHitTrend, productsByDomain, productsByCategory, leaderboard } = dashboard;
 
   // Sort leaderboard by health_score desc, then total_calls desc
   const sortedLeaderboard = [...leaderboard].sort(

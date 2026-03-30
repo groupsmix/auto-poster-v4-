@@ -60,6 +60,7 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
   const router = useRouter();
   const [workflow, setWorkflow] = useState<WorkflowData>(MOCK_WORKFLOW);
   const [cancelling, setCancelling] = useState(false);
+  const [cancelConfirm, setCancelConfirm] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,13 +176,32 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
           </div>
         </div>
         {workflow.status === "running" && (
-          <button
-            onClick={handleCancel}
-            disabled={cancelling}
-            className="px-4 py-2 rounded-lg border border-red-500/30 text-red-400 text-sm font-medium hover:bg-red-500/10 transition-colors disabled:opacity-40"
-          >
-            {cancelling ? "Cancelling..." : "CANCEL WORKFLOW"}
-          </button>
+          cancelConfirm ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted">Are you sure?</span>
+              <button
+                onClick={() => { handleCancel(); setCancelConfirm(false); }}
+                disabled={cancelling}
+                className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-40"
+              >
+                {cancelling ? "Cancelling..." : "Yes, Cancel"}
+              </button>
+              <button
+                onClick={() => setCancelConfirm(false)}
+                className="px-3 py-1.5 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
+              >
+                Keep Running
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setCancelConfirm(true)}
+              disabled={cancelling}
+              className="px-4 py-2 rounded-lg border border-red-500/30 text-red-400 text-sm font-medium hover:bg-red-500/10 transition-colors disabled:opacity-40"
+            >
+              CANCEL WORKFLOW
+            </button>
+          )
         )}
       </div>
 

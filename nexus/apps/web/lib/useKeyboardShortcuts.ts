@@ -86,6 +86,29 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      // Review page shortcuts: approve (a), reject (r) (5.5)
+      if (pathname.startsWith("/review/")) {
+        if (key === "a") {
+          e.preventDefault();
+          const approveBtn = document.querySelector<HTMLButtonElement>("[data-action='approve']");
+          approveBtn?.click();
+          return;
+        }
+        if (key === "r") {
+          e.preventDefault();
+          const rejectBtn = document.querySelector<HTMLButtonElement>("[data-action='reject']");
+          rejectBtn?.click();
+          return;
+        }
+      }
+
+      // Escape to go back (5.5)
+      if (key === "escape") {
+        e.preventDefault();
+        router.back();
+        return;
+      }
+
       // "?" opens the shortcuts reference — handled by ShortcutsReference component
     }
 

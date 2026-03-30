@@ -21,6 +21,7 @@ import type {
   DomainBreakdownItem,
   CategoryBreakdownItem,
   AILeaderboardEntry,
+  AnalyticsDashboard,
   APIKeyEntry,
   PlatformFull,
   SocialChannelFull,
@@ -904,6 +905,17 @@ export const MOCK_LEADERBOARD: AILeaderboardEntry[] = [
   { id: "m4", name: "Mixtral 8x7B", provider: "Groq", health_score: 88, avg_latency_ms: 310, total_calls: 34, total_failures: 4 },
   { id: "m5", name: "Gemma 2 9B", provider: "Fireworks", health_score: 82, avg_latency_ms: 1560, total_calls: 22, total_failures: 4 },
 ];
+
+/** Combined analytics dashboard mock (5.4) */
+export const MOCK_DASHBOARD: AnalyticsDashboard = {
+  summary: MOCK_SUMMARY,
+  aiUsage: MOCK_AI_USAGE,
+  costBreakdown: MOCK_COST_BREAKDOWN,
+  cacheHitTrend: MOCK_CACHE_TREND,
+  productsByDomain: MOCK_BY_DOMAIN,
+  productsByCategory: MOCK_BY_CATEGORY,
+  leaderboard: MOCK_LEADERBOARD,
+};
 
 // ─── Settings ────────────────────────────────────────────────────────
 
