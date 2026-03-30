@@ -69,6 +69,8 @@ export default function PlatformSelector({
           <button
             key={platform.slug}
             type="button"
+            aria-pressed={selected.includes(platform.slug)}
+            aria-label={`${platform.name} platform`}
             onClick={() => toggle(platform.slug)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
               selected.includes(platform.slug)

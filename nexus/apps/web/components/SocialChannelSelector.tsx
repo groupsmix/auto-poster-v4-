@@ -76,30 +76,22 @@ export default function SocialChannelSelector({
       {/* Toggle */}
       <div className="flex items-center gap-4">
         <span className="text-sm font-medium text-foreground">Post to social?</span>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => onToggle(true)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              enabled
-                ? "bg-accent text-white"
-                : "bg-card-bg border border-card-border text-muted hover:text-foreground"
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Post to social"
+          onClick={() => onToggle(!enabled)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            enabled ? "bg-accent" : "bg-card-border"
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              enabled ? "translate-x-6" : "translate-x-1"
             }`}
-          >
-            Yes
-          </button>
-          <button
-            type="button"
-            onClick={() => onToggle(false)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              !enabled
-                ? "bg-card-hover text-foreground border border-card-border"
-                : "bg-card-bg border border-card-border text-muted hover:text-foreground"
-            }`}
-          >
-            No
-          </button>
-        </div>
+          />
+        </button>
       </div>
 
       {enabled && (
@@ -110,6 +102,8 @@ export default function SocialChannelSelector({
               <button
                 key={channel.slug}
                 type="button"
+                aria-pressed={selected.includes(channel.slug)}
+                aria-label={`${channel.name} channel`}
                 onClick={() => toggle(channel.slug)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
                   selected.includes(channel.slug)
@@ -163,25 +157,29 @@ export default function SocialChannelSelector({
           {/* Posting mode */}
           <div className="flex items-center gap-4">
             <span className="text-sm font-medium text-foreground">Posting mode:</span>
-            <div className="flex gap-2">
+            <div className="flex rounded-lg overflow-hidden border border-card-border" role="radiogroup" aria-label="Posting mode">
               <button
                 type="button"
+                role="radio"
+                aria-checked={postingMode === "auto"}
                 onClick={() => onPostingModeChange("auto")}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                className={`px-4 py-1.5 text-sm font-medium transition-all ${
                   postingMode === "auto"
                     ? "bg-accent text-white"
-                    : "bg-card-bg border border-card-border text-muted hover:text-foreground"
+                    : "bg-card-bg text-muted hover:text-foreground"
                 }`}
               >
                 Auto
               </button>
               <button
                 type="button"
+                role="radio"
+                aria-checked={postingMode === "manual"}
                 onClick={() => onPostingModeChange("manual")}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                className={`px-4 py-1.5 text-sm font-medium transition-all ${
                   postingMode === "manual"
-                    ? "bg-card-hover text-foreground border border-card-border"
-                    : "bg-card-bg border border-card-border text-muted hover:text-foreground"
+                    ? "bg-card-hover text-foreground"
+                    : "bg-card-bg text-muted hover:text-foreground"
                 }`}
               >
                 Manual
