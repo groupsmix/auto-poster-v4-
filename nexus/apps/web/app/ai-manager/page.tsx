@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
 import StatusBadge from "@/components/StatusBadge";
+import { ExternalLinkIcon, CloudIcon, WarningIcon, Bars3Icon } from "@/components/icons/Icons";
 import { toast } from "sonner";
 import type { AIModel } from "@/lib/api";
 import { MOCK_MODELS } from "@/lib/mock-data";
@@ -67,7 +68,7 @@ export default function AIManagerPage() {
     MOCK_MODELS,
   );
 
-  const [models, setModels] = useState<AIModel[]>(MOCK_MODELS);
+  const [models, setModels] = useState<AIModel[]>([]);
   const [activeTaskType, setActiveTaskType] = useState<string | null>(null);
   const [keyInput, setKeyInput] = useState<{ modelId: string; value: string } | null>(null);
   const [addingKey, setAddingKey] = useState(false);
@@ -215,9 +216,7 @@ export default function AIManagerPage() {
           rel="noopener noreferrer"
           className="px-4 py-2 rounded-lg text-sm font-medium bg-accent text-white hover:bg-accent/90 transition-colors flex items-center gap-2"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-          </svg>
+          <ExternalLinkIcon className="w-4 h-4" />
           AI Gateway Dashboard
         </a>
       </div>
@@ -229,9 +228,7 @@ export default function AIManagerPage() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-              <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z" />
-              </svg>
+              <CloudIcon className="w-5 h-5 text-green-400" />
             </div>
             <div>
               <h3 className="text-sm font-semibold text-foreground">Workers AI — Always Active</h3>
@@ -322,9 +319,7 @@ export default function AIManagerPage() {
                 {/* Reorder suggestion banner */}
                 {suggestions[taskType] && (
                   <div className="px-6 py-3 bg-yellow-500/5 border-b border-yellow-500/20 flex items-center gap-2 text-xs text-yellow-400">
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-                    </svg>
+                    <WarningIcon className="w-4 h-4 shrink-0" />
                     <span>
                       <strong>{taskModels[1]?.name}</strong> has higher health ({taskModels[1]?.health_score}%) than <strong>{taskModels[0]?.name}</strong> ({taskModels[0]?.health_score}%). Consider reordering.
                     </span>
@@ -357,9 +352,7 @@ export default function AIManagerPage() {
                     >
                       {/* Drag handle + rank */}
                       <div className="flex items-center gap-2 shrink-0">
-                        <svg className="w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                        </svg>
+                        <Bars3Icon className="w-4 h-4 text-muted" />
                         <span className="w-6 h-6 rounded bg-card-hover flex items-center justify-center text-xs font-mono text-muted">
                           {model.rank}
                         </span>

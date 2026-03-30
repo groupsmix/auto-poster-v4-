@@ -3,7 +3,12 @@
  * Replaces duplicated StatusBadge functions in individual page files.
  */
 
-const STATUS_COLORS: Record<string, string> = {
+import type { ProductStatus, AIModelStatus, WorkflowStatus, ReviewDecision } from "@nexus/shared";
+
+/** All possible status values across products, workflows, and AI models (4.9) */
+type AnyStatus = ProductStatus | AIModelStatus | WorkflowStatus | ReviewDecision;
+
+const STATUS_COLORS: Partial<Record<AnyStatus, string>> & Record<string, string> = {
   // Product statuses
   draft: "bg-gray-500/10 text-gray-400",
   running: "bg-blue-500/10 text-blue-400",
@@ -26,7 +31,9 @@ const STATUS_COLORS: Record<string, string> = {
   no_key: "bg-red-500/10 text-red-400",
 };
 
-export default function StatusBadge({ status }: { status: string }) {
+export type { AnyStatus };
+
+export default function StatusBadge({ status }: { status: AnyStatus | (string & {}) }) {
   return (
     <span
       className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[status] ?? "bg-gray-500/10 text-gray-400"}`}
@@ -50,9 +57,9 @@ export function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-export function DecisionBadge({ decision }: { decision?: string }) {
+export function DecisionBadge({ decision }: { decision?: ReviewDecision }) {
   if (!decision) return null;
-  const colors: Record<string, string> = {
+  const colors: Record<ReviewDecision, string> = {
     approved: "bg-green-500/10 text-green-300",
     rejected: "bg-red-500/10 text-red-400",
   };

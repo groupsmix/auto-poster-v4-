@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import MockDataBanner from "@/components/MockDataBanner";
 import Modal from "@/components/Modal";
-import StatusBadge from "@/components/StatusBadge";
+import ProductTable from "@/components/ProductTable";
+import { SearchIcon } from "@/components/icons/Icons";
 import { MOCK_PRODUCTS } from "@/lib/mock-data";
 import { formatDate as sharedFormatDate } from "@/lib/format";
 import { toast } from "sonner";
@@ -203,9 +203,7 @@ export default function ProductsPage() {
         {/* Row 1: Search + Status + More filters toggle + Batch view */}
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" />
-            </svg>
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
             <input
               type="text"
               placeholder="Search products..."
@@ -499,180 +497,6 @@ export default function ProductsPage() {
           </button>
         </div>
       </Modal>
-    </div>
-  );
-}
-
-function SortHeader({
-  label,
-  sortKey: colKey,
-  currentSort,
-  currentDir,
-  onSort,
-}: {
-  label: string;
-  sortKey: string;
-  currentSort: string;
-  currentDir: "asc" | "desc";
-  onSort: (key: string) => void;
-}) {
-  const active = currentSort === colKey;
-  return (
-    <th
-      className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider cursor-pointer select-none hover:text-foreground transition-colors"
-      onClick={() => onSort(colKey)}
-      aria-sort={active ? (currentDir === "asc" ? "ascending" : "descending") : "none"}
-    >
-      <span className="inline-flex items-center gap-1">
-        {label}
-        <span className={`transition-opacity ${active ? "opacity-100" : "opacity-0"}`}>
-          {currentDir === "asc" ? "\u2191" : "\u2193"}
-        </span>
-      </span>
-    </th>
-  );
-}
-
-function ProductTable({
-  products,
-  onDelete,
-  formatDate,
-  sortKey: currentSort = "",
-  sortDir: currentDir = "desc",
-  onSort,
-  selectedIds,
-  onToggleSelect,
-  onToggleSelectAll,
-}: {
-  products: Product[];
-  onDelete: (id: string) => void;
-  formatDate: (d: string) => string;
-  sortKey?: string;
-  sortDir?: "asc" | "desc";
-  onSort?: (key: string) => void;
-  selectedIds?: Set<string>;
-  onToggleSelect?: (id: string) => void;
-  onToggleSelectAll?: () => void;
-}) {
-  const handleSort = (key: string) => {
-    onSort?.(key);
-  };
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm min-w-[600px]">
-        <thead>
-          <tr className="border-b border-card-border text-left">
-            {selectedIds && onToggleSelectAll && (
-              <th className="px-4 py-3 w-10">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.size > 0 && products.every((p) => selectedIds.has(p.id))}
-                  onChange={onToggleSelectAll}
-                  className="rounded border-card-border text-accent focus:ring-accent"
-                />
-              </th>
-            )}
-            <SortHeader label="Name" sortKey="name" currentSort={currentSort} currentDir={currentDir} onSort={handleSort} />
-            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider hidden md:table-cell">
-              Domain
-            </th>
-            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider hidden lg:table-cell">
-              Category
-            </th>
-            <SortHeader label="Status" sortKey="status" currentSort={currentSort} currentDir={currentDir} onSort={handleSort} />
-            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider hidden lg:table-cell">
-              Platform(s)
-            </th>
-            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider hidden xl:table-cell">
-              Batch
-            </th>
-            <SortHeader label="Created" sortKey="created_at" currentSort={currentSort} currentDir={currentDir} onSort={handleSort} />
-            <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((product) => (
-            <tr
-              key={product.id}
-              className="border-b border-card-border last:border-0 hover:bg-card-hover transition-colors"
-            >
-              {selectedIds && onToggleSelect && (
-                <td className="px-4 py-3 w-10">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(product.id)}
-                    onChange={() => onToggleSelect(product.id)}
-                    className="rounded border-card-border text-accent focus:ring-accent"
-                  />
-                </td>
-              )}
-              <td className="px-4 py-3">
-                <Link
-                  href={`/products/${product.id}`}
-                  className="font-medium text-foreground hover:text-accent transition-colors"
-                >
-                  {product.name}
-                </Link>
-              </td>
-              <td className="px-4 py-3 text-muted hidden md:table-cell">
-                {product.domain_name ?? "—"}
-              </td>
-              <td className="px-4 py-3 text-muted hidden lg:table-cell">
-                {product.category_name ?? "—"}
-              </td>
-              <td className="px-4 py-3">
-                <StatusBadge status={product.status} />
-              </td>
-              <td className="px-4 py-3 hidden lg:table-cell">
-                <div className="flex flex-wrap gap-1">
-                  {(product.platforms ?? []).map((p) => (
-                    <span
-                      key={p}
-                      className="text-xs px-1.5 py-0.5 rounded bg-card-hover text-muted"
-                    >
-                      {p}
-                    </span>
-                  ))}
-                  {(!product.platforms || product.platforms.length === 0) && (
-                    <span className="text-muted">—</span>
-                  )}
-                </div>
-              </td>
-              <td className="px-4 py-3 text-muted text-xs hidden xl:table-cell">
-                {product.batch_id ?? "—"}
-              </td>
-              <td className="px-4 py-3 text-muted text-xs">
-                {formatDate(product.created_at)}
-              </td>
-              <td className="px-4 py-3">
-                <button
-                  onClick={() => onDelete(product.id)}
-                  className="p-1.5 rounded-lg text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                  title="Delete product"
-                  aria-label={`Delete ${product.name}`}
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
-                    />
-                  </svg>
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

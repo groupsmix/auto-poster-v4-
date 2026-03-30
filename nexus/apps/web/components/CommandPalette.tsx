@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRightIcon, BoltIcon, SearchIcon } from "@/components/icons/Icons";
 
 interface CommandItem {
   id: string;
@@ -13,17 +14,9 @@ interface CommandItem {
   icon: React.ReactNode;
 }
 
-const NAV_ICON = (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-  </svg>
-);
+const NAV_ICON = <ArrowRightIcon className="w-4 h-4" />;
 
-const ACTION_ICON = (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-  </svg>
-);
+const ACTION_ICON = <BoltIcon className="w-4 h-4" />;
 
 const COMMANDS: CommandItem[] = [
   { id: "home", label: "Go to Home", section: "Navigation", shortcut: "G H", href: "/", icon: NAV_ICON },
@@ -145,9 +138,7 @@ export default function CommandPalette() {
       <div className="relative w-full max-w-lg mx-4 rounded-xl border border-card-border bg-sidebar-bg shadow-2xl overflow-hidden">
         {/* Search input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-card-border">
-          <svg className="w-5 h-5 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" />
-          </svg>
+          <SearchIcon className="w-5 h-5 text-muted shrink-0" />
           <input
             ref={inputRef}
             type="text"

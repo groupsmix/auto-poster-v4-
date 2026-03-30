@@ -6,6 +6,7 @@ import MockDataBanner from "@/components/MockDataBanner";
 import Modal from "@/components/Modal";
 import { useApiQuery } from "@/lib/useApiQuery";
 import StatusBadge from "@/components/StatusBadge";
+import { SearchIcon } from "@/components/icons/Icons";
 import { MOCK_RUNS, MOCK_STEPS, MOCK_REVISIONS } from "@/lib/mock-data";
 import { formatDateTime, formatDuration } from "@/lib/format";
 import { toast } from "sonner";
@@ -107,9 +108,7 @@ export default function HistoryPage() {
       <div className="rounded-xl border border-card-border bg-card-bg p-4 mb-6">
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" />
-            </svg>
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
             <input
               type="text"
               placeholder="Search runs..."
