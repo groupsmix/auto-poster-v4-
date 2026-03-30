@@ -7,6 +7,7 @@ import { useApiQuery } from "@/lib/useApiQuery";
 import StatusBadge from "@/components/StatusBadge";
 import { MOCK_RUNS, MOCK_STEPS, MOCK_REVISIONS } from "@/lib/mock-data";
 import { formatDateTime, formatDuration } from "@/lib/format";
+import { toast } from "sonner";
 import type { WorkflowStep, RevisionEntry } from "@/lib/api";
 import CacheIndicator from "@/components/CacheIndicator";
 
@@ -47,6 +48,7 @@ export default function HistoryPage() {
           }));
         }
       } catch {
+        toast.error("Failed to load workflow steps");
         setSteps((prev) => ({
           ...prev,
           [runId]: MOCK_STEPS[runId] ?? [],
@@ -68,6 +70,7 @@ export default function HistoryPage() {
         setRevisions(MOCK_REVISIONS[productId] ?? []);
       }
     } catch {
+      toast.error("Failed to load revisions");
       setRevisions(MOCK_REVISIONS[productId] ?? []);
     } finally {
       setRevisionsLoading(false);

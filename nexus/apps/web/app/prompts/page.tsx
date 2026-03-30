@@ -45,7 +45,7 @@ export default function PromptsPage() {
     MOCK_PROMPTS,
   );
 
-  const [prompts, setPrompts] = useState<PromptTemplate[]>(MOCK_PROMPTS);
+  const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
   const [activeLayer, setActiveLayer] = useState<string>("master");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
@@ -99,6 +99,7 @@ export default function PromptsPage() {
         );
       }
     } catch {
+      toast.error("Failed to save prompt");
       setPrompts((prev) =>
         prev.map((p) =>
           p.id === id
@@ -127,6 +128,7 @@ export default function PromptsPage() {
         setVersions(MOCK_VERSIONS[id] ?? []);
       }
     } catch {
+      toast.error("Failed to load version history");
       setVersions(MOCK_VERSIONS[id] ?? []);
     } finally {
       setLoadingVersions(false);
@@ -140,7 +142,7 @@ export default function PromptsPage() {
     try {
       await api.prompts.revert(promptId, version);
     } catch {
-      // best-effort
+      toast.error("Failed to revert prompt version");
     }
 
     setPrompts((prev) =>

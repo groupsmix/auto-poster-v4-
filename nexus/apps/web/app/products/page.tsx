@@ -48,7 +48,7 @@ export default function ProductsPage() {
     try {
       await api.products.delete(id);
     } catch {
-      // best-effort
+      toast.error("Failed to delete product");
     }
     setLocalProducts((prev) => (prev ?? products).filter((p) => p.id !== id));
     setDeleteConfirm(null);
@@ -143,7 +143,7 @@ export default function ProductsPage() {
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds);
     for (const id of ids) {
-      try { await api.products.delete(id); } catch { /* best-effort */ }
+      try { await api.products.delete(id); } catch { toast.error(`Failed to delete product ${id}`); }
     }
     setLocalProducts((prev) => (prev ?? products).filter((p) => !selectedIds.has(p.id)));
     toast.success(`Deleted ${ids.length} product${ids.length > 1 ? "s" : ""}`);
@@ -179,7 +179,7 @@ export default function ProductsPage() {
   const handleBulkRetry = async () => {
     const ids = Array.from(selectedIds);
     for (const id of ids) {
-      try { await api.post(`/workflow/retry/${id}`, {}); } catch { /* best-effort */ }
+      try { await api.post(`/workflow/retry/${id}`, {}); } catch { toast.error(`Failed to retry product ${id}`); }
     }
     toast.success(`Retried ${ids.length} product${ids.length > 1 ? "s" : ""}`);
     setSelectedIds(new Set());
@@ -428,7 +428,7 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {filtered.length === 0 && !loading && (
+      {filtered.length === 0 && !loading && !batchView && (
         <div className="text-center py-16">
           <p className="text-muted text-sm">No products match your filters.</p>
         </div>
@@ -448,16 +448,16 @@ export default function ProductsPage() {
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => handleDelete(deleteConfirm)}
-                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
-              >
-                Delete
-              </button>
-              <button
                 onClick={() => setDeleteConfirm(null)}
                 className="flex-1 px-4 py-2 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
               >
                 Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirm)}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+              >
+                Delete
               </button>
             </div>
           </div>

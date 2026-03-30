@@ -67,7 +67,7 @@ export default function SocialClient() {
       if (modeRes.success && modeRes.data) {
         setPostingMode(modeRes.data.value as "auto" | "manual");
       }
-    }).catch(() => { /* keep default */ });
+    }).catch(() => { toast.error("Failed to load posting mode"); });
   }, []);
 
   const handleTogglePostingMode = async () => {
@@ -76,6 +76,7 @@ export default function SocialClient() {
     try {
       await api.settings.update("posting_mode", next);
     } catch {
+      toast.error("Failed to update posting mode");
       setPostingMode(postingMode);
     }
   };
@@ -102,6 +103,7 @@ export default function SocialClient() {
         setChannels((prev) => prev.map((c) => (c.id === editingId ? editData : c)));
       }
     } catch {
+      toast.error("Failed to save channel changes");
       setChannels((prev) => prev.map((c) => (c.id === editingId ? editData : c)));
     } finally {
       setSaving(false);
@@ -116,6 +118,7 @@ export default function SocialClient() {
     try {
       await api.socialChannels.update(channel.id, { is_active: !channel.is_active });
     } catch {
+      toast.error("Failed to toggle channel status");
       setChannels((prev) => prev.map((c) => (c.id === channel.id ? channel : c)));
     }
   };
@@ -136,6 +139,7 @@ export default function SocialClient() {
         setChannels((prev) => [...prev, { id: mockId, ...dataToSend }]);
       }
     } catch {
+      toast.error("Failed to add channel");
       const mockId = `social-${Date.now()}`;
       setChannels((prev) => [...prev, { id: mockId, ...dataToSend }]);
     } finally {
@@ -151,6 +155,7 @@ export default function SocialClient() {
     try {
       await api.socialChannels.delete(id);
     } catch {
+      toast.error("Failed to delete channel");
       fetchChannels();
     }
   };

@@ -2,6 +2,7 @@
 
 import { useState, use } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { formatDateTime } from "@/lib/format";
@@ -112,6 +113,7 @@ export default function ProductDetailPage({
   const [activePlatformTab, setActivePlatformTab] = useState(0);
   const [activeSocialTab, setActiveSocialTab] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const router = useRouter();
 
   const handleDelete = async () => {
     try {
@@ -120,7 +122,7 @@ export default function ProductDetailPage({
     } catch {
       toast.error("Failed to delete product. Please try again.");
     }
-    window.location.href = "/products";
+    router.push("/products");
   };
 
 
