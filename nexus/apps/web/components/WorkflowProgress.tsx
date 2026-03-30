@@ -130,7 +130,7 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
     setCancelling(true);
     try {
       await api.post(`/workflow/${workflowId}/cancel`, {});
-      setWorkflow((prev) => ({ ...prev, status: "cancelled" }));
+      setWorkflow((prev) => prev ? { ...prev, status: "cancelled" } : prev);
     } catch {
       toast.error("Failed to cancel workflow");
     } finally {
