@@ -27,7 +27,7 @@ describe("getModelsForTask", () => {
       "research",
       "writing",
       "seo",
-      "code",
+      "copywriting",
       "humanizer",
       "quality_review",
       "platform_variation",
@@ -41,14 +41,15 @@ describe("getModelsForTask", () => {
     }
   });
 
-  it("image chains end with Workers AI image model", () => {
-    const imageTaskTypes = ["text_on_image", "artistic_image"];
-    for (const taskType of imageTaskTypes) {
-      const models = getModelsForTask(taskType);
-      const lastModel = models[models.length - 1];
-      expect(lastModel.isWorkersAI).toBe(true);
-      expect(lastModel.model).toContain("stable-diffusion");
-    }
+  it("aliases resolve to their base chains", () => {
+    // image is aliased to copywriting
+    expect(getModelsForTask("image")).toBe(getModelsForTask("copywriting"));
+    // review is aliased to quality_review
+    expect(getModelsForTask("review")).toBe(getModelsForTask("quality_review"));
+    // variation is aliased to platform_variation
+    expect(getModelsForTask("variation")).toBe(getModelsForTask("platform_variation"));
+    // social is aliased to social_adaptation
+    expect(getModelsForTask("social")).toBe(getModelsForTask("social_adaptation"));
   });
 
   it("all external models have apiKeyEnvName set", () => {
@@ -91,9 +92,9 @@ describe("getTaskTypes", () => {
     expect(types).toContain("research");
     expect(types).toContain("writing");
     expect(types).toContain("seo");
-    expect(types).toContain("code");
+    expect(types).toContain("copywriting");
     expect(types).toContain("humanizer");
-    expect(types.length).toBeGreaterThanOrEqual(10);
+    expect(types.length).toBeGreaterThanOrEqual(8);
   });
 });
 
