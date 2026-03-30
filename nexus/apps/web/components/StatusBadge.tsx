@@ -20,6 +20,10 @@ const STATUS_COLORS: Record<string, string> = {
   waiting: "bg-gray-500/10 text-gray-400",
   active: "bg-green-500/10 text-green-300",
   not_set: "bg-gray-500/10 text-gray-500",
+  // AI model statuses
+  sleeping: "bg-gray-500/10 text-gray-400",
+  rate_limited: "bg-yellow-500/10 text-yellow-400",
+  no_key: "bg-red-500/10 text-red-400",
 };
 
 export default function StatusBadge({ status }: { status: string }) {

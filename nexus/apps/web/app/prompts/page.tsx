@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
+import { MOCK_PROMPTS, MOCK_VERSIONS } from "@/lib/mock-data";
+import { formatDateTime } from "@/lib/format";
 import type { PromptTemplate, PromptVersion } from "@/lib/api";
 
 // Prompt layer configuration matching the architecture doc (Layers A-I)
@@ -17,327 +19,6 @@ const PROMPT_LAYERS = [
   { key: "context", label: "Context Injection", description: "Layer I (V4) — template for injecting prior step context" },
   { key: "review", label: "Review / CEO Prompt", description: "The CEO review prompt used on every output" },
 ] as const;
-
-// Mock data for all prompt layers
-const MOCK_PROMPTS: PromptTemplate[] = [
-  {
-    id: "p-master",
-    layer: "master",
-    target_id: null,
-    name: "Master System Prompt",
-    prompt: `You are NEXUS — a world-class AI business engine.
-
-You operate with the mindset of:
-- A senior marketing strategist with 15 years of e-commerce experience
-- A professional copywriter who understands consumer psychology deeply
-- An SEO specialist who knows how platforms rank and reward listings
-- A creative director who understands what converts browsers to buyers
-
-Core rules you ALWAYS follow:
-1. Never produce generic AI-sounding output. Write like a real expert human.
-2. Always think about the END BUYER — their emotions, desires, fears, language.
-3. Always optimize for the specific platform's algorithm and buyer behavior.
-4. Always produce output in the exact JSON schema specified.
-5. If something is missing from your instructions, make the smartest decision.
-6. Quality over speed. Every word should earn its place.`,
-    version: 3,
-    is_active: true,
-    updated_at: "2025-03-20T10:00:00Z",
-  },
-  {
-    id: "p-role-researcher",
-    layer: "role",
-    target_id: "researcher",
-    name: "Researcher Role",
-    prompt: `Your role: Senior Market Research Analyst
-Your job: Find real market data, real trends, real competitor insights.
-Do not guess. Use the search results provided.
-Extract: what's selling, why it sells, who buys it, what price they pay.
-Think like someone who has studied this market for years.`,
-    version: 2,
-    is_active: true,
-    updated_at: "2025-03-18T14:00:00Z",
-  },
-  {
-    id: "p-role-copywriter",
-    layer: "role",
-    target_id: "copywriter",
-    name: "Copywriter Role",
-    prompt: `Your role: Elite Direct Response Copywriter
-Your job: Write copy that makes people pull out their wallet.
-Use psychological triggers: social proof, scarcity, identity, transformation.
-Avoid cliches, avoid fluff, avoid anything that sounds like it was AI-generated.
-Every sentence must either build desire or eliminate doubt.`,
-    version: 1,
-    is_active: true,
-    updated_at: "2025-03-10T08:00:00Z",
-  },
-  {
-    id: "p-role-seo",
-    layer: "role",
-    target_id: "seo",
-    name: "SEO Strategist Role",
-    prompt: `Your role: Platform SEO Specialist
-Your job: Maximize organic discoverability within platform constraints.
-You understand: keyword intent, search behavior, platform algorithm signals.
-Never sacrifice readability for keywords. Best SEO reads like natural language.`,
-    version: 1,
-    is_active: true,
-    updated_at: "2025-03-10T08:00:00Z",
-  },
-  {
-    id: "p-role-reviewer",
-    layer: "role",
-    target_id: "reviewer",
-    name: "Reviewer / CEO Role",
-    prompt: `Your role: Chief Quality Officer
-Your job: Be the harshest, most demanding reviewer of this output.
-Evaluate from 3 angles: (1) Would this sell? (2) Is the SEO strong? (3) Does it sound human?
-Identify every weakness. Be specific about what needs to change.
-Output a structured review with pass/fail per criterion and specific revision instructions.`,
-    version: 2,
-    is_active: true,
-    updated_at: "2025-03-16T12:00:00Z",
-  },
-  {
-    id: "p-role-designer",
-    layer: "role",
-    target_id: "designer",
-    name: "Designer Role",
-    prompt: `Your role: Senior Visual Designer
-Your job: Create designs that communicate instantly and look professional.
-Think about contrast, hierarchy, whitespace, and readability at all sizes.
-Designs must work at thumbnail size on mobile AND full size on desktop/print.`,
-    version: 1,
-    is_active: true,
-    updated_at: "2025-03-10T08:00:00Z",
-  },
-  {
-    id: "p-role-coder",
-    layer: "role",
-    target_id: "coder",
-    name: "Coder Role",
-    prompt: `Your role: Senior Full-Stack Developer
-Your job: Write clean, production-ready code with proper architecture.
-Follow best practices: type safety, error handling, separation of concerns.
-Prefer simple, maintainable solutions over clever abstractions.`,
-    version: 1,
-    is_active: true,
-    updated_at: "2025-03-10T08:00:00Z",
-  },
-  {
-    id: "p-domain-digital",
-    layer: "domain",
-    target_id: "digital-products",
-    name: "Digital Products",
-    prompt: `Domain context: Digital Products (instant download)
-Key facts:
-- Buyers want transformation, not information — sell the outcome not the content
-- No physical shipping — speed and instant access are key selling points
-- Screenshots and previews convert. Describe the product visually in text.
-- Most successful digital products solve ONE specific problem for ONE specific person
-- Gumroad and Etsy are primary channels. SEO must target "template" + "niche" keywords.`,
-    version: 2,
-    is_active: true,
-    updated_at: "2025-03-15T10:00:00Z",
-  },
-  {
-    id: "p-domain-pod",
-    layer: "domain",
-    target_id: "pod",
-    name: "Print on Demand (POD)",
-    prompt: `Domain context: Print-on-Demand (POD)
-Key facts:
-- Buyers purchase for identity expression, gifting, and community belonging
-- Design must work at small scale (thumbnail on mobile) and large scale (actual print)
-- Most successful POD niches are hyper-specific identity groups, not generic audiences
-- Price competition is real — differentiation must come from niche specificity and design quality
-- Etsy and Redbubble are the primary discovery channels — optimize for both`,
-    version: 1,
-    is_active: true,
-    updated_at: "2025-03-10T08:00:00Z",
-  },
-  {
-    id: "p-category-notion",
-    layer: "category",
-    target_id: "notion-templates",
-    name: "Notion Templates",
-    prompt: `Category: Notion Templates
-Specific rules:
-- Buyers are productivity-obsessed. Language: "system", "workflow", "organized", "automated"
-- Always mention: mobile-friendly, free Notion account required, instant duplicate
-- Best performers: CRM, project manager, content calendar, habit tracker, finance tracker
-- Price range that converts: $7-$27 for single templates, $37-$97 for systems/bundles
-- Keywords that drive traffic: "notion template", "notion dashboard", "notion system", "[niche] notion"`,
-    version: 2,
-    is_active: true,
-    updated_at: "2025-03-14T09:00:00Z",
-  },
-  {
-    id: "p-category-tshirts",
-    layer: "category",
-    target_id: "t-shirts",
-    name: "T-Shirts & Apparel",
-    prompt: `Category: POD T-Shirts & Apparel
-Specific rules:
-- Design must work in both light and dark shirt colors unless you specify one
-- Text-based designs outperform complex illustrations on Etsy
-- Hyper-niche identity phrases outperform generic funny quotes
-- Size guide mention in description increases conversions
-- Unisex positioning expands audience. Specify: "Unisex, true to size, soft cotton blend"
-- Winning formula: [Identity group] + [Relatable situation or pride statement]`,
-    version: 1,
-    is_active: true,
-    updated_at: "2025-03-10T08:00:00Z",
-  },
-  {
-    id: "p-platform-etsy",
-    layer: "platform",
-    target_id: "etsy",
-    name: "Etsy",
-    prompt: `Platform: Etsy
-Audience: Handmade lovers, gift shoppers, small business owners
-Tone: Warm, personal, gift-focused, emotional
-Title limit: 140 characters
-Tags: 13 tags, max 20 chars each
-SEO style: Long-tail, buyer-intent keywords
-Description style: Story-driven, include: who it's for, what they get, how it helps
-CTA style: Save for later, Perfect gift for...
-Forbidden words: "best", "cheapest", "guaranteed"`,
-    version: 1,
-    is_active: true,
-    updated_at: "2025-03-10T08:00:00Z",
-  },
-  {
-    id: "p-platform-gumroad",
-    layer: "platform",
-    target_id: "gumroad",
-    name: "Gumroad",
-    prompt: `Platform: Gumroad
-Audience: Creators, solopreneurs, freelancers
-Tone: Value-driven, outcome-focused, creator-to-creator
-Title limit: 100 characters
-Tags: 10 tags
-SEO style: Problem -> solution keywords
-Description style: What you get + what problem it solves + who it's for
-CTA style: Download instantly, Start using today`,
-    version: 1,
-    is_active: true,
-    updated_at: "2025-03-10T08:00:00Z",
-  },
-  {
-    id: "p-social-instagram",
-    layer: "social",
-    target_id: "instagram",
-    name: "Instagram",
-    prompt: `Channel: Instagram
-Caption max: 2200 characters
-Hashtags: up to 30
-Tone: Visual, aspirational, lifestyle-focused
-Format: Hook line -> value -> CTA -> hashtags
-Content types: single image, carousel, reel script`,
-    version: 1,
-    is_active: true,
-    updated_at: "2025-03-10T08:00:00Z",
-  },
-  {
-    id: "p-social-tiktok",
-    layer: "social",
-    target_id: "tiktok",
-    name: "TikTok",
-    prompt: `Channel: TikTok
-Hook max: 150 characters
-Tone: Fast, punchy, entertaining, trend-aware
-Format: Strong hook (1-3 seconds) -> problem -> solution -> CTA
-Content types: video script, hook + 3 points + CTA`,
-    version: 1,
-    is_active: true,
-    updated_at: "2025-03-10T08:00:00Z",
-  },
-  {
-    id: "p-social-pinterest",
-    layer: "social",
-    target_id: "pinterest",
-    name: "Pinterest",
-    prompt: `Channel: Pinterest
-Title max: 100 characters
-Description max: 500 characters
-Tone: Inspirational, search-optimized, idea-focused
-Format: Keyword-rich title -> what it is -> who it's for -> link
-Content types: pin title + description`,
-    version: 1,
-    is_active: true,
-    updated_at: "2025-03-10T08:00:00Z",
-  },
-  {
-    id: "p-context",
-    layer: "context",
-    target_id: null,
-    name: "Context Injection Template",
-    prompt: `Previous context from this workflow:
-- Research findings: {step_1_research_output}
-- Strategy decisions: {step_2_strategy_output}
-- Similar products from cache: {cached_similar_products}
-- Revision feedback (if revision): {ceo_feedback}
-
-Use this context to:
-1. Build on research findings, don't contradict them
-2. Follow strategy decisions made earlier
-3. Learn from similar products that performed well
-4. Address ALL revision feedback points specifically`,
-    version: 1,
-    is_active: true,
-    updated_at: "2025-03-10T08:00:00Z",
-  },
-  {
-    id: "p-review-ceo",
-    layer: "review",
-    target_id: null,
-    name: "CEO Review Prompt",
-    prompt: `You are the CEO reviewing a product package before it goes to market.
-
-Be extremely critical. Your standard: would YOU personally buy this? Would you be embarrassed by this?
-
-Review the following output and score each criterion 1-10:
-
-PRODUCT PACKAGE TO REVIEW:
-{product_output_json}
-
-Evaluate:
-1. TITLE STRENGTH (1-10): Is it attention-grabbing? SEO-optimized? Platform-appropriate?
-2. DESCRIPTION QUALITY (1-10): Does it sell? Is it human? Does it answer buyer questions?
-3. SEO QUALITY (1-10): Right keywords? Right density? Platform-appropriate?
-4. PRICE LOGIC (1-10): Competitive? Justified? Psychologically optimized?
-5. PLATFORM FIT (1-10): Does it match the platform's buyer psychology?
-6. HUMAN QUALITY (1-10): Does any part sound AI-generated or robotic?
-7. OVERALL READINESS (1-10): Is this ready to publish?
-
-For any score below 8:
-- State exactly what is wrong
-- State exactly what should be changed
-- Provide the corrected version
-
-Output format:
-{
-  "overall_score": number,
-  "approved": boolean,
-  "scores": { ... },
-  "issues": [ { "criterion": "...", "problem": "...", "fix": "..." } ],
-  "revised_sections": { ... }
-}`,
-    version: 3,
-    is_active: true,
-    updated_at: "2025-03-19T15:00:00Z",
-  },
-];
-
-const MOCK_VERSIONS: Record<string, PromptVersion[]> = {
-  "p-master": [
-    { id: "pv-1", prompt_id: "p-master", version: 3, prompt: MOCK_PROMPTS[0].prompt, updated_at: "2025-03-20T10:00:00Z" },
-    { id: "pv-2", prompt_id: "p-master", version: 2, prompt: "You are NEXUS — a world-class AI business engine.\n\nCore rules:\n1. Never produce generic output.\n2. Think about the END BUYER.\n3. Optimize for platform algorithms.\n4. Produce output in JSON schema.\n5. Quality over speed.", updated_at: "2025-03-15T10:00:00Z" },
-    { id: "pv-3", prompt_id: "p-master", version: 1, prompt: "You are NEXUS. Follow instructions carefully. Output JSON.", updated_at: "2025-03-10T08:00:00Z" },
-  ],
-};
 
 function LayerIcon({ layer }: { layer: string }) {
   const labels: Record<string, string> = {
@@ -489,20 +170,6 @@ export default function PromptsPage() {
     }
   };
 
-  const formatDate = (d: string) => {
-    try {
-      return new Date(d).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return d;
-    }
-  };
-
   return (
     <div>
       {/* Header */}
@@ -592,7 +259,7 @@ export default function PromptsPage() {
                       {prompt.name}
                     </h3>
                     <p className="text-xs text-muted">
-                      Version {prompt.version} &middot; Updated {formatDate(prompt.updated_at)}
+                      Version {prompt.version} &middot; Updated {formatDateTime(prompt.updated_at)}
                     </p>
                   </div>
                 </div>
@@ -689,7 +356,7 @@ export default function PromptsPage() {
                                 </span>
                               )}
                               <span className="text-xs text-muted">
-                                {formatDate(v.updated_at)}
+                                {formatDateTime(v.updated_at)}
                               </span>
                             </div>
                             <pre className="text-xs text-muted whitespace-pre-wrap font-mono line-clamp-3">

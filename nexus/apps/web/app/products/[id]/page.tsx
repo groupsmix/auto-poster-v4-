@@ -4,11 +4,14 @@ import { useState, use } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
+import { formatDateTime } from "@/lib/format";
 import type { Product } from "@/lib/api";
+import StatusBadge from "@/components/StatusBadge";
 import PlatformVariantPreview from "@/components/PlatformVariantPreview";
 import SocialVariantPreview from "@/components/SocialVariantPreview";
 import type { PlatformVariant } from "@/components/PlatformVariantPreview";
 import type { SocialVariant } from "@/components/SocialVariantPreview";
+import { toast } from "sonner";
 
 interface ProductDetail extends Product {
   description?: string;
@@ -93,26 +96,6 @@ const MOCK_DETAIL: ProductDetail = {
   ],
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    draft: "bg-gray-500/10 text-gray-400",
-    running: "bg-blue-500/10 text-blue-400",
-    pending_review: "bg-yellow-500/10 text-yellow-400",
-    approved: "bg-green-500/10 text-green-400",
-    in_revision: "bg-orange-500/10 text-orange-400",
-    published: "bg-accent/10 text-accent",
-    rejected: "bg-red-500/10 text-red-400",
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-medium ${colors[status] ?? "bg-gray-500/10 text-gray-400"}`}
-    >
-      {status.replace(/_/g, " ")}
-    </span>
-  );
-}
-
 export default function ProductDetailPage({
   params,
 }: {
@@ -133,21 +116,13 @@ export default function ProductDetailPage({
   const handleDelete = async () => {
     try {
       await api.products.delete(id);
+      toast.success("Product deleted");
     } catch {
-      // best-effort
+      toast.error("Failed to delete product. Please try again.");
     }
     window.location.href = "/products";
   };
 
-  const formatDate = (d: string) => {
-    return new Date(d).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   if (loading) {
     return (
@@ -269,7 +244,7 @@ export default function ProductDetailPage({
             <div>
               <span className="text-xs text-muted block mb-1">Created</span>
               <span className="text-foreground">
-                {formatDate(product.created_at)}
+                {formatDateTime(product.created_at)}
               </span>
             </div>
             <div>
@@ -421,7 +396,7 @@ export default function ProductDetailPage({
                       )}
                     </div>
                     <span className="text-xs text-muted">
-                      {formatDate(review.reviewed_at)}
+                      {formatDateTime(review.reviewed_at)}
                     </span>
                   </div>
                 );
@@ -445,16 +420,16 @@ export default function ProductDetailPage({
             </p>
             <div className="flex gap-3">
               <button
-                onClick={handleDelete}
-                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
-              >
-                Delete
-              </button>
-              <button
                 onClick={() => setDeleteConfirm(false)}
                 className="flex-1 px-4 py-2 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
               >
                 Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+              >
+                Delete
               </button>
             </div>
           </div>
