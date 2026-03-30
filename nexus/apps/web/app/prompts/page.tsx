@@ -100,6 +100,7 @@ export default function PromptsPage() {
         setPrompts((prev) =>
           prev.map((p) => (p.id === id ? updated : p))
         );
+        toast.success("Prompt saved");
       } else {
         setPrompts((prev) =>
           prev.map((p) =>

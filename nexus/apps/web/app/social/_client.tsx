@@ -103,6 +103,7 @@ export default function SocialClient() {
       if (response.success && response.data) {
         const updated = response.data;
         setChannels((prev) => prev.map((c) => (c.id === editingId ? updated : c)));
+        toast.success("Channel saved");
       } else {
         setChannels((prev) => prev.map((c) => (c.id === editingId ? editData : c)));
       }
@@ -139,14 +140,12 @@ export default function SocialClient() {
       if (response.success && response.data) {
         const created = response.data;
         setChannels((prev) => [...prev, created]);
+        toast.success("Channel added");
       } else {
-        const mockId = `social-${Date.now()}`;
-        setChannels((prev) => [...prev, { id: mockId, ...dataToSend }]);
+        toast.error(response.error || "Failed to add channel");
       }
     } catch {
       toast.error("Failed to add channel");
-      const mockId = `social-${Date.now()}`;
-      setChannels((prev) => [...prev, { id: mockId, ...dataToSend }]);
     } finally {
       setSaving(false);
       setShowAddForm(false);
@@ -159,6 +158,7 @@ export default function SocialClient() {
     setDeleteConfirm(null);
     try {
       await api.socialChannels.delete(id);
+      toast.success("Channel deleted");
     } catch {
       toast.error("Failed to delete channel");
       fetchChannels();

@@ -119,6 +119,7 @@ export default function AIManagerPage() {
     setAddingKey(true);
     try {
       await api.aiModels.addKey(modelId, keyInput.value.trim());
+      toast.success("API key added");
     } catch {
       toast.error("Failed to add API key");
     }
@@ -134,6 +135,7 @@ export default function AIManagerPage() {
   const handleRemoveKey = async (modelId: string) => {
     try {
       await api.aiModels.removeKey(modelId);
+      toast.success("API key removed");
     } catch {
       toast.error("Failed to remove API key");
     }

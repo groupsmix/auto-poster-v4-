@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useReviewCounts } from "@/lib/ReviewCountContext";
+import AppImage from "@/components/AppImage";
 import AIStatusBadge from "./AIStatusBadge";
 import AIHealthBar from "./AIHealthBar";
 import CacheIndicator from "./CacheIndicator";
@@ -41,78 +42,13 @@ const FEEDBACK_PROMPTS = [
   "Social captions need more personality",
 ];
 
-// Mock data for when API is not available
-const MOCK_REVIEW: ReviewData = {
-  id: "review-demo",
-  product_name: "Freelancer CRM System — Notion Template",
-  description:
-    "A comprehensive Notion template designed for freelancers to manage clients, track invoices, and organize projects. Features automated workflows, client pipeline views, and financial dashboards that help solo entrepreneurs stay on top of their business operations.",
-  ai_score: 8.4,
-  ai_model: "DeepSeek-V3",
-  ai_health: 94,
-  ai_status: "active",
-  cache_hits: 3,
-  total_cost: 0.012,
-  tokens_used: 12450,
-  platform_variants: [
-    {
-      platform: "Etsy",
-      title: "Freelancer CRM Notion Template | Client Tracker & Invoice Manager",
-      description:
-        "Stay organized with this all-in-one Freelancer CRM Notion template. Track clients, manage invoices, and visualize your pipeline — all in one beautiful workspace.",
-      tags: ["notion template", "freelancer", "crm", "client tracker", "invoice", "business"],
-      price: 19.99,
-      scores: { seo: 9, title: 8, tags: 8 },
-    },
-    {
-      platform: "Gumroad",
-      title: "The Ultimate Freelancer CRM — Notion Template Pack",
-      description:
-        "Everything you need to manage your freelance business. Client management, invoicing, project tracking, and beautiful dashboards — all inside Notion.",
-      tags: ["notion", "freelance", "crm", "productivity", "template"],
-      price: 24.99,
-      scores: { seo: 8, title: 9, tags: 7 },
-    },
-    {
-      platform: "Payhip",
-      title: "Freelancer CRM System for Notion",
-      description:
-        "Streamline your freelance workflow with this comprehensive CRM template for Notion. Manage clients, invoices, and projects effortlessly.",
-      tags: ["notion", "freelancer", "crm", "template", "business tool"],
-      price: 17.99,
-      scores: { seo: 7, title: 8, tags: 8 },
-    },
-  ],
-  social_variants: [
-    {
-      channel: "Instagram",
-      caption:
-        "Stop losing clients in your DMs. This Freelancer CRM Notion template tracks everything — clients, invoices, projects — so you can focus on what matters: your craft.",
-      hashtags: ["freelancer", "notiontemplate", "crm", "productivity", "solopreneur"],
-      post_type: "Carousel",
-    },
-    {
-      channel: "TikTok",
-      caption:
-        "POV: You finally organize your freelance business with ONE Notion template. Client tracker, invoice manager, project dashboard — all in one place.",
-      hashtags: ["freelancertips", "notionsetup", "productivityhack", "freelancelife"],
-      post_type: "Short Video",
-    },
-    {
-      channel: "X/Twitter",
-      caption:
-        "Built a Notion CRM template for freelancers.\n\nIt tracks:\n- Clients & leads\n- Invoices & payments\n- Projects & deadlines\n\nAll in one workspace. Link in bio.",
-      hashtags: ["notion", "freelance", "buildinpublic"],
-      post_type: "Thread",
-    },
-  ],
-  images: [],
-};
 
 export default function ReviewScreen({ productId }: ReviewScreenProps) {
   const router = useRouter();
   const { refetch: refreshCounts } = useReviewCounts();
-  const [review, setReview] = useState<ReviewData>(MOCK_REVIEW);
+  const [review, setReview] = useState<ReviewData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activePlatformTab, setActivePlatformTab] = useState(0);
   const [activeSocialTab, setActiveSocialTab] = useState(0);
   const [showRejectForm, setShowRejectForm] = useState(false);
@@ -124,14 +60,26 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
     let cancelled = false;
 
     const fetchReview = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const response = await api.get<ReviewData>(`/reviews/${productId}`);
-        if (!cancelled && response.success && response.data) {
-          setReview(response.data);
+        if (!cancelled) {
+          if (response.success && response.data) {
+            setReview(response.data);
+          } else {
+            setError(response.error || "Failed to load review data");
+          }
         }
-        } catch {
-          toast.error("Failed to load review data");
+      } catch {
+        if (!cancelled) {
+          setError("Failed to load review data");
         }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     };
 
     fetchReview();
@@ -168,6 +116,40 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
       setSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="rounded-xl border border-card-border bg-card-bg p-6 animate-pulse">
+            <div className="h-5 w-48 rounded bg-card-border mb-3" />
+            <div className="h-4 w-full rounded bg-card-border mb-2" />
+            <div className="h-4 w-3/4 rounded bg-card-border" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (error || !review) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-4">
+        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+          <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-foreground mb-1">Failed to load review</h3>
+        <p className="text-muted text-sm text-center max-w-md mb-4">{error || "Review data not found"}</p>
+        <button
+          onClick={() => router.push("/review")}
+          className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
+        >
+          Back to Review Center
+        </button>
+      </div>
+    );
+  }
 
   const scoreColor =
     review.ai_score >= 8
@@ -314,8 +296,7 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
                 key={i}
                 className="aspect-square rounded-lg bg-card-hover border border-card-border overflow-hidden"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <AppImage
                   src={img}
                   alt={`Generated image ${i + 1}`}
                   className="w-full h-full object-cover"

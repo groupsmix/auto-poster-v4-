@@ -160,6 +160,7 @@ export default function SettingsClient() {
     setSaved(false);
     try {
       await api.settings.bulkUpdate(serializeSettings(settings));
+      toast.success("Settings saved");
     } catch {
       toast.error("Failed to save settings");
     } finally {
@@ -180,6 +181,7 @@ export default function SettingsClient() {
           k.key_name === addKeyModal ? { ...k, status: "active" as const } : k
         )
       );
+      toast.success("API key saved");
     } catch {
       toast.error("Failed to save API key");
       setApiKeys((prev) =>
@@ -197,6 +199,7 @@ export default function SettingsClient() {
   const handleRemoveKey = async (keyName: string) => {
     try {
       await api.apiKeys.remove(keyName);
+      toast.success("API key removed");
     } catch {
       toast.error("Failed to remove API key");
     }

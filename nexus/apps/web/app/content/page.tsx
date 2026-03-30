@@ -5,6 +5,8 @@ import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import AppImage from "@/components/AppImage";
+import EmptyState from "@/components/EmptyState";
 import type { Asset } from "@/lib/api";
 
 const ASSET_TYPE_OPTIONS = [
@@ -151,7 +153,7 @@ export default function ContentPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-card-border bg-card-bg p-12 text-center">
-          <p className="text-muted text-sm">No assets match your filters.</p>
+          <EmptyState icon="assets" message="No assets match your filters." />
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -166,8 +168,7 @@ export default function ContentPage() {
                 className="w-full aspect-video bg-card-hover flex items-center justify-center relative cursor-pointer overflow-hidden"
               >
                 {asset.asset_type === "image" || asset.asset_type === "mockup" ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
+                  <AppImage
                     src={asset.url}
                     alt={getFileName(asset.r2_key)}
                     className="w-full h-full object-cover"
@@ -303,8 +304,7 @@ export default function ContentPage() {
             <div className="p-4 flex items-center justify-center min-h-[300px] bg-card-hover">
               {previewAsset.asset_type === "image" ||
               previewAsset.asset_type === "mockup" ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
+                <AppImage
                   src={previewAsset.url}
                   alt={getFileName(previewAsset.r2_key)}
                   className="max-w-full max-h-[60vh] object-contain rounded"

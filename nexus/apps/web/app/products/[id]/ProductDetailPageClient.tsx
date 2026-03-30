@@ -15,6 +15,7 @@ import SocialVariantPreview from "@/components/SocialVariantPreview";
 import type { PlatformVariant } from "@/components/PlatformVariantPreview";
 import type { SocialVariant } from "@/components/SocialVariantPreview";
 import { toast } from "sonner";
+import AppImage from "@/components/AppImage";
 
 interface ProductDetail extends Product {
   description?: string;
@@ -32,77 +33,10 @@ interface ProductDetail extends Product {
   }[];
 }
 
-const MOCK_DETAIL: ProductDetail = {
-  id: "prod-001",
-  domain_id: "d1",
-  category_id: "c1",
-  name: "Freelancer CRM System — Notion Template",
-  niche: "freelancers",
-  language: "en",
-  batch_id: "batch-001",
-  status: "approved",
-  created_at: "2025-03-15T10:30:00Z",
-  domain_name: "Digital Products",
-  category_name: "Notion Templates",
-  description:
-    "A comprehensive Notion template designed for freelancers to manage clients, track invoices, and organize projects. Features automated workflows, client pipeline views, and financial dashboards.",
-  platforms: ["Etsy", "Gumroad"],
-  platform_variants: [
-    {
-      platform: "Etsy",
-      title: "Freelancer CRM Notion Template | Client Tracker & Invoice Manager",
-      description:
-        "Stay organized with this all-in-one Freelancer CRM Notion template. Track clients, manage invoices, and visualize your pipeline.",
-      tags: ["notion template", "freelancer", "crm", "client tracker", "invoice"],
-      price: 19.99,
-      scores: { seo: 9, title: 8, tags: 8 },
-    },
-    {
-      platform: "Gumroad",
-      title: "The Ultimate Freelancer CRM — Notion Template Pack",
-      description:
-        "Everything you need to manage your freelance business. Client management, invoicing, project tracking, and dashboards.",
-      tags: ["notion", "freelance", "crm", "productivity", "template"],
-      price: 24.99,
-      scores: { seo: 8, title: 9, tags: 7 },
-    },
-  ],
-  social_variants: [
-    {
-      channel: "Instagram",
-      caption:
-        "Stop losing clients in your DMs. This Freelancer CRM Notion template tracks everything — clients, invoices, projects.",
-      hashtags: ["freelancer", "notiontemplate", "crm", "productivity", "solopreneur"],
-      post_type: "Carousel",
-    },
-    {
-      channel: "TikTok",
-      caption:
-        "POV: You finally organize your freelance business with ONE Notion template.",
-      hashtags: ["freelancertips", "notionsetup", "productivityhack", "freelancelife"],
-      post_type: "Short Video",
-    },
-  ],
-  assets: [
-    { id: "a1", asset_type: "image", url: "https://placehold.co/400x300/1a1a2e/6366f1?text=Cover", r2_key: "assets/prod-001/cover.png" },
-    { id: "a2", asset_type: "image", url: "https://placehold.co/400x300/1a1a2e/22c55e?text=Mockup", r2_key: "assets/prod-001/mockup.png" },
-  ],
-  reviews: [
-    {
-      id: "rev-001",
-      version: 1,
-      ai_score: 8.4,
-      ai_model: "DeepSeek-V3",
-      decision: "approved",
-      reviewed_at: "2025-03-15T12:00:00Z",
-    },
-  ],
-};
-
 export default function ProductDetailPageClient({ id }: { id: string }) {
-  const { data: product, loading } = useApiQuery(
-    () => api.products.get(id) as Promise<{ success: boolean; data?: ProductDetail; error?: string }>,
-    { ...MOCK_DETAIL, id },
+  const { data: product, loading, error } = useApiQuery<ProductDetail | null>(
+    () => api.products.get(id) as Promise<{ success: boolean; data?: ProductDetail | null; error?: string }>,
+    null,
     [id],
   );
 
@@ -139,13 +73,23 @@ export default function ProductDetailPageClient({ id }: { id: string }) {
     );
   }
 
-  if (!product) {
+  if (error || !product) {
     return (
-      <div className="text-center py-16">
-        <p className="text-muted">Product not found.</p>
+      <div className="flex flex-col items-center justify-center py-16 px-4">
+        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+          <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-foreground mb-1">
+          {error ? "Failed to load product" : "Product not found"}
+        </h3>
+        <p className="text-muted text-sm text-center max-w-md mb-4">
+          {error || "The product you're looking for doesn't exist or has been deleted."}
+        </p>
         <Link
           href="/products"
-          className="text-accent hover:underline text-sm mt-2 inline-block"
+          className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
         >
           Back to Products
         </Link>
@@ -323,8 +267,7 @@ export default function ProductDetailPageClient({ id }: { id: string }) {
                   className="aspect-video rounded-lg bg-card-hover border border-card-border overflow-hidden hover:border-accent/30 transition-all block"
                 >
                   {asset.asset_type === "image" || asset.asset_type === "mockup" ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
+                    <AppImage
                       src={asset.url}
                       alt={asset.r2_key.split("/").pop()}
                       className="w-full h-full object-cover"

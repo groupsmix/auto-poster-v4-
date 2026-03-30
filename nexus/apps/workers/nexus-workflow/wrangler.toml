@@ -29,13 +29,8 @@ binding = "KV"
 id = "4b1067e47d0e4cbd8c7c91592ba5238c"
 # Replace placeholder-kv-id after running: wrangler kv namespace create CACHE
 
-# ── CF Workflows (multi-step product workflow orchestration) ──
-# Each product run = 1 Workflow instance
-# Sleeps free between steps, 10,000 steps/instance
-# Note: Workflows require a Durable Object namespace.
-# The workflow class must be exported from the worker entry point.
-# Uncomment and configure after defining the Workflow class:
-#
+# ── CF Workflows ──
+# Uncomment after defining and exporting a Workflow class from the worker:
 # [[workflows]]
 # name = "nexus-product-workflow"
 # binding = "PRODUCT_WORKFLOW"

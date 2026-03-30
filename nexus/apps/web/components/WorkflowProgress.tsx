@@ -32,30 +32,6 @@ interface WorkflowProgressProps {
   workflowId: string;
 }
 
-// Mock data for when API is not available
-const MOCK_WORKFLOW: WorkflowData = {
-  id: "wf-demo",
-  product_name: "Freelancer CRM System",
-  domain: "digital-products",
-  category: "notion-templates",
-  status: "running",
-  current_step: 3,
-  total_steps: 9,
-  steps: [
-    { name: "Market Research", status: "done", duration: 2.3, model: "DeepSeek-V3" },
-    { name: "Strategy Planning", status: "done", duration: 1.8, model: "Qwen 3.5" },
-    { name: "Content Generation", status: "running", model: "DeepSeek-V3" },
-    { name: "SEO Optimization", status: "waiting" },
-    { name: "Platform Adaptation", status: "waiting" },
-    { name: "Image Generation", status: "waiting" },
-    { name: "Social Content", status: "waiting" },
-    { name: "Quality Review", status: "waiting" },
-    { name: "Final Package", status: "waiting" },
-  ],
-  cost_so_far: 0.003,
-  tokens_used: 4231,
-  cache_hits: 1,
-};
 
 function LastUpdatedIndicator({ lastUpdated }: { lastUpdated: Date }) {
   const [secondsAgo, setSecondsAgo] = useState(0);
@@ -76,7 +52,9 @@ function LastUpdatedIndicator({ lastUpdated }: { lastUpdated: Date }) {
 
 export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) {
   const router = useRouter();
-  const [workflow, setWorkflow] = useState<WorkflowData>(MOCK_WORKFLOW);
+  const [workflow, setWorkflow] = useState<WorkflowData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -90,24 +68,37 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
     const fetchProgress = async () => {
       try {
         const response = await api.get<WorkflowData>(`/workflow/${workflowId}`);
-        if (!cancelled && response.success && response.data) {
-          setWorkflow(response.data);
-          setLastUpdated(new Date());
-          if (response.data.status === "pending_review") {
-            router.push(`/review/${response.data.id}`);
-          }
-          // Stop polling on terminal states
-          if (TERMINAL_STATES.includes(response.data.status)) {
-            cancelled = true;
+        if (!cancelled) {
+          if (response.success && response.data) {
+            setWorkflow(response.data);
+            setLoading(false);
+            setError(null);
+            setLastUpdated(new Date());
+            if (response.data.status === "pending_review") {
+              router.push(`/review/${response.data.id}`);
+            }
+            // Stop polling on terminal states
+            if (TERMINAL_STATES.includes(response.data.status)) {
+              cancelled = true;
+            }
+          } else if (!workflow) {
+            setError(response.error || "Failed to load workflow");
+            setLoading(false);
           }
         }
-        } catch {
+      } catch {
+        if (!cancelled) {
+          if (!workflow) {
+            setError("Failed to fetch workflow progress");
+            setLoading(false);
+          }
           // Only show error toast once to avoid spamming during polling
           if (!errorShownRef.current) {
             errorShownRef.current = true;
             toast.error("Failed to fetch workflow progress");
           }
         }
+      }
     };
 
     fetchProgress();
@@ -139,13 +130,47 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
     setCancelling(true);
     try {
       await api.post(`/workflow/${workflowId}/cancel`, {});
-      setWorkflow((prev) => ({ ...prev, status: "cancelled" }));
+      setWorkflow((prev) => prev ? { ...prev, status: "cancelled" } : prev);
     } catch {
       toast.error("Failed to cancel workflow");
     } finally {
       setCancelling(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="rounded-xl border border-card-border bg-card-bg p-6 animate-pulse">
+            <div className="h-5 w-48 rounded bg-card-border mb-3" />
+            <div className="h-4 w-full rounded bg-card-border mb-2" />
+            <div className="h-4 w-3/4 rounded bg-card-border" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (error || !workflow) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-4">
+        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+          <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-foreground mb-1">Failed to load workflow</h3>
+        <p className="text-muted text-sm text-center max-w-md mb-4">{error || "Workflow not found"}</p>
+        <button
+          onClick={() => setManualRefresh((n) => n + 1)}
+          className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   const progressPercent = (workflow.current_step / workflow.total_steps) * 100;
 
