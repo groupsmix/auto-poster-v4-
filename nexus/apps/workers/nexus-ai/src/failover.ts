@@ -23,14 +23,40 @@ interface ModelRuntimeState {
 /** In-memory runtime state for models — keyed by model ID */
 const modelState: Map<string, ModelRuntimeState> = new Map();
 
-/** Get or create runtime state for a model */
-function getModelState(modelId: string): ModelRuntimeState {
+/** KV key prefix for persisted model state */
+const MODEL_STATE_KV_PREFIX = "model_state:";
+/** TTL for persisted model state in KV (2 hours) */
+const MODEL_STATE_KV_TTL = 7200;
+
+/** Get or create runtime state for a model, restoring from KV if available */
+async function getModelState(modelId: string, env: Env): Promise<ModelRuntimeState> {
   let state = modelState.get(modelId);
   if (!state) {
-    state = { status: "active" };
+    // Try to restore from KV (survives worker restarts)
+    const persisted = await env.KV.get<ModelRuntimeState>(
+      `${MODEL_STATE_KV_PREFIX}${modelId}`,
+      "json"
+    ).catch(() => null);
+    if (persisted) {
+      state = persisted;
+      console.log(`[STATE] Restored ${modelId} from KV: ${state.status}`);
+    } else {
+      state = { status: "active" };
+    }
     modelState.set(modelId, state);
   }
   return state;
+}
+
+/** Persist model state to KV so it survives worker restarts */
+async function persistModelState(modelId: string, state: ModelRuntimeState, env: Env): Promise<void> {
+  await env.KV.put(
+    `${MODEL_STATE_KV_PREFIX}${modelId}`,
+    JSON.stringify(state),
+    { expirationTtl: MODEL_STATE_KV_TTL }
+  ).catch(() => {
+    console.log(`[STATE] Could not persist state for ${modelId}`);
+  });
 }
 
 // ============================================================
@@ -62,7 +88,7 @@ export async function runWithFailover(
 
   // ── Step 3: Loop through models in order ───────────────────
   for (const model of models) {
-    const state = getModelState(model.id);
+    const state = await getModelState(model.id, env);
 
     // (a) Check API key (Workers AI doesn't need one)
     if (!model.isWorkersAI) {
@@ -142,6 +168,7 @@ export async function runWithFailover(
         // Rate limited — sleep for 1 hour
         state.status = "rate_limited";
         state.rateLimitResetAt = Date.now() + RATE_LIMIT_SLEEP_MS;
+        await persistModelState(model.id, state, env);
         console.log(`[LIMIT] ${model.name} -> sleep 1hr`);
       } else if (
         error.status === 402 ||
@@ -150,6 +177,7 @@ export async function runWithFailover(
         // Quota exceeded — sleep until midnight
         state.status = "sleeping";
         state.dailyLimitResetAt = getMidnightTimestamp();
+        await persistModelState(model.id, state, env);
         console.log(`[QUOTA] ${model.name} -> sleep until midnight`);
       } else {
         console.log(`[ERR] ${model.name}: ${errorMsg}`);
@@ -167,7 +195,15 @@ export async function runWithFailover(
 // GET MODEL RUNTIME STATES — for debugging/admin
 // ============================================================
 
-export function getModelStates(): Record<string, ModelRuntimeState> {
+export async function getModelStates(env: Env): Promise<Record<string, ModelRuntimeState>> {
+  // List all known model state keys from KV to include persisted state
+  const kvList = await env.KV.list({ prefix: MODEL_STATE_KV_PREFIX }).catch(() => ({ keys: [] }));
+  for (const key of kvList.keys) {
+    const modelId = key.name.slice(MODEL_STATE_KV_PREFIX.length);
+    if (!modelState.has(modelId)) {
+      await getModelState(modelId, env);
+    }
+  }
   const result: Record<string, ModelRuntimeState> = {};
   for (const [id, state] of modelState) {
     result[id] = { ...state };

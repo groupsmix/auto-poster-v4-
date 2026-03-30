@@ -198,7 +198,7 @@ set_secrets() {
     "HF_API_KEY"
     "TAVILY_API_KEY"
     "EXA_API_KEY"
-    "SERPAPI_API_KEY"
+    "SERPAPI_KEY"
     "DATAFORSEO_API_KEY"
     "FAL_API_KEY"
     "IDEOGRAM_API_KEY"

@@ -26,16 +26,6 @@ const WORKERS_AI_TEXT: AIModelConfig = {
   model: "@cf/meta/llama-3.1-8b-instruct",
 };
 
-const WORKERS_AI_IMAGE: AIModelConfig = {
-  id: "workers-ai-sdxl",
-  name: "Workers AI (SDXL)",
-  provider: "workers-ai",
-  apiKeyEnvName: "",
-  isWorkersAI: true,
-  isFree: true,
-  model: "@cf/stabilityai/stable-diffusion-xl-base-1.0",
-};
-
 // ============================================================
 // TASK_MODEL_REGISTRY — The master registry
 // ============================================================
@@ -75,73 +65,6 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
     { id: "doubao-pro-copy", name: "Doubao 1.5 Pro", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-pro" },
     { id: "qwen-max-copy", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
     WORKERS_AI_TEXT,
-  ],
-
-  seo_formatting: [
-    { id: "qwen-flash-seo", name: "Qwen 3.5 Flash", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-7B-Instruct" },
-    { id: "deepseek-v3-seo", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
-    { id: "mistral-7b", name: "Mistral 7B", provider: "groq", apiKeyEnvName: "GROQ_API_KEY", isWorkersAI: false, isFree: true, model: "mistral-saba-24b" },
-    { id: "llama-scout", name: "Llama 4 Scout", provider: "fireworks", apiKeyEnvName: "FIREWORKS_API_KEY", isWorkersAI: false, isFree: true, model: "accounts/fireworks/models/llama4-scout-instruct-basic" },
-    WORKERS_AI_TEXT,
-  ],
-
-  reasoning: [
-    { id: "deepseek-r1", name: "DeepSeek-R1", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-reasoner" },
-    { id: "qwen-max-reason", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
-    { id: "phi-4", name: "Phi-4", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "microsoft/phi-4" },
-    WORKERS_AI_TEXT,
-  ],
-
-  code: [
-    { id: "deepseek-coder", name: "DeepSeek-Coder-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-coder" },
-    { id: "qwen-coder", name: "Qwen 3.5 Coder", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-Coder-32B-Instruct" },
-    { id: "deepseek-r1-code", name: "DeepSeek-R1", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-reasoner" },
-    WORKERS_AI_TEXT,
-  ],
-
-  // ----------------------------------------------------------
-  // IMAGE & VISUAL TASKS
-  // ----------------------------------------------------------
-  text_on_image: [
-    { id: "flux-pro", name: "FLUX.1 Pro", provider: "fal", apiKeyEnvName: "FAL_API_KEY", isWorkersAI: false, isFree: true, model: "fal-ai/flux-pro" },
-    { id: "ideogram-3", name: "Ideogram 3.0", provider: "ideogram", apiKeyEnvName: "IDEOGRAM_API_KEY", isWorkersAI: false, isFree: true },
-    { id: "sdxl-hf", name: "SDXL", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "stabilityai/stable-diffusion-xl-base-1.0" },
-    { id: "segmind-sdxl", name: "Segmind", provider: "segmind", apiKeyEnvName: "SEGMIND_API_KEY", isWorkersAI: false, isFree: true },
-    WORKERS_AI_IMAGE,
-  ],
-
-  artistic_image: [
-    { id: "sdxl-hf-art", name: "SDXL", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "stabilityai/stable-diffusion-xl-base-1.0" },
-    { id: "cogview-3", name: "CogView-3", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "THUDM/CogView-3" },
-    { id: "wan-26", name: "Wan 2.6", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "alibaba/Wan-2.6" },
-    WORKERS_AI_IMAGE,
-  ],
-
-  image_editing: [
-    { id: "cf-images", name: "Cloudflare Images", provider: "cf-images", apiKeyEnvName: "", isWorkersAI: true, isFree: true },
-    { id: "clipdrop", name: "Clipdrop", provider: "clipdrop", apiKeyEnvName: "CLIPDROP_API_KEY", isWorkersAI: false, isFree: true },
-    { id: "fal-edit", name: "fal.ai", provider: "fal", apiKeyEnvName: "FAL_API_KEY", isWorkersAI: false, isFree: true },
-  ],
-
-  mockup: [
-    { id: "printful", name: "Printful Mockup API", provider: "printful", apiKeyEnvName: "PRINTFUL_API_KEY", isWorkersAI: false, isFree: true },
-    { id: "printify", name: "Printify Mockup API", provider: "printify", apiKeyEnvName: "PRINTIFY_API_KEY", isWorkersAI: false, isFree: true },
-  ],
-
-  // ----------------------------------------------------------
-  // AUDIO & MUSIC TASKS
-  // ----------------------------------------------------------
-  music: [
-    { id: "suno", name: "Suno", provider: "suno", apiKeyEnvName: "SUNO_API_KEY", isWorkersAI: false, isFree: true },
-    { id: "udio", name: "Udio", provider: "udio", apiKeyEnvName: "UDIO_API_KEY", isWorkersAI: false, isFree: true },
-    { id: "musicgen", name: "MusicGen", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "facebook/musicgen-small" },
-  ],
-
-  voice_tts: [
-    { id: "kokoro-tts", name: "Kokoro TTS", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "hexgrad/Kokoro-82M" },
-    { id: "coqui-tts", name: "Coqui TTS", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "coqui/XTTS-v2" },
-    { id: "google-tts", name: "Google TTS", provider: "google", apiKeyEnvName: "GOOGLE_API_KEY", isWorkersAI: false, isFree: true },
-    { id: "workers-ai-whisper", name: "Workers AI (Whisper)", provider: "workers-ai", apiKeyEnvName: "", isWorkersAI: true, isFree: true, model: "@cf/openai/whisper" },
   ],
 
   // ----------------------------------------------------------
