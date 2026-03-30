@@ -98,8 +98,8 @@ export async function runWithFailover(
     }
 
     // (d) Try the call
+    const start = Date.now();
     try {
-      const start = Date.now();
       let result: string;
       let tokens: number | undefined;
 
@@ -132,11 +132,11 @@ export async function runWithFailover(
       return { result, model: model.name, cached: false, tokens };
     } catch (err: unknown) {
       // (f) On error: handle specific error types
-      const latency = Date.now();
+      const latency = Date.now() - start;
       const error = err as { status?: number; code?: string; message?: string };
       const errorMsg = error.message ?? String(err);
 
-      await updateHealthScore(model.id, model.name, false, 0, env, errorMsg);
+      await updateHealthScore(model.id, model.name, false, latency, env, errorMsg);
 
       if (error.status === 429) {
         // Rate limited — sleep for 1 hour
