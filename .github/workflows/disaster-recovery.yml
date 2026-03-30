@@ -1,0 +1,400 @@
+# ============================================================
+# NEXUS — One-Click Disaster Recovery
+# ============================================================
+# Click "Run workflow" in GitHub Actions to rebuild EVERYTHING
+# from scratch: creates CF resources, updates configs, runs
+# migrations, deploys all workers + frontend.
+#
+# Go to: Actions → "Disaster Recovery" → "Run workflow" → click
+#
+# Required GitHub Secrets:
+#   CLOUDFLARE_API_TOKEN  — API token with Workers/Pages/D1/KV/R2 permissions
+#   CLOUDFLARE_ACCOUNT_ID — Your Cloudflare account ID
+#
+# Optional GitHub Secrets (set any AI keys you want):
+#   DASHBOARD_SECRET      — Password for dashboard access
+#   DEEPSEEK_API_KEY      — DeepSeek AI key (free tier available)
+#   (add more as needed — see deploy.sh --secrets for full list)
+# ============================================================
+
+name: "\U0001F6A8 Disaster Recovery"
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type RECOVER to confirm full infrastructure rebuild'
+        required: true
+        type: string
+      skip_migrations:
+        description: 'Skip database migrations (use if DB already exists and is up to date)'
+        required: false
+        type: boolean
+        default: false
+      skip_deploy:
+        description: 'Skip deployment (only create resources + update configs)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  # ── Validate ─────────────────────────────────────────────
+  validate:
+    name: "\U0001F512 Validate Recovery Request"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "RECOVER" ]; then
+            echo "❌ You must type RECOVER to confirm. Got: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+          echo "✅ Recovery confirmed"
+
+      - name: Check secrets
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "❌ CLOUDFLARE_API_TOKEN secret is not set"
+            echo "Go to: repo Settings → Secrets → Actions → New repository secret"
+            exit 1
+          fi
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "❌ CLOUDFLARE_ACCOUNT_ID secret is not set"
+            exit 1
+          fi
+          echo "✅ Cloudflare credentials found"
+
+  # ── Create Infrastructure ────────────────────────────────
+  infrastructure:
+    name: "\U0001F3D7️ Create CF Resources"
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      d1_id: ${{ steps.d1.outputs.id }}
+      kv_id: ${{ steps.kv.outputs.id }}
+    defaults:
+      run:
+        working-directory: nexus
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create or find D1 database
+        id: d1
+        run: |
+          echo "🔍 Checking for existing D1 database 'nexus-db'..."
+          EXISTING=$(npx wrangler d1 list --json 2>/dev/null | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for db in data:
+              if db.get('name') == 'nexus-db':
+                  print(db['uuid'])
+                  break
+          " 2>/dev/null || true)
+
+          if [ -n "$EXISTING" ]; then
+            echo "✅ D1 database already exists: $EXISTING"
+            echo "id=$EXISTING" >> $GITHUB_OUTPUT
+          else
+            echo "📦 Creating D1 database 'nexus-db'..."
+            OUTPUT=$(npx wrangler d1 create nexus-db 2>&1)
+            echo "$OUTPUT"
+            D1_ID=$(echo "$OUTPUT" | grep -oP '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+            echo "✅ D1 database created: $D1_ID"
+            echo "id=$D1_ID" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create or find KV namespace
+        id: kv
+        run: |
+          echo "🔍 Checking for existing KV namespace..."
+          EXISTING=$(npx wrangler kv namespace list --json 2>/dev/null | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for ns in data:
+              if 'CACHE' in ns.get('title', ''):
+                  print(ns['id'])
+                  break
+          " 2>/dev/null || true)
+
+          if [ -n "$EXISTING" ]; then
+            echo "✅ KV namespace already exists: $EXISTING"
+            echo "id=$EXISTING" >> $GITHUB_OUTPUT
+          else
+            echo "📦 Creating KV namespace 'CACHE'..."
+            OUTPUT=$(npx wrangler kv namespace create CACHE 2>&1)
+            echo "$OUTPUT"
+            KV_ID=$(echo "$OUTPUT" | grep -oP 'id\s*=\s*"\K[^"]+' || echo "$OUTPUT" | grep -oP '[0-9a-f]{32}' | head -1)
+            echo "✅ KV namespace created: $KV_ID"
+            echo "id=$KV_ID" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create R2 bucket
+        run: |
+          echo "🔍 Checking for existing R2 bucket 'nexus-assets'..."
+          EXISTING=$(npx wrangler r2 bucket list 2>/dev/null | grep -w "nexus-assets" || true)
+
+          if [ -n "$EXISTING" ]; then
+            echo "✅ R2 bucket already exists"
+          else
+            echo "📦 Creating R2 bucket 'nexus-assets'..."
+            npx wrangler r2 bucket create nexus-assets
+            echo "✅ R2 bucket created"
+          fi
+
+  # ── Update Configs + Build ───────────────────────────────
+  build:
+    name: "\U0001F527 Update Configs & Build"
+    needs: infrastructure
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexus
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Update wrangler.toml files with real IDs
+        run: |
+          D1_ID="${{ needs.infrastructure.outputs.d1_id }}"
+          KV_ID="${{ needs.infrastructure.outputs.kv_id }}"
+
+          echo "D1 ID: $D1_ID"
+          echo "KV ID: $KV_ID"
+
+          # Update D1 database IDs
+          for file in apps/workers/nexus-ai/wrangler.toml apps/workers/nexus-storage/wrangler.toml apps/workers/nexus-workflow/wrangler.toml; do
+            sed -i "s/placeholder-d1-id/$D1_ID/g" "$file"
+            echo "✅ Updated D1 ID in $file"
+          done
+
+          # Update KV namespace IDs
+          for file in apps/workers/nexus-ai/wrangler.toml apps/workers/nexus-storage/wrangler.toml apps/workers/nexus-workflow/wrangler.toml apps/workers/nexus-variation/wrangler.toml; do
+            sed -i "s/placeholder-kv-id/$KV_ID/g" "$file"
+            echo "✅ Updated KV ID in $file"
+          done
+
+      - name: Build monorepo
+        run: pnpm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-build
+          path: |
+            nexus/apps/workers/*/wrangler.toml
+            nexus/apps/workers/*/dist/
+            nexus/apps/web/out/
+            nexus/apps/web/.next/
+          retention-days: 1
+
+  # ── Run Migrations ───────────────────────────────────────
+  migrate:
+    name: "\U0001F5C4️ Run Migrations"
+    needs: [infrastructure, build]
+    if: ${{ inputs.skip_migrations != true }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexus
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run migration 001 — initial schema
+        run: npx wrangler d1 execute nexus-db --file=migrations/001_initial_schema.sql --remote
+
+      - name: Run migration 002 — analytics + seed data
+        run: npx wrangler d1 execute nexus-db --file=migrations/002_v4_analytics.sql --remote
+
+      - name: Run migration 003 — schema fixes
+        run: npx wrangler d1 execute nexus-db --file=migrations/003_schema_fixes.sql --remote
+
+      - name: Migrations complete
+        run: echo "✅ All 3 migrations applied successfully"
+
+  # ── Deploy Workers ───────────────────────────────────────
+  deploy-workers:
+    name: "\U0001F680 Deploy Workers"
+    needs: [infrastructure, build, migrate]
+    if: ${{ inputs.skip_deploy != true && !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexus
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Update wrangler.toml with real IDs
+        run: |
+          D1_ID="${{ needs.infrastructure.outputs.d1_id }}"
+          KV_ID="${{ needs.infrastructure.outputs.kv_id }}"
+          for file in apps/workers/nexus-ai/wrangler.toml apps/workers/nexus-storage/wrangler.toml apps/workers/nexus-workflow/wrangler.toml; do
+            sed -i "s/placeholder-d1-id/$D1_ID/g" "$file"
+          done
+          for file in apps/workers/nexus-ai/wrangler.toml apps/workers/nexus-storage/wrangler.toml apps/workers/nexus-workflow/wrangler.toml apps/workers/nexus-variation/wrangler.toml; do
+            sed -i "s/placeholder-kv-id/$KV_ID/g" "$file"
+          done
+
+      - name: "Deploy nexus-storage (1/5)"
+        run: cd apps/workers/nexus-storage && npx wrangler deploy
+
+      - name: "Deploy nexus-ai (2/5)"
+        run: cd apps/workers/nexus-ai && npx wrangler deploy
+
+      - name: "Deploy nexus-variation (3/5)"
+        run: cd apps/workers/nexus-variation && npx wrangler deploy
+
+      - name: "Deploy nexus-workflow (4/5)"
+        run: cd apps/workers/nexus-workflow && npx wrangler deploy
+
+      - name: "Deploy nexus-router (5/5)"
+        run: cd apps/workers/nexus-router && npx wrangler deploy
+
+      - name: Set DASHBOARD_SECRET
+        if: ${{ env.DASHBOARD_SECRET != '' }}
+        run: echo "$DASHBOARD_SECRET" | npx wrangler secret put DASHBOARD_SECRET --name nexus-router
+        env:
+          DASHBOARD_SECRET: ${{ secrets.DASHBOARD_SECRET }}
+
+      - name: Set DEEPSEEK_API_KEY
+        if: ${{ env.DEEPSEEK_KEY != '' }}
+        run: echo "$DEEPSEEK_KEY" | npx wrangler secret put DEEPSEEK_API_KEY --name nexus-ai
+        env:
+          DEEPSEEK_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+
+      - name: Workers deployed
+        run: echo "✅ All 5 workers deployed successfully"
+
+  # ── Deploy Frontend ──────────────────────────────────────
+  deploy-frontend:
+    name: "\U0001F310 Deploy Frontend"
+    needs: [build, deploy-workers]
+    if: ${{ inputs.skip_deploy != true && !cancelled() && needs.deploy-workers.result == 'success' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexus
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm run build
+
+      - name: Deploy to CF Pages
+        run: cd apps/web && npx wrangler pages deploy out --project-name=nexus-dashboard
+
+      - name: Frontend deployed
+        run: echo "✅ Frontend deployed to Cloudflare Pages"
+
+  # ── Summary ──────────────────────────────────────────────
+  summary:
+    name: "\U0001F4CB Recovery Summary"
+    needs: [infrastructure, build, migrate, deploy-workers, deploy-frontend]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recovery report
+        run: |
+          echo "============================================================"
+          echo "  NEXUS — Disaster Recovery Report"
+          echo "============================================================"
+          echo ""
+          echo "Infrastructure: ${{ needs.infrastructure.result }}"
+          echo "Build:          ${{ needs.build.result }}"
+          echo "Migrations:     ${{ needs.migrate.result }}"
+          echo "Workers:        ${{ needs.deploy-workers.result }}"
+          echo "Frontend:       ${{ needs.deploy-frontend.result }}"
+          echo ""
+          echo "D1 Database ID:  ${{ needs.infrastructure.outputs.d1_id }}"
+          echo "KV Namespace ID: ${{ needs.infrastructure.outputs.kv_id }}"
+          echo ""
+
+          # Check overall status
+          if [ "${{ needs.deploy-frontend.result }}" = "success" ]; then
+            echo "🎉 FULL RECOVERY SUCCESSFUL!"
+            echo ""
+            echo "Next steps:"
+            echo "  1. Verify: curl https://nexus-router.<your-subdomain>.workers.dev/health"
+            echo "  2. Visit your CF Pages dashboard URL"
+            echo "  3. If you haven't set secrets yet, add them in repo Settings → Secrets"
+          else
+            echo "⚠️  Recovery partially completed. Check failed steps above."
+          fi
