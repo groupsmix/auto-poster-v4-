@@ -57,11 +57,30 @@ const MOCK_WORKFLOW: WorkflowData = {
   cache_hits: 1,
 };
 
+function LastUpdatedIndicator({ lastUpdated }: { lastUpdated: Date }) {
+  const [secondsAgo, setSecondsAgo] = useState(0);
+
+  useEffect(() => {
+    const tick = () => setSecondsAgo(Math.floor((Date.now() - lastUpdated.getTime()) / 1000));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [lastUpdated]);
+
+  return (
+    <span className="text-xs text-muted">
+      Last updated {secondsAgo === 0 ? "just now" : `${secondsAgo}s ago`}
+    </span>
+  );
+}
+
 export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) {
   const router = useRouter();
   const [workflow, setWorkflow] = useState<WorkflowData>(MOCK_WORKFLOW);
   const [cancelling, setCancelling] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [manualRefresh, setManualRefresh] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,6 +91,7 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
         const response = await api.get<WorkflowData>(`/workflow/${workflowId}`);
         if (!cancelled && response.success && response.data) {
           setWorkflow(response.data);
+          setLastUpdated(new Date());
           if (response.data.status === "pending_review") {
             router.push(`/review/${response.data.id}`);
           }
@@ -88,7 +108,7 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
     fetchProgress();
     let pollCount = 0;
     const getInterval = () => {
-      if (pollCount > 30) return 10000;
+      if (pollCount > 30) return 5000;
       if (pollCount > 10) return 3000;
       return 1000;
     };
@@ -108,7 +128,7 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [workflowId, router]);
+  }, [workflowId, router, manualRefresh]);
 
   const handleCancel = async () => {
     setCancelling(true);
@@ -267,6 +287,15 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
       </div>
 
       {/* Footer Stats */}
+      <div className="flex items-center justify-between mb-2">
+        <LastUpdatedIndicator lastUpdated={lastUpdated} />
+        <button
+          onClick={() => setManualRefresh((n) => n + 1)}
+          className="px-3 py-1.5 rounded-lg border border-card-border text-xs font-medium text-muted hover:text-foreground hover:bg-card-hover transition-colors"
+        >
+          Refresh Now
+        </button>
+      </div>
       <div className="flex flex-wrap gap-4 text-sm">
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card-bg border border-card-border">
           <span className="text-muted">AI Cost So Far:</span>

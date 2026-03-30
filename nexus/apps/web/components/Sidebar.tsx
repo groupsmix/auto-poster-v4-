@@ -186,6 +186,7 @@ export default function Sidebar() {
         onClick={() => setIsOpen(!isOpen)}
         className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-sidebar-bg border border-sidebar-border lg:hidden"
         aria-label="Toggle navigation"
+        aria-expanded={isOpen}
       >
         {isOpen ? (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

@@ -150,7 +150,7 @@ export default function HistoryPage() {
       ) : (
         <div className="rounded-xl border border-card-border bg-card-bg overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[900px]">
+            <table className="w-full text-sm min-w-[600px]">
               <thead>
                 <tr className="border-b border-card-border text-left">
                   <th className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider">

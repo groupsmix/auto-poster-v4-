@@ -36,6 +36,7 @@ export default function ProductsPage() {
   const [filterBatch, setFilterBatch] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [batchView, setBatchView] = useState(false);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<"name" | "status" | "created_at" | "">("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -198,6 +199,7 @@ export default function ProductsPage() {
 
       {/* Filters */}
       <div className="rounded-xl border border-card-border bg-card-bg p-4 mb-6">
+        {/* Row 1: Search + Status + More filters toggle + Batch view */}
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -211,31 +213,6 @@ export default function ProductsPage() {
               className="pl-9 pr-3 py-1.5 rounded-lg bg-card-hover border border-card-border text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-accent w-48"
             />
           </div>
-          <select
-            value={filterDomain}
-            onChange={(e) => setFilterDomain(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-card-hover border border-card-border text-sm text-foreground focus:outline-none focus:border-accent"
-          >
-            <option value="">All Domains</option>
-            {domains.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-card-hover border border-card-border text-sm text-foreground focus:outline-none focus:border-accent"
-          >
-            <option value="">All Categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
 
           <select
             value={filterStatus}
@@ -249,31 +226,36 @@ export default function ProductsPage() {
             ))}
           </select>
 
-          <select
-            value={filterPlatform}
-            onChange={(e) => setFilterPlatform(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-card-hover border border-card-border text-sm text-foreground focus:outline-none focus:border-accent"
+          <button
+            onClick={() => setShowMoreFilters(!showMoreFilters)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
+              showMoreFilters || filterDomain || filterCategory || filterPlatform || filterBatch
+                ? "border-accent/50 text-accent bg-accent/5"
+                : "border-card-border text-muted hover:text-foreground bg-card-hover"
+            }`}
+            aria-expanded={showMoreFilters}
           >
-            <option value="">All Platforms</option>
-            {platformsList.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+            {(() => {
+              const count = [filterDomain, filterCategory, filterPlatform, filterBatch].filter(Boolean).length;
+              return count > 0 ? `More filters (${count})` : "More filters";
+            })()}
+          </button>
 
-          <select
-            value={filterBatch}
-            onChange={(e) => setFilterBatch(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-card-hover border border-card-border text-sm text-foreground focus:outline-none focus:border-accent"
-          >
-            <option value="">All Batches</option>
-            {batches.map((b) => (
-              <option key={b} value={b}>
-                {b}
-              </option>
-            ))}
-          </select>
+          {(filterDomain || filterCategory || filterPlatform || filterBatch || filterStatus) && (
+            <button
+              onClick={() => {
+                setFilterDomain("");
+                setFilterCategory("");
+                setFilterStatus("");
+                setFilterPlatform("");
+                setFilterBatch("");
+                setSearchQuery("");
+              }}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted hover:text-foreground hover:bg-card-hover transition-colors"
+            >
+              Clear all
+            </button>
+          )}
 
           {/* Batch view toggle */}
           <button
@@ -287,6 +269,63 @@ export default function ProductsPage() {
             {batchView ? "Batch View" : "Flat List"}
           </button>
         </div>
+
+        {/* Row 2: Additional filters (collapsible) */}
+        {showMoreFilters && (
+          <div className="flex flex-wrap gap-3 items-center mt-3 pt-3 border-t border-card-border">
+            <select
+              value={filterDomain}
+              onChange={(e) => setFilterDomain(e.target.value)}
+              className="px-3 py-1.5 rounded-lg bg-card-hover border border-card-border text-sm text-foreground focus:outline-none focus:border-accent"
+            >
+              <option value="">All Domains</option>
+              {domains.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="px-3 py-1.5 rounded-lg bg-card-hover border border-card-border text-sm text-foreground focus:outline-none focus:border-accent"
+            >
+              <option value="">All Categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filterPlatform}
+              onChange={(e) => setFilterPlatform(e.target.value)}
+              className="px-3 py-1.5 rounded-lg bg-card-hover border border-card-border text-sm text-foreground focus:outline-none focus:border-accent"
+            >
+              <option value="">All Platforms</option>
+              {platformsList.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filterBatch}
+              onChange={(e) => setFilterBatch(e.target.value)}
+              className="px-3 py-1.5 rounded-lg bg-card-hover border border-card-border text-sm text-foreground focus:outline-none focus:border-accent"
+            >
+              <option value="">All Batches</option>
+              {batches.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Results count + Bulk actions bar (5.8) */}
@@ -435,7 +474,7 @@ export default function ProductsPage() {
       {/* Delete confirmation modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="rounded-xl border border-card-border bg-card-bg p-6 max-w-sm w-full mx-4">
+          <div role="dialog" aria-modal="true" aria-label="Delete product confirmation" className="rounded-xl border border-card-border bg-card-bg p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-semibold text-foreground mb-2">
               Delete Product
             </h3>
@@ -483,6 +522,7 @@ function SortHeader({
     <th
       className="px-4 py-3 text-xs font-medium text-muted uppercase tracking-wider cursor-pointer select-none hover:text-foreground transition-colors"
       onClick={() => onSort(colKey)}
+      aria-sort={active ? (currentDir === "asc" ? "ascending" : "descending") : "none"}
     >
       <span className="inline-flex items-center gap-1">
         {label}
@@ -521,7 +561,7 @@ function ProductTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm min-w-[800px]">
+      <table className="w-full text-sm min-w-[600px]">
         <thead>
           <tr className="border-b border-card-border text-left">
             {selectedIds && onToggleSelectAll && (
@@ -613,6 +653,7 @@ function ProductTable({
                   onClick={() => onDelete(product.id)}
                   className="p-1.5 rounded-lg text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
                   title="Delete product"
+                  aria-label={`Delete ${product.name}`}
                 >
                   <svg
                     className="w-4 h-4"
