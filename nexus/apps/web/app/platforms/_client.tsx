@@ -195,6 +195,9 @@ export default function PlatformsClient() {
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  role="switch"
+                  aria-checked={platform.is_active}
+                  aria-label={`Toggle ${platform.name} active`}
                   onClick={() => handleToggleActive(platform)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     platform.is_active ? "bg-success" : "bg-card-border"

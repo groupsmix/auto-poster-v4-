@@ -267,6 +267,9 @@ export default function ContentPage() {
           onClick={() => setPreviewAsset(null)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Asset preview"
             className="relative max-w-3xl w-full mx-4 rounded-xl border border-card-border bg-card-bg overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
@@ -282,6 +285,7 @@ export default function ContentPage() {
               <button
                 onClick={() => setPreviewAsset(null)}
                 className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-card-hover transition-colors"
+                aria-label="Close preview"
               >
                 <svg
                   className="w-5 h-5"
@@ -363,7 +367,7 @@ export default function ContentPage() {
       {/* Delete confirmation modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
-          <div className="rounded-xl border border-card-border bg-card-bg p-6 max-w-sm w-full mx-4">
+          <div role="dialog" aria-modal="true" aria-label="Delete asset confirmation" className="rounded-xl border border-card-border bg-card-bg p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-semibold text-foreground mb-2">
               Delete Asset
             </h3>
@@ -374,16 +378,16 @@ export default function ContentPage() {
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => handleDelete(deleteConfirm)}
-                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
-              >
-                Delete
-              </button>
-              <button
                 onClick={() => setDeleteConfirm(null)}
                 className="flex-1 px-4 py-2 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
               >
                 Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirm)}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+              >
+                Delete
               </button>
             </div>
           </div>
