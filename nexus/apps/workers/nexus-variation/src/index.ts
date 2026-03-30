@@ -4,7 +4,7 @@
 // ============================================================
 
 import { Hono } from "hono";
-import type { Env } from "@nexus/shared";
+import type { Env, ApiResponse } from "@nexus/shared";
 import {
   PlatformVariationEngine,
   type BaseProduct,
@@ -26,6 +26,38 @@ app.get("/", (c) => {
 
 app.get("/health", (c) => {
   return c.json({ status: "healthy" });
+});
+
+// ============================================================
+// POST /variation/run
+// Generic AI proxy — forwards { taskType, prompt } to nexus-ai
+// Used by nexus-workflow engine for variation/social/humanizer steps
+// ============================================================
+
+app.post("/variation/run", async (c) => {
+  try {
+    const body = await c.req.json<{ taskType: string; prompt: string }>();
+
+    if (!body.taskType || !body.prompt) {
+      return c.json<ApiResponse>(
+        { success: false, error: "Missing taskType or prompt" },
+        400
+      );
+    }
+
+    const response = await c.env.NEXUS_AI.fetch("http://nexus-ai/ai/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskType: body.taskType, prompt: body.prompt }),
+    });
+
+    const json = (await response.json()) as ApiResponse;
+    return c.json(json, response.status as 200 | 400 | 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[VARIATION] Run proxy error:", message);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
 });
 
 // ============================================================

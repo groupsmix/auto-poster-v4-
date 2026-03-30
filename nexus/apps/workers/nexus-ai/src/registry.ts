@@ -47,14 +47,14 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   research: [
     { id: "tavily", name: "Tavily Search", provider: "tavily", apiKeyEnvName: "TAVILY_API_KEY", isWorkersAI: false, isFree: true },
     { id: "exa", name: "Exa Neural Search", provider: "exa", apiKeyEnvName: "EXA_API_KEY", isWorkersAI: false, isFree: true },
-    { id: "serpapi", name: "SerpAPI", provider: "serpapi", apiKeyEnvName: "SERPAPI_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "serpapi", name: "SerpAPI", provider: "serpapi", apiKeyEnvName: "SERPAPI_KEY", isWorkersAI: false, isFree: true },
     { id: "deepseek-v3", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
     WORKERS_AI_TEXT,
   ],
 
   seo: [
-    { id: "dataforseo", name: "DataForSEO", provider: "dataforseo", apiKeyEnvName: "DATAFORSEO_API_KEY", isWorkersAI: false, isFree: true },
-    { id: "serpapi-seo", name: "SerpAPI", provider: "serpapi", apiKeyEnvName: "SERPAPI_API_KEY", isWorkersAI: false, isFree: true },
+    { id: "dataforseo", name: "DataForSEO", provider: "dataforseo", apiKeyEnvName: "DATAFORSEO_KEY", isWorkersAI: false, isFree: true },
+    { id: "serpapi-seo", name: "SerpAPI", provider: "serpapi", apiKeyEnvName: "SERPAPI_KEY", isWorkersAI: false, isFree: true },
     { id: "qwen-flash", name: "Qwen 3.5 Flash", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-7B-Instruct" },
     WORKERS_AI_TEXT,
   ],
@@ -88,7 +88,7 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   reasoning: [
     { id: "deepseek-r1", name: "DeepSeek-R1", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-reasoner" },
     { id: "qwen-max-reason", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
-    { id: "phi-4", name: "Phi-4", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "microsoft/phi-4" },
+    { id: "phi-4", name: "Phi-4", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "microsoft/phi-4" },
     WORKERS_AI_TEXT,
   ],
 
@@ -105,15 +105,15 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   text_on_image: [
     { id: "flux-pro", name: "FLUX.1 Pro", provider: "fal", apiKeyEnvName: "FAL_API_KEY", isWorkersAI: false, isFree: true, model: "fal-ai/flux-pro" },
     { id: "ideogram-3", name: "Ideogram 3.0", provider: "ideogram", apiKeyEnvName: "IDEOGRAM_API_KEY", isWorkersAI: false, isFree: true },
-    { id: "sdxl-hf", name: "SDXL", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "stabilityai/stable-diffusion-xl-base-1.0" },
+    { id: "sdxl-hf", name: "SDXL", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "stabilityai/stable-diffusion-xl-base-1.0" },
     { id: "segmind-sdxl", name: "Segmind", provider: "segmind", apiKeyEnvName: "SEGMIND_API_KEY", isWorkersAI: false, isFree: true },
     WORKERS_AI_IMAGE,
   ],
 
   artistic_image: [
-    { id: "sdxl-hf-art", name: "SDXL", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "stabilityai/stable-diffusion-xl-base-1.0" },
-    { id: "cogview-3", name: "CogView-3", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "THUDM/CogView-3" },
-    { id: "wan-26", name: "Wan 2.6", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "alibaba/Wan-2.6" },
+    { id: "sdxl-hf-art", name: "SDXL", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "stabilityai/stable-diffusion-xl-base-1.0" },
+    { id: "cogview-3", name: "CogView-3", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "THUDM/CogView-3" },
+    { id: "wan-26", name: "Wan 2.6", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "alibaba/Wan-2.6" },
     WORKERS_AI_IMAGE,
   ],
 
@@ -134,12 +134,12 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   music: [
     { id: "suno", name: "Suno", provider: "suno", apiKeyEnvName: "SUNO_API_KEY", isWorkersAI: false, isFree: true },
     { id: "udio", name: "Udio", provider: "udio", apiKeyEnvName: "UDIO_API_KEY", isWorkersAI: false, isFree: true },
-    { id: "musicgen", name: "MusicGen", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "facebook/musicgen-small" },
+    { id: "musicgen", name: "MusicGen", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "facebook/musicgen-small" },
   ],
 
   voice_tts: [
-    { id: "kokoro-tts", name: "Kokoro TTS", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "hexgrad/Kokoro-82M" },
-    { id: "coqui-tts", name: "Coqui TTS", provider: "huggingface", apiKeyEnvName: "HF_API_KEY", isWorkersAI: false, isFree: true, model: "coqui/XTTS-v2" },
+    { id: "kokoro-tts", name: "Kokoro TTS", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "hexgrad/Kokoro-82M" },
+    { id: "coqui-tts", name: "Coqui TTS", provider: "huggingface", apiKeyEnvName: "HF_TOKEN", isWorkersAI: false, isFree: true, model: "coqui/XTTS-v2" },
     { id: "google-tts", name: "Google TTS", provider: "google", apiKeyEnvName: "GOOGLE_API_KEY", isWorkersAI: false, isFree: true },
     { id: "workers-ai-whisper", name: "Workers AI (Whisper)", provider: "workers-ai", apiKeyEnvName: "", isWorkersAI: true, isFree: true, model: "@cf/openai/whisper" },
   ],
@@ -174,6 +174,12 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
     WORKERS_AI_TEXT,
   ],
 };
+
+// --- Aliases: workflow steps use short TaskType names that must resolve here ---
+TASK_MODEL_REGISTRY.image = TASK_MODEL_REGISTRY.copywriting;
+TASK_MODEL_REGISTRY.review = TASK_MODEL_REGISTRY.quality_review;
+TASK_MODEL_REGISTRY.variation = TASK_MODEL_REGISTRY.platform_variation;
+TASK_MODEL_REGISTRY.social = TASK_MODEL_REGISTRY.social_adaptation;
 
 // ============================================================
 // HELPER FUNCTIONS
