@@ -401,7 +401,7 @@ export interface Env {
   // Secrets (AI API keys — optional, model sleeps if missing)
   TAVILY_API_KEY?: string;
   EXA_API_KEY?: string;
-  SERPAPI_API_KEY?: string;
+  SERPAPI_KEY?: string;
   DEEPSEEK_API_KEY?: string;
   DASHSCOPE_API_KEY?: string;
   SILICONFLOW_API_KEY?: string;

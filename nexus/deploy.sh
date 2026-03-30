@@ -80,6 +80,7 @@ run_migrations() {
     "${MIGRATIONS_DIR}/001_initial_schema.sql"
     "${MIGRATIONS_DIR}/002_v4_analytics.sql"
     "${MIGRATIONS_DIR}/003_schema_fixes.sql"
+    "${MIGRATIONS_DIR}/004_updated_at_triggers.sql"
   )
 
   for migration in "${migration_files[@]}"; do
@@ -195,11 +196,11 @@ set_secrets() {
     "MOONSHOT_API_KEY"
     "GROQ_API_KEY"
     "FIREWORKS_API_KEY"
-    "HF_API_KEY"
+    "HF_TOKEN"
     "TAVILY_API_KEY"
     "EXA_API_KEY"
     "SERPAPI_KEY"
-    "DATAFORSEO_API_KEY"
+    "DATAFORSEO_KEY"
     "FAL_API_KEY"
     "IDEOGRAM_API_KEY"
     "SEGMIND_API_KEY"

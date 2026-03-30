@@ -1,6 +1,6 @@
 name = "nexus-router"
 main = "src/index.ts"
-compatibility_date = "2024-12-30"
+compatibility_date = "2025-04-01"
 
 # Service Bindings to all internal workers
 [[services]]
