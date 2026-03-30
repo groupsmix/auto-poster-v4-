@@ -9,6 +9,7 @@ import ErrorState from "@/components/ErrorState";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { DEFAULT_DOMAINS, DEFAULT_CATEGORIES } from "@/lib/domains";
+import { ArrowLeftIcon } from "@/components/icons/Icons";
 
 export default function DomainPage({
   params,
@@ -54,9 +55,7 @@ export default function DomainPage({
           href="/"
           className="p-2 rounded-lg border border-card-border hover:bg-card-hover transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-          </svg>
+          <ArrowLeftIcon className="w-4 h-4" />
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-foreground">

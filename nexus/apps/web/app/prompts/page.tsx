@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
+import Modal from "@/components/Modal";
+import { SearchIcon } from "@/components/icons/Icons";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { MOCK_PROMPTS, MOCK_VERSIONS } from "@/lib/mock-data";
 import { formatDateTime } from "@/lib/format";
@@ -192,9 +194,7 @@ export default function PromptsPage() {
       {/* Search (5.7) */}
       <div className="mb-4">
         <div className="relative max-w-sm">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" />
-          </svg>
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
           <input
             type="text"
             placeholder="Search prompts by name or content..."
@@ -405,34 +405,22 @@ export default function PromptsPage() {
         </div>
       )}
 
-      {/* Test result modal */}
-      {testResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="rounded-xl border border-card-border bg-card-bg p-6 max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-foreground">
-                Assembled Prompt Preview
-              </h3>
-              <button
-                onClick={() => setTestResult(null)}
-                className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-card-hover transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="overflow-y-auto flex-1">
-              <pre className="text-sm text-muted whitespace-pre-wrap font-mono leading-relaxed bg-[#111] rounded-lg p-4 border border-card-border">
-                {testResult}
-              </pre>
-            </div>
-            <p className="text-xs text-muted mt-3">
-              This shows how the prompt layers combine for a sample product run.
-            </p>
-          </div>
+      {/* Test result modal (4.2: uses shared Modal component) */}
+      <Modal
+        isOpen={!!testResult}
+        onClose={() => setTestResult(null)}
+        title="Assembled Prompt Preview"
+        maxWidth="2xl"
+      >
+        <div className="overflow-y-auto max-h-[60vh]">
+          <pre className="text-sm text-muted whitespace-pre-wrap font-mono leading-relaxed bg-[#111] rounded-lg p-4 border border-card-border">
+            {testResult}
+          </pre>
         </div>
-      )}
+        <p className="text-xs text-muted mt-3">
+          This shows how the prompt layers combine for a sample product run.
+        </p>
+      </Modal>
     </div>
   );
 }

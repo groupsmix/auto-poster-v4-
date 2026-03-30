@@ -3,6 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import ReviewScreen from "@/components/ReviewScreen";
+import { ArrowLeftIcon } from "@/components/icons/Icons";
 
 export default function ReviewPage({
   params,
@@ -28,19 +29,7 @@ export default function ReviewPage({
           href="/review"
           className="p-2 rounded-lg border border-card-border hover:bg-card-hover transition-colors"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
-            />
-          </svg>
+          <ArrowLeftIcon className="w-4 h-4" />
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-foreground">CEO Review</h1>
