@@ -28,7 +28,7 @@ AI_GATEWAY_ID=nexus-gateway
 # Research APIs
 TAVILY_API_KEY=
 EXA_API_KEY=
-SERPAPI_API_KEY=
+SERPAPI_KEY=
 DATAFORSEO_KEY=
 
 # Text AI — Free Tier Providers

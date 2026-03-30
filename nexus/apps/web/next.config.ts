@@ -1,7 +1,5 @@
 import type { NextConfig } from "next";
-import { readFileSync } from "fs";
-
-const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf-8"));
+import pkg from "./package.json" with { type: "json" };
 
 const nextConfig: NextConfig = {
   env: {
