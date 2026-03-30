@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
-import MockDataBanner from "@/components/MockDataBanner";
 import Modal from "@/components/Modal";
 import { useApiQuery } from "@/lib/useApiQuery";
-import { MOCK_API_KEYS } from "@/lib/mock-data";
 import { toast } from "sonner";
 import type { APIKeyEntry, SettingsMap } from "@/lib/api";
 
@@ -112,14 +110,14 @@ function ToggleSwitch({
 }
 
 export default function SettingsClient() {
-  const { data: fetchedKeys, loading, isUsingMock } = useApiQuery(
+  const { data: fetchedKeys, loading } = useApiQuery(
     () => api.apiKeys.list(),
-    MOCK_API_KEYS,
+    [],
   );
 
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
   const savedSettingsRef = useRef<SettingsState>(DEFAULT_SETTINGS);
-  const [apiKeys, setApiKeys] = useState<APIKeyEntry[]>(MOCK_API_KEYS);
+  const [apiKeys, setApiKeys] = useState<APIKeyEntry[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [addKeyModal, setAddKeyModal] = useState<string | null>(null);
@@ -256,8 +254,6 @@ export default function SettingsClient() {
           {saving ? "Saving..." : saved ? "Saved" : "Save Settings"}
         </button>
       </div>
-
-      {isUsingMock && <MockDataBanner />}
 
       <div className="space-y-6">
         {/* Auth & System Status Banner (7.6) */}

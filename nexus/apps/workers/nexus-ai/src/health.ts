@@ -25,6 +25,45 @@ export interface ModelHealthData {
 /** In-memory health store — keyed by model ID */
 const healthStore: Map<string, ModelHealthData> = new Map();
 
+/** Whether we have attempted to hydrate from D1 this worker instance */
+let healthStoreHydrated = false;
+
+/** Hydrate health store from D1 ai_models table on first access */
+async function hydrateHealthStore(env: Env): Promise<void> {
+  if (healthStoreHydrated) return;
+  healthStoreHydrated = true;
+
+  try {
+    const result = await env.DB.prepare(
+      `SELECT id, name, total_calls, total_failures, avg_latency_ms, health_score
+       FROM ai_models`
+    ).all<{
+      id: string;
+      name: string;
+      total_calls: number;
+      total_failures: number;
+      avg_latency_ms: number;
+      health_score: number;
+    }>();
+
+    if (result.results) {
+      for (const row of result.results) {
+        healthStore.set(row.id, {
+          modelId: row.id,
+          modelName: row.name,
+          totalCalls: row.total_calls,
+          totalFailures: row.total_failures,
+          avgLatencyMs: row.avg_latency_ms,
+          healthScore: row.health_score,
+        });
+      }
+    }
+  } catch {
+    // D1 may not be available — start fresh
+    console.log("[HEALTH] Could not hydrate health store from D1");
+  }
+}
+
 // ============================================================
 // UPDATE HEALTH SCORE — called after every AI call
 // ============================================================
@@ -37,6 +76,9 @@ export async function updateHealthScore(
   env: Env,
   errorMessage?: string
 ): Promise<void> {
+  // Hydrate from D1 on first call this worker instance
+  await hydrateHealthStore(env);
+
   // Get or create health data
   let health = healthStore.get(modelId);
   if (!health) {
@@ -118,7 +160,8 @@ export async function updateHealthScore(
 // GET HEALTH REPORT — returns all models with their health stats
 // ============================================================
 
-export function getHealthReport(): ModelHealthData[] {
+export async function getHealthReport(env: Env): Promise<ModelHealthData[]> {
+  await hydrateHealthStore(env);
   return Array.from(healthStore.values()).sort(
     (a, b) => b.healthScore - a.healthScore
   );

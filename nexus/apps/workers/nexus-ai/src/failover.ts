@@ -23,14 +23,48 @@ interface ModelRuntimeState {
 /** In-memory runtime state for models — keyed by model ID */
 const modelState: Map<string, ModelRuntimeState> = new Map();
 
-/** Get or create runtime state for a model */
-function getModelState(modelId: string): ModelRuntimeState {
+/** KV key prefix for persisted model state */
+const KV_MODEL_STATE_PREFIX = "model-state:";
+
+/** TTL for persisted model state in KV (2 hours) */
+const KV_MODEL_STATE_TTL = 7200;
+
+/** Get or create runtime state for a model, hydrating from KV if needed */
+async function getModelState(modelId: string, env: Env): Promise<ModelRuntimeState> {
   let state = modelState.get(modelId);
   if (!state) {
+    // Try to hydrate from KV (survives worker restarts)
+    try {
+      const persisted = await env.KV.get<ModelRuntimeState>(
+        `${KV_MODEL_STATE_PREFIX}${modelId}`,
+        "json"
+      );
+      if (persisted) {
+        state = persisted;
+        modelState.set(modelId, state);
+        return state;
+      }
+    } catch {
+      // KV read failed — fall through to default
+    }
     state = { status: "active" };
     modelState.set(modelId, state);
   }
   return state;
+}
+
+/** Persist model state to KV so it survives worker restarts */
+async function persistModelState(modelId: string, state: ModelRuntimeState, env: Env): Promise<void> {
+  try {
+    await env.KV.put(
+      `${KV_MODEL_STATE_PREFIX}${modelId}`,
+      JSON.stringify(state),
+      { expirationTtl: KV_MODEL_STATE_TTL }
+    );
+  } catch {
+    // Best-effort persistence — don't break the request
+    console.log(`[FAILOVER] Could not persist state for ${modelId}`);
+  }
 }
 
 // ============================================================
@@ -62,7 +96,7 @@ export async function runWithFailover(
 
   // ── Step 3: Loop through models in order ───────────────────
   for (const model of models) {
-    const state = getModelState(model.id);
+    const state = await getModelState(model.id, env);
 
     // (a) Check API key (Workers AI doesn't need one)
     if (!model.isWorkersAI) {
@@ -142,6 +176,7 @@ export async function runWithFailover(
         // Rate limited — sleep for 1 hour
         state.status = "rate_limited";
         state.rateLimitResetAt = Date.now() + RATE_LIMIT_SLEEP_MS;
+        await persistModelState(model.id, state, env);
         console.log(`[LIMIT] ${model.name} -> sleep 1hr`);
       } else if (
         error.status === 402 ||
@@ -150,6 +185,7 @@ export async function runWithFailover(
         // Quota exceeded — sleep until midnight
         state.status = "sleeping";
         state.dailyLimitResetAt = getMidnightTimestamp();
+        await persistModelState(model.id, state, env);
         console.log(`[QUOTA] ${model.name} -> sleep until midnight`);
       } else {
         console.log(`[ERR] ${model.name}: ${errorMsg}`);

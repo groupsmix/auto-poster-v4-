@@ -35,7 +35,7 @@ service = "nexus-storage"
 # Active now (free/cheap):
 #   wrangler secret put TAVILY_API_KEY
 #   wrangler secret put EXA_API_KEY
-#   wrangler secret put SERPAPI_KEY
+#   wrangler secret put SERPAPI_API_KEY
 #   wrangler secret put DEEPSEEK_API_KEY
 #   wrangler secret put DASHSCOPE_API_KEY
 #   wrangler secret put SILICONFLOW_API_KEY

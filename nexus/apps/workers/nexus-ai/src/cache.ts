@@ -22,7 +22,39 @@ interface CacheStats {
   writes: number;
 }
 
-const stats: CacheStats = { hits: 0, misses: 0, writes: 0 };
+let stats: CacheStats = { hits: 0, misses: 0, writes: 0 };
+
+/** KV key for persisted cache stats */
+const KV_CACHE_STATS_KEY = "cache-stats:counters";
+
+/** Whether we have attempted to hydrate stats from KV this worker instance */
+let statsHydrated = false;
+
+/** Hydrate cache stats from KV on first access */
+async function hydrateStats(env: Env): Promise<void> {
+  if (statsHydrated) return;
+  statsHydrated = true;
+
+  try {
+    const persisted = await env.KV.get<CacheStats>(KV_CACHE_STATS_KEY, "json");
+    if (persisted) {
+      stats = persisted;
+    }
+  } catch {
+    // KV read failed — start fresh
+  }
+}
+
+/** Persist cache stats to KV (best-effort, short TTL) */
+async function persistStats(env: Env): Promise<void> {
+  try {
+    await env.KV.put(KV_CACHE_STATS_KEY, JSON.stringify(stats), {
+      expirationTtl: 86400, // 24 hours
+    });
+  } catch {
+    // Best-effort — don't break the request
+  }
+}
 
 // ============================================================
 // CHECK CACHE — returns cached response or null
@@ -34,6 +66,9 @@ export async function checkCache(
   env: Env
 ): Promise<CacheEntry | null> {
   // Don't even check cache for types with TTL = 0
+  // Hydrate stats from KV on first call this worker instance
+  await hydrateStats(env);
+
   const ttl = getCacheTTL(taskType);
   if (ttl === 0) {
     stats.misses++;
@@ -45,6 +80,7 @@ export async function checkCache(
 
   if (cached) {
     stats.hits++;
+    await persistStats(env);
     console.log(
       `[CACHE HIT] ${taskType} -- saved tokens (model: ${cached.model_used})`
     );
@@ -83,6 +119,7 @@ export async function writeCache(
   });
 
   stats.writes++;
+  await persistStats(env);
   console.log(`[CACHE WRITE] ${taskType} -- TTL ${ttl}s (key: ${key.slice(0, 20)}...)`);
 }
 
@@ -90,7 +127,8 @@ export async function writeCache(
 // CACHE STATS — for /ai/cache/stats endpoint
 // ============================================================
 
-export function getCacheStats(): CacheStats & { hitRate: string } {
+export async function getCacheStats(env: Env): Promise<CacheStats & { hitRate: string }> {
+  await hydrateStats(env);
   const total = stats.hits + stats.misses;
   const hitRate = total > 0 ? ((stats.hits / total) * 100).toFixed(1) + "%" : "0%";
   return { ...stats, hitRate };

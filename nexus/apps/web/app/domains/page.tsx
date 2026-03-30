@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
-import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { toast } from "sonner";
 import type { Domain, Category } from "@/lib/api";
-import { MOCK_DOMAINS, MOCK_CATEGORIES } from "@/lib/mock-data";
 
 /*
  * Emoji icons (3.7): Acceptable for V1 with the fallback "📁" for missing icons.
@@ -15,12 +13,12 @@ import { MOCK_DOMAINS, MOCK_CATEGORIES } from "@/lib/mock-data";
  */
 
 export default function DomainsPage() {
-  const { data: fetchedDomains, loading, isUsingMock, refetch: fetchDomains } = useApiQuery(
+  const { data: fetchedDomains, loading, refetch: fetchDomains } = useApiQuery(
     () => api.domains.list(),
-    MOCK_DOMAINS,
+    [],
   );
 
-  const [domains, setDomains] = useState<Domain[]>(MOCK_DOMAINS);
+  const [domains, setDomains] = useState<Domain[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
   const [loadingCategories, setLoadingCategories] = useState(false);
@@ -61,11 +59,11 @@ export default function DomainsPage() {
       if (response.success && response.data) {
         setCategories(response.data);
       } else {
-        setCategories(MOCK_CATEGORIES[domainId] ?? []);
+        setCategories([]);
       }
     } catch {
       toast.error("Failed to load categories");
-      setCategories(MOCK_CATEGORIES[domainId] ?? []);
+      setCategories([]);
     } finally {
       setLoadingCategories(false);
     }
@@ -347,8 +345,6 @@ export default function DomainsPage() {
           Manage product domains and their categories &middot; {domains.length} domain{domains.length !== 1 ? "s" : ""}
         </p>
       </div>
-
-      {isUsingMock && <MockDataBanner />}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left panel: Domains */}

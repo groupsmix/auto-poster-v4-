@@ -3,8 +3,6 @@
 import { useState, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
-import MockDataBanner from "@/components/MockDataBanner";
-import { MOCK_ASSETS } from "@/lib/mock-data";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import type { Asset } from "@/lib/api";
@@ -53,9 +51,9 @@ function AssetTypeIcon({ type }: { type: string }) {
 }
 
 export default function ContentPage() {
-  const { data: assets, loading, isUsingMock } = useApiQuery(
+  const { data: assets, loading } = useApiQuery(
     () => api.assets.list(),
-    MOCK_ASSETS,
+    [],
   );
   const [localAssets, setLocalAssets] = useState<Asset[] | null>(null);
   const [filterProduct, setFilterProduct] = useState("");
@@ -102,8 +100,6 @@ export default function ContentPage() {
           All generated assets (images, PDFs, audio, mockups)
         </p>
       </div>
-
-      {isUsingMock && <MockDataBanner />}
 
       {/* Filters */}
       <div className="rounded-xl border border-card-border bg-card-bg p-4 mb-6">

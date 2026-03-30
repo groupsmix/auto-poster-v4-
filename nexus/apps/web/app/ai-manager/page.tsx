@@ -2,13 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
-import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
 import StatusBadge from "@/components/StatusBadge";
 import { ExternalLinkIcon, CloudIcon, WarningIcon, Bars3Icon } from "@/components/icons/Icons";
 import { toast } from "sonner";
 import type { AIModel } from "@/lib/api";
-import { MOCK_MODELS } from "@/lib/mock-data";
 
 // Task type labels for grouping
 const TASK_TYPES = [
@@ -63,9 +61,9 @@ function formatNumber(n: number): string {
 }
 
 export default function AIManagerPage() {
-  const { data: fetchedModels, loading, isUsingMock } = useApiQuery(
+  const { data: fetchedModels, loading } = useApiQuery(
     () => api.aiModels.list(),
-    MOCK_MODELS,
+    [],
   );
 
   const [models, setModels] = useState<AIModel[]>([]);
@@ -221,8 +219,6 @@ export default function AIManagerPage() {
           AI Gateway Dashboard
         </a>
       </div>
-
-      {isUsingMock && <MockDataBanner />}
 
       {/* Workers AI summary card */}
       <div className="mb-6 rounded-xl border border-green-500/20 bg-green-500/5 p-4">

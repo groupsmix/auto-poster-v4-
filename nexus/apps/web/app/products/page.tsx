@@ -3,11 +3,9 @@
 import { useState, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
-import MockDataBanner from "@/components/MockDataBanner";
 import Modal from "@/components/Modal";
 import ProductTable from "@/components/ProductTable";
 import { SearchIcon } from "@/components/icons/Icons";
-import { MOCK_PRODUCTS } from "@/lib/mock-data";
 import { formatDate as sharedFormatDate } from "@/lib/format";
 import { toast } from "sonner";
 import type { Product } from "@/lib/api";
@@ -25,9 +23,9 @@ const STATUS_OPTIONS = [
 ];
 
 export default function ProductsPage() {
-  const { data: products, loading, isUsingMock } = useApiQuery(
+  const { data: products, loading } = useApiQuery(
     () => api.products.list(),
-    MOCK_PRODUCTS,
+    [],
   );
   const [localProducts, setLocalProducts] = useState<Product[] | null>(null);
   const [filterDomain, setFilterDomain] = useState("");
@@ -195,8 +193,6 @@ export default function ProductsPage() {
           All products with status and filtering
         </p>
       </div>
-
-      {isUsingMock && <MockDataBanner />}
 
       {/* Filters */}
       <div className="rounded-xl border border-card-border bg-card-bg p-4 mb-6">

@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
-import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
-import { MOCK_PUBLISHABLE } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { useReviewCounts } from "@/lib/ReviewCountContext";
 import type { PublishableProduct } from "@/lib/api";
@@ -17,9 +15,9 @@ interface ProductPublishState {
 }
 
 export default function PublishPage() {
-  const { data: products, loading, isUsingMock } = useApiQuery(
+  const { data: products, loading } = useApiQuery(
     () => api.publishing.ready(),
-    MOCK_PUBLISHABLE,
+    [],
   );
   const { refetch: refreshCounts } = useReviewCounts();
 
@@ -226,7 +224,6 @@ export default function PublishPage() {
         </div>
       </div>
 
-      {isUsingMock && <MockDataBanner />}
 
       {loading ? (
         <div className="space-y-4">
