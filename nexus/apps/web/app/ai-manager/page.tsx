@@ -167,7 +167,7 @@ export default function AIManagerPage() {
     try {
       await api.aiModels.addKey(modelId, keyInput.value.trim());
     } catch {
-      // best-effort
+      toast.error("Failed to add API key");
     }
     setModels((prev) =>
       prev.map((m) =>
@@ -182,7 +182,7 @@ export default function AIManagerPage() {
     try {
       await api.aiModels.removeKey(modelId);
     } catch {
-      // best-effort
+      toast.error("Failed to remove API key");
     }
     setModels((prev) =>
       prev.map((m) =>
@@ -228,7 +228,7 @@ export default function AIManagerPage() {
     try {
       await api.aiModels.reorder(taskType, updatedModels.map((m) => m.id));
     } catch {
-      // best-effort
+      toast.error("Failed to save model order");
     }
 
     dragItemRef.current = null;

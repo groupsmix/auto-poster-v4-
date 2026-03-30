@@ -19,8 +19,8 @@ export default function WorkflowPage({
     <div>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted mb-6">
-        <Link href="/" className="hover:text-foreground transition-colors">
-          Home
+        <Link href="/products" className="hover:text-foreground transition-colors">
+          Products
         </Link>
         <span>/</span>
         <span className="text-foreground">Workflow Progress</span>
@@ -29,7 +29,7 @@ export default function WorkflowPage({
       {/* Back button + Title */}
       <div className="flex items-center gap-3 mb-8">
         <Link
-          href="/"
+          href="/products"
           className="p-2 rounded-lg border border-card-border hover:bg-card-hover transition-colors"
         >
           <svg

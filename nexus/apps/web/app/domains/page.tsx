@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
+import { toast } from "sonner";
 import type { Domain, Category } from "@/lib/api";
 
 // Mock data matching the architecture doc (Part 3)
@@ -88,6 +89,7 @@ export default function DomainsPage() {
         setCategories(MOCK_CATEGORIES[domainId] ?? []);
       }
     } catch {
+      toast.error("Failed to load categories");
       setCategories(MOCK_CATEGORIES[domainId] ?? []);
     } finally {
       setLoadingCategories(false);
@@ -116,6 +118,7 @@ export default function DomainsPage() {
     try {
       await api.domains.update(domain.id, { is_active: !domain.is_active });
     } catch {
+      toast.error("Failed to toggle domain status");
       setDomains((prev) => prev.map((d) => (d.id === domain.id ? domain : d)));
       if (selectedDomain?.id === domain.id) setSelectedDomain(domain);
     }
@@ -130,7 +133,7 @@ export default function DomainsPage() {
     try {
       await api.domains.update(editingDomainId, editDomainData);
     } catch {
-      // keep optimistic update
+      toast.error("Failed to save domain");
     } finally {
       setSaving(false);
       setEditingDomainId(null);
@@ -158,6 +161,7 @@ export default function DomainsPage() {
         setDomains((prev) => [...prev, mock]);
       }
     } catch {
+      toast.error("Failed to add domain");
       const mock: Domain = {
         id: `dom-${Date.now()}`,
         name: newDomain.name,
@@ -187,6 +191,7 @@ export default function DomainsPage() {
     try {
       await api.domains.delete(id);
     } catch {
+      toast.error("Failed to delete domain");
       fetchDomains();
     }
   };
@@ -200,6 +205,7 @@ export default function DomainsPage() {
         await api.categories.update(selectedDomain.id, category.id, { is_active: !category.is_active });
       }
     } catch {
+      toast.error("Failed to toggle category status");
       setCategories((prev) => prev.map((c) => (c.id === category.id ? category : c)));
     }
   };
@@ -212,7 +218,7 @@ export default function DomainsPage() {
     try {
       await api.categories.update(selectedDomain.id, editingCategoryId, editCategoryData);
     } catch {
-      // keep optimistic update
+      toast.error("Failed to save category");
     } finally {
       setSaving(false);
       setEditingCategoryId(null);
@@ -239,6 +245,7 @@ export default function DomainsPage() {
         setCategories((prev) => [...prev, mock]);
       }
     } catch {
+      toast.error("Failed to add category");
       const mock: Category = {
         id: `cat-${Date.now()}`,
         domain_id: selectedDomain.id,
@@ -264,6 +271,7 @@ export default function DomainsPage() {
         await api.categories.delete(selectedDomain.id, id);
       }
     } catch {
+      toast.error("Failed to delete category");
       if (selectedDomain) fetchCategories(selectedDomain.id);
     }
   };
@@ -293,7 +301,7 @@ export default function DomainsPage() {
     try {
       await api.domains.reorder(reordered.map((d) => d.id));
     } catch {
-      // keep local order
+      toast.error("Failed to save domain order");
     }
   };
 
@@ -322,7 +330,7 @@ export default function DomainsPage() {
     try {
       await api.categories.reorder(selectedDomain.id, reordered.map((c) => c.id));
     } catch {
-      // keep local order
+      toast.error("Failed to save category order");
     }
   };
 

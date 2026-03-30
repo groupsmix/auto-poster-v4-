@@ -15,8 +15,8 @@ export default function ReviewPage({
     <div>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted mb-6">
-        <Link href="/" className="hover:text-foreground transition-colors">
-          Home
+        <Link href="/review" className="hover:text-foreground transition-colors">
+          Review
         </Link>
         <span>/</span>
         <span className="text-foreground">CEO Review</span>
@@ -25,7 +25,7 @@ export default function ReviewPage({
       {/* Back button + Title */}
       <div className="flex items-center gap-3 mb-8">
         <Link
-          href="/"
+          href="/review"
           className="p-2 rounded-lg border border-card-border hover:bg-card-hover transition-colors"
         >
           <svg

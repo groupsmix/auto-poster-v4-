@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { MOCK_API_KEYS } from "@/lib/mock-data";
+import { toast } from "sonner";
 import type { APIKeyEntry } from "@/lib/api";
 
 
@@ -100,6 +101,12 @@ export default function SettingsClient() {
 
   const isDirty = JSON.stringify(settings) !== JSON.stringify(savedSettingsRef.current);
 
+  // 6.6: Hydration-safe auth token check — avoids SSR/client mismatch
+  const [hasToken, setHasToken] = useState(false);
+  useEffect(() => {
+    setHasToken(!!localStorage.getItem("nexus_token"));
+  }, []);
+
   // Sync hook data into local mutable state
   useEffect(() => {
     setApiKeys(fetchedKeys);
@@ -120,7 +127,7 @@ export default function SettingsClient() {
         setSettings(merged);
         savedSettingsRef.current = merged;
       }
-    }).catch(() => { /* keep defaults */ });
+    }).catch(() => { toast.error("Failed to load settings — using defaults"); });
   }, []);
 
   const handleSave = async () => {
@@ -129,7 +136,7 @@ export default function SettingsClient() {
     try {
       await api.settings.bulkUpdate({ ...settings });
     } catch {
-      // best-effort
+      toast.error("Failed to save settings");
     } finally {
       savedSettingsRef.current = { ...settings };
       setSaving(false);
@@ -149,7 +156,7 @@ export default function SettingsClient() {
         )
       );
     } catch {
-      // best-effort
+      toast.error("Failed to save API key");
       setApiKeys((prev) =>
         prev.map((k) =>
           k.key_name === addKeyModal ? { ...k, status: "active" as const } : k
@@ -166,7 +173,7 @@ export default function SettingsClient() {
     try {
       await api.apiKeys.remove(keyName);
     } catch {
-      // best-effort
+      toast.error("Failed to remove API key");
     }
     setApiKeys((prev) =>
       prev.map((k) =>
@@ -238,18 +245,18 @@ export default function SettingsClient() {
               <div className="flex items-center gap-2">
                 <span
                   className={`inline-block w-2 h-2 rounded-full ${
-                    typeof window !== "undefined" && localStorage.getItem("nexus_token")
+                    hasToken
                       ? "bg-success"
                       : "bg-warning"
                   }`}
                 />
                 <p className="text-sm font-medium text-foreground">
-                  {typeof window !== "undefined" && localStorage.getItem("nexus_token")
+                  {hasToken
                     ? "Configured"
                     : "Not Configured"}
                 </p>
               </div>
-              {typeof window !== "undefined" && !localStorage.getItem("nexus_token") && (
+              {!hasToken && (
                 <p className="text-xs text-warning mt-2">
                   Set DASHBOARD_SECRET in your Worker and add token in browser to secure API access.
                 </p>

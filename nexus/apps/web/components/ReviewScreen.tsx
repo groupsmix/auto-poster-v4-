@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import AIStatusBadge from "./AIStatusBadge";
 import AIHealthBar from "./AIHealthBar";
 import CacheIndicator from "./CacheIndicator";
@@ -141,9 +142,10 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
     setSubmitting(true);
     try {
       await api.post(`/reviews/${productId}/approve`, {});
+      toast.success("Product approved — sending to publish");
       router.push("/publish");
     } catch {
-      router.push("/publish");
+      toast.error("Failed to approve — please try again");
     } finally {
       setSubmitting(false);
     }
@@ -154,9 +156,10 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
     setSubmitting(true);
     try {
       await api.post(`/reviews/${productId}/reject`, { feedback });
+      toast.success("Rejected — sending back to AI with feedback");
       router.push(`/workflow/${productId}`);
     } catch {
-      router.push(`/workflow/${productId}`);
+      toast.error("Failed to reject — please try again");
     } finally {
       setSubmitting(false);
     }

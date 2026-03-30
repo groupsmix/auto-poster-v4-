@@ -70,6 +70,7 @@ export default function PlatformsClient() {
         setPlatforms((prev) => prev.map((p) => (p.id === editingId ? editData : p)));
       }
     } catch {
+      toast.error("Failed to save platform changes");
       setPlatforms((prev) => prev.map((p) => (p.id === editingId ? editData : p)));
     } finally {
       setSaving(false);
@@ -84,6 +85,7 @@ export default function PlatformsClient() {
     try {
       await api.platforms.update(platform.id, { is_active: !platform.is_active });
     } catch {
+      toast.error("Failed to toggle platform status");
       setPlatforms((prev) => prev.map((p) => (p.id === platform.id ? platform : p)));
     }
   };
@@ -104,6 +106,7 @@ export default function PlatformsClient() {
         setPlatforms((prev) => [...prev, { id: mockId, ...dataToSend }]);
       }
     } catch {
+      toast.error("Failed to add platform");
       const mockId = `plat-${Date.now()}`;
       setPlatforms((prev) => [...prev, { id: mockId, ...dataToSend }]);
     } finally {
@@ -119,6 +122,7 @@ export default function PlatformsClient() {
     try {
       await api.platforms.delete(id);
     } catch {
+      toast.error("Failed to delete platform");
       fetchPlatforms();
     }
   };

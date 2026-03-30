@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import AIStatusBadge from "./AIStatusBadge";
 
 export interface WorkflowStep {
@@ -115,7 +116,7 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
       await api.post(`/workflow/${workflowId}/cancel`, {});
       setWorkflow((prev) => ({ ...prev, status: "cancelled" }));
     } catch {
-      // Ignore cancel errors
+      toast.error("Failed to cancel workflow");
     } finally {
       setCancelling(false);
     }

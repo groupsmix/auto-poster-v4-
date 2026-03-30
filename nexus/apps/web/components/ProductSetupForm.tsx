@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import PlatformSelector from "./PlatformSelector";
 import SocialChannelSelector from "./SocialChannelSelector";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 interface ProductSetupFormProps {
   domainSlug: string;
@@ -125,6 +126,7 @@ export default function ProductSetupForm({
         router.push(`/workflow/wf-${Date.now()}`);
       }
     } catch {
+      toast.error("Failed to start workflow");
       router.push(`/workflow/wf-${Date.now()}`);
     } finally {
       setSubmitting(false);
@@ -138,6 +140,7 @@ export default function ProductSetupForm({
       await api.post("/products", { ...payload, status: "draft" });
       router.push("/products");
     } catch {
+      toast.error("Failed to save draft");
       router.push("/products");
     } finally {
       setSubmitting(false);
