@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
@@ -48,7 +48,7 @@ export default function SocialClient() {
     MOCK_CHANNELS,
   );
 
-  const [channels, setChannels] = useState<SocialChannelFull[]>(MOCK_CHANNELS);
+  const [localEdits, setLocalEdits] = useState<SocialChannelFull[] | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<SocialChannelFull | null>(null);
   const [saving, setSaving] = useState(false);
@@ -57,8 +57,13 @@ export default function SocialClient() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [postingMode, setPostingMode] = useState<"auto" | "manual">("manual");
 
-  useEffect(() => {
-    setChannels(fetchedChannels);
+  // Derive channels from fetched data with local overrides to avoid mock data flash (6.4)
+  const channels = useMemo(() => localEdits ?? fetchedChannels, [localEdits, fetchedChannels]);
+  const setChannels = useCallback((updater: SocialChannelFull[] | ((prev: SocialChannelFull[]) => SocialChannelFull[])) => {
+    setLocalEdits((prev) => {
+      const current = prev ?? fetchedChannels;
+      return typeof updater === "function" ? updater(current) : updater;
+    });
   }, [fetchedChannels]);
 
   // Fetch posting mode setting on mount

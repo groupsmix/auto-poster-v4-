@@ -182,9 +182,9 @@ export const api = {
 
   // Product endpoints
   products: {
-    list: (params?: Record<string, string>) => {
+    list: (params?: ProductListParams) => {
       const query = params
-        ? "?" + new URLSearchParams(params).toString()
+        ? "?" + new URLSearchParams(params as Record<string, string>).toString()
         : "";
       return request<Product[]>(`/products${query}`);
     },
@@ -263,8 +263,8 @@ export const api = {
     getAll: () => request<SettingsMap>("/settings"),
     update: (key: string, value: string) =>
       request<void>(`/settings/${key}`, { method: "PUT", body: { value } }),
-    bulkUpdate: (settings: Record<string, string>) =>
-      request<void>("/settings", { method: "PUT", body: settings }),
+      bulkUpdate: (settings: Partial<SettingsMap>) =>
+        request<void>("/settings", { method: "PUT", body: settings }),
   },
 
   // Analytics endpoints (V4)
@@ -282,9 +282,9 @@ export const api = {
 
   // History endpoints
   history: {
-    listRuns: (params?: Record<string, string>) => {
+    listRuns: (params?: RunListParams) => {
       const query = params
-        ? "?" + new URLSearchParams(params).toString()
+        ? "?" + new URLSearchParams(params as Record<string, string>).toString()
         : "";
       return request<WorkflowRun[]>(`/history/runs${query}`);
     },
@@ -456,6 +456,25 @@ interface AnalyticsDashboard {
   leaderboard: AILeaderboardEntry[];
 }
 
+/** Query parameters for product listing */
+interface ProductListParams {
+  status?: string;
+  domain_id?: string;
+  category_id?: string;
+  platform?: string;
+  batch_id?: string;
+  search?: string;
+  limit?: string;
+  offset?: string;
+}
+
+/** Query parameters for workflow run listing */
+interface RunListParams {
+  status?: string;
+  limit?: string;
+  offset?: string;
+}
+
 interface RevisionEntry {
   id: string;
   product_id: string;
@@ -468,9 +487,17 @@ interface RevisionEntry {
 }
 
 // Settings types
-interface SettingsMap {
-  [key: string]: string;
-}
+/** Settings stored as key-value pairs in D1 */
+type SettingsMap = Record<
+  | "social_posting_mode"
+  | "default_language"
+  | "ceo_review_required"
+  | "auto_publish_after_approval"
+  | "batch_max_products"
+  | "cache_enabled"
+  | "ai_gateway_enabled",
+  string
+>;
 
 // API Key management types
 interface APIKeyEntry {
@@ -510,4 +537,6 @@ export type {
   RevisionEntry,
   SettingsMap,
   APIKeyEntry,
+  ProductListParams,
+  RunListParams,
 };

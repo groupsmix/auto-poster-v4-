@@ -7,7 +7,7 @@ import Modal from "@/components/Modal";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { MOCK_API_KEYS } from "@/lib/mock-data";
 import { toast } from "sonner";
-import type { APIKeyEntry } from "@/lib/api";
+import type { APIKeyEntry, SettingsMap } from "@/lib/api";
 
 
 const LANGUAGES = [
@@ -48,13 +48,13 @@ const DEFAULT_SETTINGS: SettingsState = {
   ai_gateway_enabled: true,
 };
 
-function deserializeSettings(raw: Record<string, string>): SettingsState {
+function deserializeSettings(raw: Partial<SettingsMap>): SettingsState {
   return {
     social_posting_mode: (raw.social_posting_mode === "auto" ? "auto" : "manual") as "auto" | "manual",
     default_language: raw.default_language || "en",
     ceo_review_required: raw.ceo_review_required !== "false",
     auto_publish_after_approval: raw.auto_publish_after_approval === "true",
-    batch_max_products: parseInt(raw.batch_max_products, 10) || 10,
+    batch_max_products: parseInt(raw.batch_max_products ?? "10", 10) || 10,
     cache_enabled: raw.cache_enabled !== "false",
     ai_gateway_enabled: raw.ai_gateway_enabled !== "false",
   };
@@ -149,7 +149,7 @@ export default function SettingsClient() {
           Object.entries(data).filter(
             ([k]) => k in DEFAULT_SETTINGS
           )
-        ) as Record<string, string>;
+        ) as Partial<SettingsMap>;
         const merged = deserializeSettings({ ...serializeSettings(DEFAULT_SETTINGS), ...raw });
         setSettings(merged);
         savedSettingsRef.current = merged;

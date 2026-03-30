@@ -67,7 +67,7 @@ export default function ProductTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm min-w-[600px]">
+      <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-card-border text-left">
             {selectedIds && onToggleSelectAll && (
