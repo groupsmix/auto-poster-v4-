@@ -4,103 +4,9 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
+import { MOCK_PUBLISHABLE } from "@/lib/mock-data";
+import { toast } from "sonner";
 import type { PublishableProduct } from "@/lib/api";
-
-// Mock data for when API is not available
-const MOCK_PUBLISHABLE: PublishableProduct[] = [
-  {
-    id: "pub-001",
-    product_id: "prod-001",
-    product_name: "Freelancer CRM System — Notion Template",
-    domain_name: "Digital Products",
-    category_name: "Notion Templates",
-    ai_score: 8.4,
-    status: "approved",
-    posting_mode: "manual",
-    platform_variants: [
-      {
-        platform: "Etsy",
-        title: "Freelancer CRM Notion Template | Client Tracker & Invoice Manager",
-        description:
-          "Stay organized with this all-in-one Freelancer CRM Notion template. Track clients, manage invoices, and visualize your pipeline.",
-        tags: ["notion template", "freelancer", "crm", "client tracker"],
-        price: 19.99,
-        scores: { seo: 9, title: 8, tags: 8 },
-      },
-      {
-        platform: "Gumroad",
-        title: "The Ultimate Freelancer CRM — Notion Template Pack",
-        description:
-          "Everything you need to manage your freelance business. Client management, invoicing, project tracking, and dashboards.",
-        tags: ["notion", "freelance", "crm", "productivity"],
-        price: 24.99,
-        scores: { seo: 8, title: 9, tags: 7 },
-      },
-    ],
-    social_variants: [
-      {
-        channel: "Instagram",
-        caption:
-          "Stop losing clients in your DMs. This Freelancer CRM Notion template tracks everything.",
-        hashtags: ["freelancer", "notiontemplate", "crm", "productivity"],
-        post_type: "Carousel",
-      },
-      {
-        channel: "TikTok",
-        caption:
-          "POV: You finally organize your freelance business with ONE Notion template.",
-        hashtags: ["freelancertips", "notionsetup", "productivityhack"],
-        post_type: "Short Video",
-      },
-      {
-        channel: "X/Twitter",
-        caption:
-          "Built a Notion CRM template for freelancers.\n\nIt tracks:\n- Clients & leads\n- Invoices & payments\n- Projects & deadlines",
-        hashtags: ["notion", "freelance", "buildinpublic"],
-        post_type: "Thread",
-      },
-    ],
-  },
-  {
-    id: "pub-002",
-    product_id: "prod-006",
-    product_name: "Podcast Launch Blueprint",
-    domain_name: "Content & Media",
-    category_name: "Podcast Content",
-    ai_score: 8.9,
-    status: "approved",
-    posting_mode: "auto",
-    platform_variants: [
-      {
-        platform: "Gumroad",
-        title: "Podcast Launch Blueprint — Complete Starter Guide",
-        description:
-          "Launch your podcast with confidence. This blueprint covers equipment, hosting, editing, distribution, and growth strategies.",
-        tags: ["podcast", "content creation", "blueprint", "guide"],
-        price: 14.99,
-        scores: { seo: 8, title: 8, tags: 9 },
-      },
-      {
-        platform: "Payhip",
-        title: "The Podcast Launch Blueprint",
-        description:
-          "Everything you need to start and grow your podcast — from idea to first 1000 listeners.",
-        tags: ["podcast", "launch", "guide", "creator"],
-        price: 12.99,
-        scores: { seo: 7, title: 9, tags: 8 },
-      },
-    ],
-    social_variants: [
-      {
-        channel: "Instagram",
-        caption:
-          "Ready to launch your podcast? This blueprint covers everything from equipment to growth.",
-        hashtags: ["podcast", "contentcreator", "podcastlaunch"],
-        post_type: "Carousel",
-      },
-    ],
-  },
-];
 
 interface ProductPublishState {
   selectedPlatforms: Record<string, boolean>;
@@ -219,7 +125,7 @@ export default function PublishPage() {
         channels,
       });
     } catch {
-      // best-effort
+      toast.error("Failed to publish. Please try again.");
     } finally {
       setPublishStates((prev) => ({
         ...prev,
@@ -247,7 +153,7 @@ export default function PublishPage() {
         URL.revokeObjectURL(url);
       }
     } catch {
-      // best-effort
+      toast.error(`Failed to export ${format.toUpperCase()}. Please try again.`);
     } finally {
       setExporting(false);
     }

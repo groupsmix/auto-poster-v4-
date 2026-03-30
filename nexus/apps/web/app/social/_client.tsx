@@ -4,66 +4,9 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
+import { MOCK_CHANNELS } from "@/lib/mock-data";
+import { toast } from "sonner";
 import type { SocialChannelFull } from "@/lib/api";
-
-// Mock data matching the architecture doc (Part 8)
-const MOCK_CHANNELS: SocialChannelFull[] = [
-  {
-    id: "social-instagram",
-    name: "Instagram",
-    slug: "instagram",
-    caption_max_chars: 2200,
-    hashtag_count: 30,
-    tone: "Visual, aspirational, lifestyle-focused",
-    format: "Hook line -> value -> CTA -> hashtags",
-    content_types: ["single image", "carousel", "reel script"],
-    is_active: true,
-  },
-  {
-    id: "social-tiktok",
-    name: "TikTok",
-    slug: "tiktok",
-    caption_max_chars: 150,
-    hashtag_count: null,
-    tone: "Fast, punchy, entertaining, trend-aware",
-    format: "Strong hook (1-3 seconds) -> problem -> solution -> CTA",
-    content_types: ["video script", "hook + 3 points + CTA"],
-    is_active: true,
-  },
-  {
-    id: "social-pinterest",
-    name: "Pinterest",
-    slug: "pinterest",
-    caption_max_chars: 500,
-    hashtag_count: 20,
-    tone: "Inspirational, aspirational, search-optimized",
-    format: "Keyword-rich title -> benefit description -> link CTA",
-    content_types: ["pin description", "idea pin script"],
-    is_active: true,
-  },
-  {
-    id: "social-linkedin",
-    name: "LinkedIn",
-    slug: "linkedin",
-    caption_max_chars: 3000,
-    hashtag_count: 5,
-    tone: "Professional, thought-leadership, value-first",
-    format: "Bold hook -> insight -> personal take -> CTA",
-    content_types: ["text post", "document carousel", "article"],
-    is_active: true,
-  },
-  {
-    id: "social-x",
-    name: "X / Twitter",
-    slug: "x-twitter",
-    caption_max_chars: 280,
-    hashtag_count: 3,
-    tone: "Sharp, witty, conversational",
-    format: "Hot take or hook -> thread (if needed) -> CTA + link",
-    content_types: ["tweet", "thread"],
-    is_active: false,
-  },
-];
 
 const CONTENT_TYPE_OPTIONS = [
   "single image",
@@ -242,9 +185,8 @@ export default function SocialClient() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => {}}
+            onClick={() => toast.info("OAuth integration coming soon. For now, add channels manually using '+ Add New Channel'.")}
             className="px-4 py-2 rounded-lg border border-card-border text-sm text-muted hover:bg-card-hover transition-colors"
-            title="OAuth integration coming soon"
           >
             Connect Channel
           </button>

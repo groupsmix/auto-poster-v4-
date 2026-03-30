@@ -4,75 +4,10 @@ import { useState, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import MockDataBanner from "@/components/MockDataBanner";
+import { MOCK_ASSETS } from "@/lib/mock-data";
+import { formatDate } from "@/lib/format";
+import { toast } from "sonner";
 import type { Asset } from "@/lib/api";
-
-// Mock data for when API is not available
-const MOCK_ASSETS: Asset[] = [
-  {
-    id: "asset-001",
-    product_id: "prod-001",
-    product_name: "Freelancer CRM System — Notion Template",
-    asset_type: "image",
-    r2_key: "assets/prod-001/cover.png",
-    cf_image_id: "cf-img-001",
-    url: "https://placehold.co/800x600/1a1a2e/6366f1?text=CRM+Cover",
-    metadata: { width: 800, height: 600, format: "png" },
-    created_at: "2025-03-15T10:32:00Z",
-  },
-  {
-    id: "asset-002",
-    product_id: "prod-001",
-    product_name: "Freelancer CRM System — Notion Template",
-    asset_type: "image",
-    r2_key: "assets/prod-001/mockup.png",
-    cf_image_id: "cf-img-002",
-    url: "https://placehold.co/800x600/1a1a2e/22c55e?text=CRM+Mockup",
-    metadata: { width: 800, height: 600, format: "png" },
-    created_at: "2025-03-15T10:33:00Z",
-  },
-  {
-    id: "asset-003",
-    product_id: "prod-003",
-    product_name: "Ultimate SEO Checklist — PDF Guide",
-    asset_type: "pdf",
-    r2_key: "assets/prod-003/seo-checklist.pdf",
-    url: "https://placehold.co/400x560/1a1a2e/ef4444?text=SEO+PDF",
-    metadata: { pages: 12, size_mb: 2.4 },
-    created_at: "2025-03-10T08:05:00Z",
-  },
-  {
-    id: "asset-004",
-    product_id: "prod-006",
-    product_name: "Podcast Launch Blueprint",
-    asset_type: "audio",
-    r2_key: "assets/prod-006/intro.mp3",
-    url: "/audio/intro.mp3",
-    metadata: { duration_seconds: 45, format: "mp3", size_mb: 1.1 },
-    created_at: "2025-03-08T09:10:00Z",
-  },
-  {
-    id: "asset-005",
-    product_id: "prod-004",
-    product_name: "Minimalist Mountain T-Shirt Design",
-    asset_type: "mockup",
-    r2_key: "assets/prod-004/tshirt-mockup.png",
-    cf_image_id: "cf-img-005",
-    url: "https://placehold.co/800x800/1a1a2e/f59e0b?text=T-Shirt+Mockup",
-    metadata: { width: 800, height: 800, format: "png" },
-    created_at: "2025-03-12T14:05:00Z",
-  },
-  {
-    id: "asset-006",
-    product_id: "prod-002",
-    product_name: "Student Planner — Notion Template",
-    asset_type: "image",
-    r2_key: "assets/prod-002/cover.png",
-    cf_image_id: "cf-img-006",
-    url: "https://placehold.co/800x600/1a1a2e/818cf8?text=Planner+Cover",
-    metadata: { width: 800, height: 600, format: "png" },
-    created_at: "2025-03-15T10:37:00Z",
-  },
-];
 
 const ASSET_TYPE_OPTIONS = [
   { value: "", label: "All Types" },
@@ -133,8 +68,9 @@ export default function ContentPage() {
   const handleDelete = async (id: string) => {
     try {
       await api.assets.delete(id);
+      toast.success("Asset deleted");
     } catch {
-      // best-effort
+      toast.error("Failed to delete asset. Please try again.");
     }
     setLocalAssets((prev) => (prev ?? assets).filter((a) => a.id !== id));
     setDeleteConfirm(null);
@@ -153,14 +89,6 @@ export default function ContentPage() {
       return true;
     });
   }, [effectiveAssets, filterProduct, filterType]);
-
-  const formatDate = (d: string) => {
-    return new Date(d).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
 
   const getFileName = (key: string) => {
     return key.split("/").pop() ?? key;

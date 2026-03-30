@@ -4,86 +4,9 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
+import { MOCK_PLATFORMS } from "@/lib/mock-data";
+import { toast } from "sonner";
 import type { PlatformFull } from "@/lib/api";
-
-// Mock data matching the architecture doc (Part 7)
-const MOCK_PLATFORMS: PlatformFull[] = [
-  {
-    id: "plat-etsy",
-    name: "Etsy",
-    slug: "etsy",
-    title_max_chars: 140,
-    tag_count: 13,
-    tag_max_chars: 20,
-    audience: "Handmade lovers, gift shoppers, small business owners",
-    tone: "Warm, personal, gift-focused, emotional",
-    seo_style: "Long-tail, buyer-intent keywords",
-    description_style: "Story-driven, include: who it's for, what they get, how it helps",
-    cta_style: "Save for later, Perfect gift for...",
-    forbidden_words: "best, cheapest, guaranteed",
-    is_active: true,
-  },
-  {
-    id: "plat-gumroad",
-    name: "Gumroad",
-    slug: "gumroad",
-    title_max_chars: 100,
-    tag_count: 10,
-    tag_max_chars: null,
-    audience: "Creators, solopreneurs, freelancers",
-    tone: "Value-driven, outcome-focused, creator-to-creator",
-    seo_style: "Problem -> solution keywords",
-    description_style: "What you get + what problem it solves + who it's for",
-    cta_style: "Download instantly, Start using today",
-    forbidden_words: "",
-    is_active: true,
-  },
-  {
-    id: "plat-shopify",
-    name: "Shopify",
-    slug: "shopify",
-    title_max_chars: 70,
-    tag_count: null,
-    tag_max_chars: null,
-    audience: "Brand-conscious buyers, direct traffic",
-    tone: "Clean, brand-driven, professional",
-    seo_style: "Short-tail + brand keywords",
-    description_style: "Benefits-first, scannable bullets, trust signals",
-    cta_style: "",
-    forbidden_words: "",
-    is_active: true,
-  },
-  {
-    id: "plat-redbubble",
-    name: "Redbubble",
-    slug: "redbubble",
-    title_max_chars: 60,
-    tag_count: 15,
-    tag_max_chars: null,
-    audience: "Design lovers, pop culture fans, gift buyers",
-    tone: "Fun, creative, trend-driven",
-    seo_style: "",
-    description_style: "Design-first, playful, trendy language",
-    cta_style: "",
-    forbidden_words: "",
-    is_active: true,
-  },
-  {
-    id: "plat-amazon-kdp",
-    name: "Amazon KDP",
-    slug: "amazon-kdp",
-    title_max_chars: 200,
-    tag_count: null,
-    tag_max_chars: null,
-    audience: "Readers, learners, professional development seekers",
-    tone: "Authority-driven, educational, trustworthy",
-    seo_style: "",
-    description_style: "Book-style blurb, author authority, what reader will learn",
-    cta_style: "",
-    forbidden_words: "",
-    is_active: false,
-  },
-];
 
 const EMPTY_PLATFORM: Omit<PlatformFull, "id"> = {
   name: "",

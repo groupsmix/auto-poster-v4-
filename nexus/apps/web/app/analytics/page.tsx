@@ -3,87 +3,16 @@
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
-import type {
-  AnalyticsSummary,
-  AIUsageOverTime,
-  CostBreakdownItem,
-  CacheHitTrendItem,
-  DomainBreakdownItem,
-  CategoryBreakdownItem,
-  AILeaderboardEntry,
-} from "@/lib/api";
+import {
+  MOCK_SUMMARY,
+  MOCK_AI_USAGE,
+  MOCK_COST_BREAKDOWN,
+  MOCK_CACHE_TREND,
+  MOCK_BY_DOMAIN,
+  MOCK_BY_CATEGORY,
+  MOCK_LEADERBOARD,
+} from "@/lib/mock-data";
 import AnalyticsCharts from "@/components/AnalyticsCharts";
-
-// Mock data for when API is not available
-const MOCK_SUMMARY: AnalyticsSummary = {
-  total_products_all_time: 47,
-  total_products_this_month: 12,
-  total_ai_calls_all_time: 423,
-  total_ai_calls_this_month: 108,
-  cache_hit_rate: 34.2,
-  total_cost: 0.0,
-  avg_workflow_time_ms: 45200,
-  cost_savings: 12.85,
-};
-
-const MOCK_AI_USAGE: AIUsageOverTime[] = [
-  { date: "Mar 1", provider: "DeepSeek", tokens: 12400 },
-  { date: "Mar 1", provider: "Qwen", tokens: 8200 },
-  { date: "Mar 1", provider: "Workers AI", tokens: 3100 },
-  { date: "Mar 8", provider: "DeepSeek", tokens: 15600 },
-  { date: "Mar 8", provider: "Qwen", tokens: 6800 },
-  { date: "Mar 8", provider: "Workers AI", tokens: 4500 },
-  { date: "Mar 8", provider: "Groq", tokens: 2100 },
-  { date: "Mar 15", provider: "DeepSeek", tokens: 18200 },
-  { date: "Mar 15", provider: "Qwen", tokens: 9400 },
-  { date: "Mar 15", provider: "Workers AI", tokens: 5200 },
-  { date: "Mar 15", provider: "Groq", tokens: 3800 },
-  { date: "Mar 22", provider: "DeepSeek", tokens: 14100 },
-  { date: "Mar 22", provider: "Qwen", tokens: 7600 },
-  { date: "Mar 22", provider: "Workers AI", tokens: 6100 },
-];
-
-const MOCK_COST_BREAKDOWN: CostBreakdownItem[] = [
-  { provider: "DeepSeek", cost: 0.0 },
-  { provider: "Qwen", cost: 0.0 },
-  { provider: "Workers AI", cost: 0.0 },
-  { provider: "Groq", cost: 0.0 },
-];
-
-const MOCK_CACHE_TREND: CacheHitTrendItem[] = [
-  { date: "Mar 1", hit_rate: 18.5 },
-  { date: "Mar 5", hit_rate: 22.3 },
-  { date: "Mar 10", hit_rate: 28.7 },
-  { date: "Mar 15", hit_rate: 31.4 },
-  { date: "Mar 20", hit_rate: 34.2 },
-  { date: "Mar 25", hit_rate: 36.8 },
-];
-
-const MOCK_BY_DOMAIN: DomainBreakdownItem[] = [
-  { domain: "Digital Products", count: 18 },
-  { domain: "POD", count: 12 },
-  { domain: "Content & Media", count: 8 },
-  { domain: "Freelance", count: 5 },
-  { domain: "Affiliate", count: 4 },
-];
-
-const MOCK_BY_CATEGORY: CategoryBreakdownItem[] = [
-  { category: "Notion Templates", count: 10 },
-  { category: "T-Shirts & Apparel", count: 8 },
-  { category: "PDF Guides", count: 6 },
-  { category: "Podcast Content", count: 5 },
-  { category: "Prompt Libraries", count: 4 },
-  { category: "Planners", count: 3 },
-  { category: "Courses", count: 3 },
-];
-
-const MOCK_LEADERBOARD: AILeaderboardEntry[] = [
-  { id: "m1", name: "DeepSeek-R1", provider: "DeepSeek", health_score: 97, avg_latency_ms: 1240, total_calls: 189, total_failures: 3 },
-  { id: "m2", name: "Qwen-Plus", provider: "Qwen", health_score: 94, avg_latency_ms: 980, total_calls: 142, total_failures: 5 },
-  { id: "m3", name: "Llama 3.1 8B", provider: "Workers AI", health_score: 100, avg_latency_ms: 420, total_calls: 58, total_failures: 0 },
-  { id: "m4", name: "Mixtral 8x7B", provider: "Groq", health_score: 88, avg_latency_ms: 310, total_calls: 34, total_failures: 4 },
-  { id: "m5", name: "Gemma 2 9B", provider: "Fireworks", health_score: 82, avg_latency_ms: 1560, total_calls: 22, total_failures: 4 },
-];
 
 function SummaryCard({
   label,

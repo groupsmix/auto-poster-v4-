@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
 import { useApiQuery } from "@/lib/useApiQuery";
+import StatusBadge from "@/components/StatusBadge";
+import { toast } from "sonner";
 import type { AIModel } from "@/lib/api";
 
 // Task type labels for grouping
@@ -66,31 +68,6 @@ const MOCK_MODELS: AIModel[] = [
   { id: "ai-qwen-code", name: "Qwen 3.5 (Coder)", provider: "SiliconFlow", task_type: "code", rank: 2, api_key_secret_name: "SILICONFLOW_API_KEY", is_workers_ai: false, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 92, total_calls: 80, total_failures: 6, avg_latency_ms: 1900, notes: "Strong full-stack" },
   { id: "ai-workers-code", name: "Workers AI (Llama 3.1)", provider: "Cloudflare", task_type: "code", rank: 3, api_key_secret_name: null, is_workers_ai: true, status: "active", rate_limit_reset_at: null, daily_limit_reset_at: null, is_free_tier: true, health_score: 100, total_calls: 3, total_failures: 0, avg_latency_ms: 340, notes: "Simple code generation fallback" },
 ];
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    active: "bg-green-500/10 text-green-400",
-    sleeping: "bg-gray-500/10 text-gray-400",
-    rate_limited: "bg-yellow-500/10 text-yellow-400",
-    no_key: "bg-red-500/10 text-red-400",
-  };
-  const labels: Record<string, string> = {
-    active: "Active",
-    sleeping: "Sleeping",
-    rate_limited: "Rate Limited",
-    no_key: "No Key",
-  };
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${styles[status] ?? styles.sleeping}`}>
-      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-        status === "active" ? "bg-green-400" :
-        status === "rate_limited" ? "bg-yellow-400" :
-        status === "no_key" ? "bg-red-400" : "bg-gray-400"
-      }`} />
-      {labels[status] ?? status}
-    </span>
-  );
-}
 
 function HealthBar({ score, size = "normal" }: { score: number; size?: "normal" | "small" }) {
   const color =
