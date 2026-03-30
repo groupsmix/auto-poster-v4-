@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useReviewCounts } from "@/lib/ReviewCountContext";
@@ -164,6 +164,15 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const { pendingReviewCount, publishableCount } = useReviewCounts();
+
+  // 5.1: Dynamic document title with pending review count
+  useEffect(() => {
+    if (pendingReviewCount > 0) {
+      document.title = `(${pendingReviewCount}) NEXUS \u2014 AI Business Engine`;
+    } else {
+      document.title = "NEXUS \u2014 AI Business Engine";
+    }
+  }, [pendingReviewCount]);
 
   // Build nav sections with dynamic badge counts
   const dynamicNavSections = navSections.map((section) => ({

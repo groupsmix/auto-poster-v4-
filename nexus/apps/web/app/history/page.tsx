@@ -3,6 +3,7 @@
 import { useState, Fragment } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
+import Modal from "@/components/Modal";
 import { useApiQuery } from "@/lib/useApiQuery";
 import StatusBadge from "@/components/StatusBadge";
 import { MOCK_RUNS, MOCK_STEPS, MOCK_REVISIONS } from "@/lib/mock-data";
@@ -76,6 +77,7 @@ export default function HistoryPage() {
     }
   };
 
+  // 6.1: Client-side filtering only (mock data doesn't support server-side filtering)
   const filteredRuns = runs.filter((r) => {
     if (filterStatus && r.status !== filterStatus) return false;
     if (searchQuery) {
@@ -359,80 +361,70 @@ export default function HistoryPage() {
       )}
 
       {/* Revision History Modal */}
-      {revisionsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="rounded-xl border border-card-border bg-card-bg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-foreground">
-                Revision History
-              </h3>
-              <button
-                onClick={() => setRevisionsModal(null)}
-                className="text-muted hover:text-foreground transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-              </button>
+      <Modal
+        isOpen={!!revisionsModal}
+        onClose={() => setRevisionsModal(null)}
+        title="Revision History"
+        maxWidth="2xl"
+      >
+        <div className="max-h-[60vh] overflow-y-auto">
+          {revisionsLoading ? (
+            <div className="animate-pulse space-y-3">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="h-20 rounded bg-card-border" />
+              ))}
             </div>
-            {revisionsLoading ? (
-              <div className="animate-pulse space-y-3">
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <div key={i} className="h-20 rounded bg-card-border" />
-                ))}
-              </div>
-            ) : revisions.length === 0 ? (
-              <p className="text-sm text-muted py-4">No revisions found.</p>
-            ) : (
-              <div className="space-y-3">
-                {revisions.map((rev) => (
-                  <div
-                    key={rev.id}
-                    className="rounded-lg border border-card-border bg-background p-4"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-foreground">
-                          Version {rev.version}
-                        </span>
-                        <span
-                          className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            rev.decision === "approved"
-                              ? "bg-green-500/10 text-green-400"
-                              : "bg-red-500/10 text-red-400"
-                          }`}
-                        >
-                          {rev.decision}
-                        </span>
-                      </div>
-                      <span className="text-xs text-muted">
-                        {formatDateTime(rev.reviewed_at)}
+          ) : revisions.length === 0 ? (
+            <p className="text-sm text-muted py-4">No revisions found.</p>
+          ) : (
+            <div className="space-y-3">
+              {revisions.map((rev) => (
+                <div
+                  key={rev.id}
+                  className="rounded-lg border border-card-border bg-background p-4"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-foreground">
+                        Version {rev.version}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          rev.decision === "approved"
+                            ? "bg-green-500/10 text-green-400"
+                            : "bg-red-500/10 text-red-400"
+                        }`}
+                      >
+                        {rev.decision}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-muted mb-2">
-                      <span>
-                        AI Score:{" "}
-                        <span className="text-foreground font-medium">
-                          {rev.ai_score}/10
-                        </span>
-                      </span>
-                      <span>
-                        Model:{" "}
-                        <span className="text-foreground">{rev.ai_model}</span>
-                      </span>
-                    </div>
-                    {rev.feedback && (
-                      <p className="text-xs text-muted bg-card-hover rounded px-3 py-2 mt-2">
-                        Feedback: {rev.feedback}
-                      </p>
-                    )}
+                    <span className="text-xs text-muted">
+                      {formatDateTime(rev.reviewed_at)}
+                    </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <div className="flex items-center gap-4 text-xs text-muted mb-2">
+                    <span>
+                      AI Score:{" "}
+                      <span className="text-foreground font-medium">
+                        {rev.ai_score}/10
+                      </span>
+                    </span>
+                    <span>
+                      Model:{" "}
+                      <span className="text-foreground">{rev.ai_model}</span>
+                    </span>
+                  </div>
+                  {rev.feedback && (
+                    <p className="text-xs text-muted bg-card-hover rounded px-3 py-2 mt-2">
+                      Feedback: {rev.feedback}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

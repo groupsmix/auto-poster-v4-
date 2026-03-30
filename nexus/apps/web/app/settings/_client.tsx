@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 import MockDataBanner from "@/components/MockDataBanner";
+import Modal from "@/components/Modal";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { MOCK_API_KEYS } from "@/lib/mock-data";
 import { toast } from "sonner";
@@ -28,24 +29,48 @@ const LANGUAGES = [
 ];
 
 interface SettingsState {
-  social_posting_mode: string;
+  social_posting_mode: "auto" | "manual";
   default_language: string;
-  ceo_review_required: string;
-  auto_publish_after_approval: string;
-  batch_max_products: string;
-  cache_enabled: string;
-  ai_gateway_enabled: string;
+  ceo_review_required: boolean;
+  auto_publish_after_approval: boolean;
+  batch_max_products: number;
+  cache_enabled: boolean;
+  ai_gateway_enabled: boolean;
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
   social_posting_mode: "manual",
   default_language: "en",
-  ceo_review_required: "true",
-  auto_publish_after_approval: "false",
-  batch_max_products: "10",
-  cache_enabled: "true",
-  ai_gateway_enabled: "true",
+  ceo_review_required: true,
+  auto_publish_after_approval: false,
+  batch_max_products: 10,
+  cache_enabled: true,
+  ai_gateway_enabled: true,
 };
+
+function deserializeSettings(raw: Record<string, string>): SettingsState {
+  return {
+    social_posting_mode: (raw.social_posting_mode === "auto" ? "auto" : "manual") as "auto" | "manual",
+    default_language: raw.default_language || "en",
+    ceo_review_required: raw.ceo_review_required !== "false",
+    auto_publish_after_approval: raw.auto_publish_after_approval === "true",
+    batch_max_products: parseInt(raw.batch_max_products, 10) || 10,
+    cache_enabled: raw.cache_enabled !== "false",
+    ai_gateway_enabled: raw.ai_gateway_enabled !== "false",
+  };
+}
+
+function serializeSettings(settings: SettingsState): Record<string, string> {
+  return {
+    social_posting_mode: settings.social_posting_mode,
+    default_language: settings.default_language,
+    ceo_review_required: String(settings.ceo_review_required),
+    auto_publish_after_approval: String(settings.auto_publish_after_approval),
+    batch_max_products: String(settings.batch_max_products),
+    cache_enabled: String(settings.cache_enabled),
+    ai_gateway_enabled: String(settings.ai_gateway_enabled),
+  };
+}
 
 function ToggleSwitch({
   enabled,
@@ -116,14 +141,12 @@ export default function SettingsClient() {
   useEffect(() => {
     api.settings.getAll().then((settingsRes) => {
       if (settingsRes.success && settingsRes.data) {
-        const merged = {
-          ...DEFAULT_SETTINGS,
-          ...Object.fromEntries(
-            Object.entries(settingsRes.data!).filter(
-              ([k]) => k in DEFAULT_SETTINGS
-            )
-          ),
-        };
+        const raw = Object.fromEntries(
+          Object.entries(settingsRes.data!).filter(
+            ([k]) => k in DEFAULT_SETTINGS
+          )
+        ) as Record<string, string>;
+        const merged = deserializeSettings({ ...serializeSettings(DEFAULT_SETTINGS), ...raw });
         setSettings(merged);
         savedSettingsRef.current = merged;
       }
@@ -134,7 +157,7 @@ export default function SettingsClient() {
     setSaving(true);
     setSaved(false);
     try {
-      await api.settings.bulkUpdate({ ...settings });
+      await api.settings.bulkUpdate(serializeSettings(settings));
     } catch {
       toast.error("Failed to save settings");
     } finally {
@@ -183,7 +206,7 @@ export default function SettingsClient() {
     setRemoveConfirm(null);
   };
 
-  const updateSetting = (key: keyof SettingsState, value: string) => {
+  const updateSetting = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -366,9 +389,9 @@ export default function SettingsClient() {
             <ToggleSwitch
               label="CEO Review Required"
               description="Require manual approval before publishing"
-              enabled={settings.ceo_review_required === "true"}
+              enabled={settings.ceo_review_required}
               onChange={(v) =>
-                updateSetting("ceo_review_required", v.toString())
+                updateSetting("ceo_review_required", v)
               }
             />
 
@@ -376,9 +399,9 @@ export default function SettingsClient() {
             <ToggleSwitch
               label="Auto-Publish After Approval"
               description="Automatically publish to platforms after CEO approval"
-              enabled={settings.auto_publish_after_approval === "true"}
+              enabled={settings.auto_publish_after_approval}
               onChange={(v) =>
-                updateSetting("auto_publish_after_approval", v.toString())
+                updateSetting("auto_publish_after_approval", v)
               }
             />
           </div>
@@ -410,7 +433,7 @@ export default function SettingsClient() {
                 value={settings.batch_max_products}
                 onChange={(e) => {
                   const val = Math.min(10, Math.max(1, Number(e.target.value)));
-                  updateSetting("batch_max_products", val.toString());
+                  updateSetting("batch_max_products", val);
                 }}
                 className="w-20 px-3 py-1.5 rounded-lg bg-card-hover border border-card-border text-sm text-foreground text-center focus:outline-none focus:border-accent"
               />
@@ -420,17 +443,17 @@ export default function SettingsClient() {
             <ToggleSwitch
               label="AI Response Caching"
               description="Cache identical prompts to save AI calls (30-50% savings)"
-              enabled={settings.cache_enabled === "true"}
-              onChange={(v) => updateSetting("cache_enabled", v.toString())}
+              enabled={settings.cache_enabled}
+              onChange={(v) => updateSetting("cache_enabled", v)}
             />
 
             {/* AI Gateway */}
             <ToggleSwitch
               label="AI Gateway"
               description="Route AI calls through Cloudflare AI Gateway for logging, caching, and rate limiting"
-              enabled={settings.ai_gateway_enabled === "true"}
+              enabled={settings.ai_gateway_enabled}
               onChange={(v) =>
-                updateSetting("ai_gateway_enabled", v.toString())
+                updateSetting("ai_gateway_enabled", v)
               }
             />
           </div>
@@ -513,83 +536,75 @@ export default function SettingsClient() {
       </div>
 
       {/* Add Key Modal */}
-      {addKeyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="rounded-xl border border-card-border bg-card-bg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              Add API Key
-            </h3>
-            <p className="text-sm text-muted mb-4">
-              Enter your API key for{" "}
-              <span className="text-foreground font-medium font-mono">
-                {addKeyModal}
-              </span>
-            </p>
-            <input
-              type="password"
-              value={newKeyValue}
-              onChange={(e) => setNewKeyValue(e.target.value)}
-              placeholder="sk-..."
-              className="w-full px-4 py-2.5 rounded-lg bg-background border border-card-border text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-accent mb-4"
-              autoFocus
-            />
-            <p className="text-xs text-muted mb-4">
-              Key will be stored securely in Cloudflare Secrets. The AI model
-              will activate immediately.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={handleAddKey}
-                disabled={addingKey || !newKeyValue.trim()}
-                className="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
-              >
-                {addingKey ? "Saving..." : "Save Key"}
-              </button>
-              <button
-                onClick={() => {
-                  setAddKeyModal(null);
-                  setNewKeyValue("");
-                }}
-                className="flex-1 px-4 py-2 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+      <Modal
+        isOpen={!!addKeyModal}
+        onClose={() => { setAddKeyModal(null); setNewKeyValue(""); }}
+        title="Add API Key"
+      >
+        <p className="text-sm text-muted mb-4">
+          Enter your API key for{" "}
+          <span className="text-foreground font-medium font-mono">
+            {addKeyModal}
+          </span>
+        </p>
+        <input
+          type="password"
+          value={newKeyValue}
+          onChange={(e) => setNewKeyValue(e.target.value)}
+          placeholder="sk-..."
+          className="w-full px-4 py-2.5 rounded-lg bg-background border border-card-border text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-accent mb-4"
+          autoFocus
+        />
+        <p className="text-xs text-muted mb-4">
+          Key will be stored securely in Cloudflare Secrets. The AI model
+          will activate immediately.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={handleAddKey}
+            disabled={addingKey || !newKeyValue.trim()}
+            className="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
+          >
+            {addingKey ? "Saving..." : "Save Key"}
+          </button>
+          <button
+            onClick={() => { setAddKeyModal(null); setNewKeyValue(""); }}
+            className="flex-1 px-4 py-2 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
+          >
+            Cancel
+          </button>
         </div>
-      )}
+      </Modal>
 
       {/* Remove Key Confirmation */}
-      {removeConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="rounded-xl border border-card-border bg-card-bg p-6 max-w-sm w-full mx-4">
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              Remove API Key
-            </h3>
-            <p className="text-sm text-muted mb-4">
-              Removing{" "}
-              <span className="text-foreground font-medium font-mono">
-                {removeConfirm}
-              </span>{" "}
-              will put the AI model to sleep. It can be re-added later.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => handleRemoveKey(removeConfirm)}
-                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
-              >
-                Remove
-              </button>
-              <button
-                onClick={() => setRemoveConfirm(null)}
-                className="flex-1 px-4 py-2 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+      <Modal
+        isOpen={!!removeConfirm}
+        onClose={() => setRemoveConfirm(null)}
+        title="Remove API Key"
+        maxWidth="sm"
+      >
+        <p className="text-sm text-muted mb-4">
+          Removing{" "}
+          <span className="text-foreground font-medium font-mono">
+            {removeConfirm}
+          </span>{" "}
+          will put the AI model to sleep. It can be re-added later.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => removeConfirm && handleRemoveKey(removeConfirm)}
+            className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+          >
+            Remove
+          </button>
+          <button
+            onClick={() => setRemoveConfirm(null)}
+            className="flex-1 px-4 py-2 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
+          >
+            Cancel
+          </button>
         </div>
-      )}
+      </Modal>
     </>
   );
 }

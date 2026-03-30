@@ -8,6 +8,7 @@ import { useApiQuery } from "@/lib/useApiQuery";
 import { formatDateTime } from "@/lib/format";
 import type { Product } from "@/lib/api";
 import StatusBadge from "@/components/StatusBadge";
+import Modal from "@/components/Modal";
 import PlatformVariantPreview from "@/components/PlatformVariantPreview";
 import SocialVariantPreview from "@/components/SocialVariantPreview";
 import type { PlatformVariant } from "@/components/PlatformVariantPreview";
@@ -409,34 +410,32 @@ export default function ProductDetailPage({
       </div>
 
       {/* Delete confirmation modal */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="rounded-xl border border-card-border bg-card-bg p-6 max-w-sm w-full mx-4">
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              Delete Product
-            </h3>
-            <p className="text-sm text-muted mb-6">
-              This will permanently delete the product and trigger synced
-              cleanup across all storage (D1, R2, KV, CF Images). This action
-              cannot be undone.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteConfirm(false)}
-                className="flex-1 px-4 py-2 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
+      <Modal
+        isOpen={deleteConfirm}
+        onClose={() => setDeleteConfirm(false)}
+        title="Delete Product"
+        maxWidth="sm"
+      >
+        <p className="text-sm text-muted mb-6">
+          This will permanently delete the product and trigger synced
+          cleanup across all storage (D1, R2, KV, CF Images). This action
+          cannot be undone.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setDeleteConfirm(false)}
+            className="flex-1 px-4 py-2 rounded-lg border border-card-border text-muted text-sm font-medium hover:text-foreground hover:bg-card-hover transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDelete}
+            className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+          >
+            Delete
+          </button>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }
