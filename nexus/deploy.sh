@@ -79,6 +79,7 @@ run_migrations() {
   local migration_files=(
     "${MIGRATIONS_DIR}/001_initial_schema.sql"
     "${MIGRATIONS_DIR}/002_v4_analytics.sql"
+    "${MIGRATIONS_DIR}/003_schema_fixes.sql"
   )
 
   for migration in "${migration_files[@]}"; do
