@@ -40,10 +40,32 @@ import * as settings from "./settings";
 import * as helpers from "./helpers";
 
 export class D1Queries {
+  private foreignKeysEnabled = false;
+
   constructor(private db: D1Database) {}
+
+  /**
+   * Enable foreign key enforcement for this connection.
+   * D1 (SQLite) does not enforce foreign keys by default — PRAGMA foreign_keys = ON
+   * must be set per-connection. Call this once before any queries that rely on
+   * ON DELETE CASCADE or foreign key constraints.
+   *
+   * NOTE: As of 2025, Cloudflare D1 may silently ignore this PRAGMA.
+   * The CleanupService provides application-level cascade handling as a safety net.
+   */
+  async enableForeignKeys(): Promise<void> {
+    if (this.foreignKeysEnabled) return;
+    try {
+      await this.db.exec("PRAGMA foreign_keys = ON;");
+      this.foreignKeysEnabled = true;
+    } catch {
+      console.log("[D1] PRAGMA foreign_keys = ON not supported in this D1 environment");
+    }
+  }
 
   /** Execute a raw parameterized query (used by POST /d1/query route) */
   async query(sql: string, params: unknown[] = []): Promise<D1Result> {
+    await this.enableForeignKeys();
     return this.db
       .prepare(sql)
       .bind(...params)
@@ -52,6 +74,7 @@ export class D1Queries {
 
   /** Execute a raw parameterized run (INSERT/UPDATE/DELETE) */
   async run(sql: string, params: unknown[] = []): Promise<D1Result> {
+    await this.enableForeignKeys();
     return this.db
       .prepare(sql)
       .bind(...params)

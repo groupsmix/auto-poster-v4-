@@ -15,6 +15,7 @@
 // ============================================================
 
 const TABLES = [
+  // 001_initial_schema.sql
   "domains",
   "categories",
   "platforms",
@@ -31,6 +32,39 @@ const TABLES = [
   "ai_models",
   "analytics",
   "settings",
+  // 005_prompt_versioning.sql
+  "prompt_versions",
+  // 006_ceo_configurations.sql
+  "ceo_configurations",
+  // 007_schedules.sql
+  "schedules",
+  "schedule_runs",
+  // 008_campaigns.sql
+  "campaigns",
+  // 009_chatbot.sql
+  "chatbot_conversations",
+  "chatbot_messages",
+  // 010_revenue.sql
+  "revenue_connections",
+  "revenue_records",
+  // 011_roi.sql
+  "niche_costs",
+  "roi_snapshots",
+  "roi_reports",
+  // 012_recycler.sql
+  "recycler_jobs",
+  "recycler_variations",
+  // 013_localization.sql
+  "localization_jobs",
+  "localized_products",
+  // 014_project_builder.sql
+  "project_builds",
+  "project_build_files",
+  // AI health tracking
+  "ai_health_daily",
+  // Daily briefings
+  "daily_briefings",
+  "briefing_settings",
 ];
 
 interface BackupResult {

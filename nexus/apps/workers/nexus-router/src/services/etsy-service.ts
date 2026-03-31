@@ -138,13 +138,26 @@ export async function getOAuthUrl(env: RouterEnv, redirectUri: string): Promise<
   const codeChallenge = await generateCodeChallenge(codeVerifier);
   const state = crypto.randomUUID();
 
-  // Store verifier in KV for the callback
+  // Store verifier in settings with created_at timestamp for expiry cleanup
   await storageQuery(
     env,
     `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-    [`etsy_pkce_${state}`, JSON.stringify({ code_verifier: codeVerifier, redirect_uri: redirectUri })]
+    [`etsy_pkce_${state}`, JSON.stringify({
+      code_verifier: codeVerifier,
+      redirect_uri: redirectUri,
+      created_at: Date.now(),
+    })]
   );
+
+  // Clean up expired PKCE entries (older than 10 minutes)
+  await storageQuery(
+    env,
+    `DELETE FROM settings WHERE key LIKE 'etsy_pkce_%' AND updated_at < datetime('now', '-10 minutes')`
+  ).catch(() => {
+    // Non-critical cleanup — log and continue
+    console.log("[ETSY] Could not clean up expired PKCE entries");
+  });
 
   const params = new URLSearchParams({
     response_type: "code",

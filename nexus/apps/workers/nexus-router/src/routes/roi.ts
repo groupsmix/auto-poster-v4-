@@ -61,6 +61,13 @@ roi.post("/costs", async (c) => {
       );
     }
 
+    if (typeof body.amount !== "number" || body.amount < 0) {
+      return c.json<ApiResponse>(
+        { success: false, error: "amount must be a non-negative number" },
+        400
+      );
+    }
+
     const result = await addNicheCost(body, c.env);
     return c.json<ApiResponse>({ success: true, data: result }, 201);
   } catch (err) {

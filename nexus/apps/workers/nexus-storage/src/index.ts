@@ -57,13 +57,79 @@ app.get("/health", (c) => {
 // D1 ROUTES
 // ============================================================
 
-/** POST /d1/query — execute arbitrary D1 queries (parameterized) */
+// ── SQL classification helpers ──────────────────────────────
+
+/** Dangerous SQL statements that should never be allowed via the query endpoint */
+const DANGEROUS_SQL_PATTERNS = [
+  /^\s*DROP\s+/i,
+  /^\s*ALTER\s+/i,
+  /^\s*TRUNCATE\s+/i,
+  /^\s*PRAGMA\s+(?!foreign_keys)/i,
+  /^\s*ATTACH\s+/i,
+  /^\s*DETACH\s+/i,
+  /^\s*VACUUM\s*/i,
+  /^\s*REINDEX\s*/i,
+];
+
+/** Check if a SQL statement is read-only (SELECT / EXPLAIN / PRAGMA foreign_keys) */
+function isReadOnlyQuery(sql: string): boolean {
+  const trimmed = sql.trim();
+  return /^\s*(SELECT|EXPLAIN|PRAGMA\s+foreign_keys)/i.test(trimmed);
+}
+
+/** Check if a SQL statement matches dangerous patterns */
+function isDangerousQuery(sql: string): boolean {
+  return DANGEROUS_SQL_PATTERNS.some((pattern) => pattern.test(sql.trim()));
+}
+
+/** POST /d1/query — execute D1 queries (parameterized) with validation */
 app.post("/d1/query", async (c) => {
   try {
     const { sql, params } = await c.req.json<{ sql: string; params?: unknown[] }>();
     if (!sql) {
       return c.json<ApiResponse>({ success: false, error: "sql is required" }, 400);
     }
+
+    // Block dangerous queries (DROP, ALTER, TRUNCATE, etc.)
+    if (isDangerousQuery(sql)) {
+      console.log(`[D1] BLOCKED dangerous query: ${sql.slice(0, 100)}`);
+      return c.json<ApiResponse>(
+        { success: false, error: "This query type is not allowed via the API" },
+        403
+      );
+    }
+
+    // Log mutating queries for audit trail
+    if (!isReadOnlyQuery(sql)) {
+      console.log(`[D1] Mutating query: ${sql.slice(0, 200)}`);
+    }
+
+    const { d1 } = getServices(c.env);
+    const result = await d1.query(sql, params ?? []);
+    return c.json<ApiResponse>({ success: true, data: result });
+  } catch (e) {
+    return c.json<ApiResponse>(
+      { success: false, error: e instanceof Error ? e.message : String(e) },
+      500
+    );
+  }
+});
+
+/** POST /d1/read — read-only query endpoint (only allows SELECT statements) */
+app.post("/d1/read", async (c) => {
+  try {
+    const { sql, params } = await c.req.json<{ sql: string; params?: unknown[] }>();
+    if (!sql) {
+      return c.json<ApiResponse>({ success: false, error: "sql is required" }, 400);
+    }
+
+    if (!isReadOnlyQuery(sql)) {
+      return c.json<ApiResponse>(
+        { success: false, error: "Only SELECT queries are allowed on this endpoint" },
+        403
+      );
+    }
+
     const { d1 } = getServices(c.env);
     const result = await d1.query(sql, params ?? []);
     return c.json<ApiResponse>({ success: true, data: result });
@@ -371,4 +437,67 @@ app.delete("/cleanup/:entity/:id", async (c) => {
   }
 });
 
-export default app;
+// ============================================================
+// SCHEDULED HANDLER — Retention cleanup cron
+// ============================================================
+
+/** Default retention periods (days) — can be overridden via settings table */
+const DEFAULT_RETENTION: Record<string, number> = {
+  analytics: 90,
+  workflow_steps: 180,
+  chatbot_messages: 30,
+  schedule_runs: 90,
+  ai_health_daily: 90,
+};
+
+async function runRetentionCleanup(env: StorageEnv): Promise<void> {
+  const d1 = new D1Queries(env.DB);
+
+  // Load custom retention periods from settings (if configured)
+  const retention = { ...DEFAULT_RETENTION };
+  try {
+    const settingsResult = await d1.query(
+      "SELECT value FROM settings WHERE key = 'retention_periods'"
+    );
+    const rows = (settingsResult as { results?: Array<{ value: string }> }).results;
+    if (rows && rows.length > 0) {
+      const custom = JSON.parse(rows[0].value) as Record<string, number>;
+      Object.assign(retention, custom);
+    }
+  } catch {
+    console.log("[CLEANUP] Could not load custom retention periods, using defaults");
+  }
+
+  // Run cleanup for each table with a retention period
+  const tables: Array<{ table: string; dateColumn: string; key: string }> = [
+    { table: "analytics", dateColumn: "created_at", key: "analytics" },
+    { table: "workflow_steps", dateColumn: "started_at", key: "workflow_steps" },
+    { table: "chatbot_messages", dateColumn: "created_at", key: "chatbot_messages" },
+    { table: "schedule_runs", dateColumn: "started_at", key: "schedule_runs" },
+    { table: "ai_health_daily", dateColumn: "date", key: "ai_health_daily" },
+  ];
+
+  for (const { table, dateColumn, key } of tables) {
+    const days = retention[key] ?? 90;
+    try {
+      const result = await d1.run(
+        `DELETE FROM ${table} WHERE ${dateColumn} < datetime('now', '-${days} days')`
+      );
+      const deleted = (result as { meta?: { changes?: number } }).meta?.changes ?? 0;
+      if (deleted > 0) {
+        console.log(`[CLEANUP] ${table}: deleted ${deleted} rows older than ${days} days`);
+      }
+    } catch (e) {
+      console.log(`[CLEANUP] Error cleaning ${table}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+}
+
+export default {
+  fetch: app.fetch,
+  async scheduled(_event: ScheduledEvent, env: StorageEnv, _ctx: ExecutionContext): Promise<void> {
+    console.log("[SCHEDULED] Running retention cleanup...");
+    await runRetentionCleanup(env);
+    console.log("[SCHEDULED] Retention cleanup complete");
+  },
+};

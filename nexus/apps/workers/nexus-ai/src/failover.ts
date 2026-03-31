@@ -25,8 +25,8 @@ const modelState: Map<string, ModelRuntimeState> = new Map();
 
 /** KV key prefix for persisted model state */
 const MODEL_STATE_KV_PREFIX = "model_state:";
-/** TTL for persisted model state in KV (2 hours) */
-const MODEL_STATE_KV_TTL = 7200;
+/** TTL for persisted model state in KV (24 hours — ensures rate-limit state survives restarts) */
+const MODEL_STATE_KV_TTL = 86400;
 
 /** Get or create runtime state for a model, restoring from KV if available */
 async function getModelState(modelId: string, env: Env): Promise<ModelRuntimeState> {
@@ -187,8 +187,23 @@ export async function runWithFailover(
     }
   }
 
-  // V4: This should never happen for text tasks because Workers AI is always last
-  throw new Error(`All AIs failed for task: ${taskType}`);
+  // V4: All models failed including Workers AI — return structured error
+  const failedModels = models.map((m) => {
+    const state = modelState.get(m.id);
+    return {
+      name: m.name,
+      status: state?.status ?? "unknown",
+      isWorkersAI: m.isWorkersAI,
+    };
+  });
+
+  const error = new Error(`All AIs failed for task: ${taskType}`);
+  (error as unknown as Record<string, unknown>).details = {
+    taskType,
+    failedModels,
+    suggestion: "Check API keys, rate limits, and Workers AI neuron quota. Retry after a few minutes.",
+  };
+  throw error;
 }
 
 // ============================================================

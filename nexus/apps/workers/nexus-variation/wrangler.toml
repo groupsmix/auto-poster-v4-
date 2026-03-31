@@ -1,6 +1,6 @@
 name = "nexus-variation"
 main = "src/index.ts"
-compatibility_date = "2025-04-01"
+compatibility_date = "2026-03-31"
 
 # ── Service Bindings (free internal routing) ──
 
