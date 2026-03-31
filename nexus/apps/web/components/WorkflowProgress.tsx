@@ -60,6 +60,7 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [manualRefresh, setManualRefresh] = useState(0);
   const errorShownRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,9 +109,8 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
       if (pollCount > 10) return 3000;
       return 1000;
     };
-    let timer: ReturnType<typeof setTimeout>;
     const schedulePoll = () => {
-      timer = setTimeout(async () => {
+      timerRef.current = setTimeout(async () => {
         if (cancelled) return;
         pollCount++;
         await fetchProgress();
@@ -122,7 +122,7 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
     schedulePoll();
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [workflowId, router, manualRefresh]);
 

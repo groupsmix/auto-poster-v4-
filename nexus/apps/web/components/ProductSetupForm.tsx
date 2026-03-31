@@ -133,12 +133,10 @@ export default function ProductSetupForm({
       if (response.success && response.data) {
         router.push(`/workflow/${response.data.id}`);
       } else {
-        // Navigate to a mock workflow page on API failure
-        router.push(`/workflow/wf-${Date.now()}`);
+        toast.error(response.error || "Failed to start workflow — please try again");
       }
     } catch {
-      toast.error("Failed to start workflow");
-      router.push(`/workflow/wf-${Date.now()}`);
+      toast.error("Failed to start workflow — please try again");
     } finally {
       setSubmitting(false);
     }
@@ -151,8 +149,7 @@ export default function ProductSetupForm({
       await api.post("/products", { ...payload, status: "draft" });
       router.push("/products");
     } catch {
-      toast.error("Failed to save draft");
-      router.push("/products");
+      toast.error("Failed to save draft — please try again");
     } finally {
       setSubmitting(false);
     }

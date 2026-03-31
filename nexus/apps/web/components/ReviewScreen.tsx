@@ -63,7 +63,7 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
       setLoading(true);
       setError(null);
       try {
-        const response = await api.get<ReviewData>(`/reviews/${productId}`);
+        const response = await api.reviews.get(productId) as { success: boolean; data?: ReviewData; error?: string };
         if (!cancelled) {
           if (response.success && response.data) {
             setReview(response.data);
