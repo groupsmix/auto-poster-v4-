@@ -100,8 +100,10 @@ app.use("/api/*", async (c, next) => {
 });
 
 // Rate limiting middleware (7.3)
-// 60 requests per minute per IP using in-memory counter
+// 200 requests per minute per IP using in-memory counter
 // Resets on worker restart — acceptable for personal use (1 user)
+// High limit needed because dashboard loads many components in parallel,
+// each with retry logic that amplifies request count on page load.
 export const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 app.use("/api/*", async (c, next) => {
@@ -110,7 +112,7 @@ app.use("/api/*", async (c, next) => {
   const entry = rateLimitMap.get(ip);
 
   if (entry && now < entry.resetAt) {
-    if (entry.count >= 60) {
+    if (entry.count >= 200) {
       return c.json<ApiResponse>(
         { success: false, error: "Rate limit exceeded. Try again in a minute." },
         429
