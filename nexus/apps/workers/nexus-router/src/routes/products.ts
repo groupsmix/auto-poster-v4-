@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import type { ApiResponse } from "@nexus/shared";
-import { generateId, slugify, now, DEFAULT_PAGE_SIZE } from "@nexus/shared";
+import type { ApiResponse, PaginatedResponse } from "@nexus/shared";
+import { generateId, slugify, now, DEFAULT_PAGE_SIZE, PRODUCT_STATUS } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { storageQuery, storageCleanup, errorResponse, validateStringField, sanitizeInput } from "../helpers";
 
@@ -51,9 +51,9 @@ products.get("/", async (c) => {
       [...params, pageSize, offset]
     );
 
-    return c.json({
+    return c.json<PaginatedResponse>({
       success: true,
-      data,
+      data: data as unknown[],
       total,
       page,
       pageSize,
@@ -151,7 +151,7 @@ products.post("/", async (c) => {
     await storageQuery(
       c.env,
       `INSERT INTO products (id, domain_id, category_id, name, slug, niche, language, status, user_input, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, '${PRODUCT_STATUS.DRAFT}', ?, ?, ?)`,
       [
         id,
         body.domain_id,

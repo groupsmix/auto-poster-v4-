@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { Env, ApiResponse } from "@nexus/shared";
-import { generateId, slugify, now, MAX_BATCH_SIZE, WORKFLOW_TIMEOUT_MS, BATCH_POLL_INTERVAL_MS } from "@nexus/shared";
+import { generateId, slugify, now, MAX_BATCH_SIZE, RECOMMENDED_BATCH_SIZE, WORKFLOW_TIMEOUT_MS, BATCH_POLL_INTERVAL_MS, PRODUCT_STATUS, WorkflowRunStatus } from "@nexus/shared";
 import { WorkflowEngine, type WorkflowInput, storageQuery } from "./engine";
 import type { ProductContext, PromptTemplates } from "./steps";
 
@@ -138,6 +138,14 @@ export class BatchOrchestrator {
     const batchId = generateId();
     const count = Math.min(Math.max(input.batch_count, 1), MAX_BATCH_SIZE);
 
+    if (count > RECOMMENDED_BATCH_SIZE) {
+      console.warn(
+        `[BATCH] Batch ${batchId} has ${count} products (recommended max: ${RECOMMENDED_BATCH_SIZE}). ` +
+        `Large batches risk hitting CF Worker CPU time limits. ` +
+        `Estimated wall-clock: ~${count * 45}s for ${count} products × 9 steps.`
+      );
+    }
+
     console.log(
       `[BATCH] Creating batch ${batchId} with ${count} products for niche: ${input.niche}`
     );
@@ -165,7 +173,8 @@ export class BatchOrchestrator {
       await storageQuery(
         this.env,
         `INSERT INTO products (id, domain_id, category_id, name, slug, niche, language, status, batch_id, user_input, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+
         [
           productId,
           input.domain_id,
@@ -174,6 +183,7 @@ export class BatchOrchestrator {
           slug,
           nicheAngle,
           input.language,
+          PRODUCT_STATUS.QUEUED,
           batchId,
           JSON.stringify({
             domain_slug: input.domain_slug,
@@ -209,8 +219,8 @@ export class BatchOrchestrator {
         try {
           await storageQuery(
             this.env,
-            `UPDATE products SET status = 'failed', updated_at = ? WHERE batch_id = ? AND status IN ('queued', 'running')`,
-            [now(), batchId]
+            `UPDATE products SET status = ?, updated_at = ? WHERE batch_id = ? AND status IN (?, ?)`,
+            [PRODUCT_STATUS.FAILED, now(), batchId, PRODUCT_STATUS.QUEUED, PRODUCT_STATUS.RUNNING]
           );
         } catch (updateErr) {
           console.error(`[BATCH] Failed to update product statuses after batch error for ${batchId}:`, updateErr);

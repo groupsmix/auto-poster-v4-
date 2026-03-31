@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
+import { ModelStatus } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { forwardToService, storageQuery, errorResponse } from "../helpers";
 
@@ -53,7 +54,7 @@ ai.post("/models/:id/key", async (c) => {
     // Store the key name as a secret reference on the model
     await storageQuery(
       c.env,
-      "UPDATE ai_models SET api_key_secret_name = ?, status = 'active' WHERE id = ?",
+      `UPDATE ai_models SET api_key_secret_name = ?, status = '${ModelStatus.ACTIVE}' WHERE id = ?`,
       [body.api_key, id]
     );
 
@@ -73,7 +74,7 @@ ai.delete("/models/:id/key", async (c) => {
 
     await storageQuery(
       c.env,
-      "UPDATE ai_models SET api_key_secret_name = NULL, status = 'sleeping' WHERE id = ?",
+      `UPDATE ai_models SET api_key_secret_name = NULL, status = '${ModelStatus.SLEEPING}' WHERE id = ?`,
       [id]
     );
 

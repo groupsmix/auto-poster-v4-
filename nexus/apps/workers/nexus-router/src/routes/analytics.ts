@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
+import { PRODUCT_STATUS } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { storageQuery, forwardToService, errorResponse } from "../helpers";
 
@@ -13,9 +14,9 @@ analytics.get("/overview", async (c) => {
         c.env,
         `SELECT
           COUNT(*) as total_products,
-          SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) as published,
-          SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running,
-          SUM(CASE WHEN status = 'pending_review' THEN 1 ELSE 0 END) as pending_review
+                    SUM(CASE WHEN status = '${PRODUCT_STATUS.PUBLISHED}' THEN 1 ELSE 0 END) as published,
+                    SUM(CASE WHEN status = '${PRODUCT_STATUS.RUNNING}' THEN 1 ELSE 0 END) as running,
+                    SUM(CASE WHEN status = '${PRODUCT_STATUS.PENDING_REVIEW}' THEN 1 ELSE 0 END) as pending_review
         FROM products`
       ),
       storageQuery(

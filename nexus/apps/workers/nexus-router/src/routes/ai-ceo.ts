@@ -9,7 +9,7 @@
 
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
-import { generateId, slugify, now } from "@nexus/shared";
+import { generateId, slugify, now, ModelStatus } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { storageQuery, errorResponse, validateStringField } from "../helpers";
 
@@ -105,7 +105,7 @@ aiCeo.post("/setup", async (c) => {
       c.env,
       `INSERT INTO ceo_configurations
          (id, domain_id, category_id, analysis, prompts_stored, kv_keys, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, '${ModelStatus.ACTIVE}', ?, ?)`,
       [
         configId,
         domainId,
@@ -194,7 +194,7 @@ aiCeo.get("/config/:id", async (c) => {
        FROM ceo_configurations c
        LEFT JOIN domains d ON c.domain_id = d.id
        LEFT JOIN categories cat ON c.category_id = cat.id
-       WHERE c.category_id = ? AND c.status = 'active'
+       WHERE c.category_id = ? AND c.status = '${ModelStatus.ACTIVE}'
        ORDER BY c.updated_at DESC
        LIMIT 1`,
       [categoryId]
@@ -247,7 +247,7 @@ aiCeo.post("/refresh/:id", async (c) => {
     // Mark old config as superseded
     await storageQuery(
       c.env,
-      "UPDATE ceo_configurations SET status = 'superseded', updated_at = ? WHERE category_id = ? AND status = 'active'",
+      `UPDATE ceo_configurations SET status = '${ModelStatus.SUPERSEDED}', updated_at = ? WHERE category_id = ? AND status = '${ModelStatus.ACTIVE}'`,
       [now(), categoryId]
     );
 
@@ -287,7 +287,7 @@ aiCeo.post("/refresh/:id", async (c) => {
       c.env,
       `INSERT INTO ceo_configurations
          (id, domain_id, category_id, analysis, prompts_stored, kv_keys, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, '${ModelStatus.ACTIVE}', ?, ?)`,
       [
         configId,
         cat.domain_id,

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { ApiResponse } from "@nexus/shared";
+import type { ApiResponse, PaginatedResponse } from "@nexus/shared";
 import { DEFAULT_PAGE_SIZE } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { storageQuery, errorResponse } from "../helpers";
@@ -30,9 +30,9 @@ history.get("/", async (c) => {
       [pageSize, offset]
     );
 
-    return c.json({
+    return c.json<PaginatedResponse>({
       success: true,
-      data,
+      data: data as unknown[],
       total,
       page,
       pageSize,

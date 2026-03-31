@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
+import { ModelStatus } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { storageQuery, errorResponse } from "../helpers";
 
@@ -74,7 +75,7 @@ apiKeys.post("/:keyName", async (c) => {
     // Update all ai_models that use this key name
     await storageQuery(
       c.env,
-      "UPDATE ai_models SET status = 'active' WHERE api_key_secret_name = ?",
+      `UPDATE ai_models SET status = '${ModelStatus.ACTIVE}' WHERE api_key_secret_name = ?`,
       [keyName]
     );
 
@@ -95,7 +96,7 @@ apiKeys.delete("/:keyName", async (c) => {
     // Set models using this key to sleeping
     await storageQuery(
       c.env,
-      "UPDATE ai_models SET status = 'sleeping' WHERE api_key_secret_name = ?",
+      `UPDATE ai_models SET status = '${ModelStatus.SLEEPING}' WHERE api_key_secret_name = ?`,
       [keyName]
     );
 

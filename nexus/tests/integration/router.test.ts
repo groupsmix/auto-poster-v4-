@@ -5,11 +5,21 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import app from "../../apps/workers/nexus-router/src/index";
+import type { ApiResponse } from "@nexus/shared";
 import {
   createMockFetcher,
   createMockKV,
   jsonResponse,
 } from "../helpers/mocks";
+
+/** Typed API response for test assertions (replaces Record<string, any>) */
+interface TestApiResponse extends ApiResponse<Record<string, unknown>> {
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  service?: string;
+  status?: string;
+}
 
 function buildEnv(overrides: Record<string, unknown> = {}) {
   const storageFetcher = createMockFetcher(async (req) => {
@@ -83,7 +93,7 @@ describe("nexus-router: Auth Middleware", () => {
       env
     );
     expect(res.status).toBe(401);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(false);
     expect(data.error).toContain("Authorization");
   });
@@ -101,7 +111,7 @@ describe("nexus-router: Auth Middleware", () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/api/domains"), env);
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 
@@ -112,7 +122,7 @@ describe("nexus-router: Auth Middleware", () => {
       env
     );
     expect(res.status).toBe(503);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(false);
     expect(data.error).toContain("not configured");
   });
@@ -124,7 +134,7 @@ describe("nexus-router: Auth Middleware", () => {
       env
     );
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data).toHaveProperty("service", "nexus-router");
   });
 
@@ -135,7 +145,7 @@ describe("nexus-router: Auth Middleware", () => {
       env
     );
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.status).toBe("healthy");
   });
 });
@@ -149,7 +159,7 @@ describe("nexus-router: Domain Routes", () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/api/domains"), env);
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 
@@ -164,7 +174,7 @@ describe("nexus-router: Domain Routes", () => {
       env
     );
     expect(res.status).toBe(201);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("id");
     expect(data.data).toHaveProperty("slug");
@@ -194,7 +204,7 @@ describe("nexus-router: Domain Routes", () => {
       env
     );
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 
@@ -220,7 +230,7 @@ describe("nexus-router: Domain Routes", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     // Verify storage cleanup was called
     expect(storageFetcher.fetch).toHaveBeenCalled();
@@ -239,7 +249,7 @@ describe("nexus-router: Category Routes", () => {
       env
     );
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 
@@ -257,7 +267,7 @@ describe("nexus-router: Category Routes", () => {
       env
     );
     expect(res.status).toBe(201);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 
@@ -318,7 +328,7 @@ describe("nexus-router: Product Routes", () => {
       env
     );
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 
@@ -338,7 +348,7 @@ describe("nexus-router: Product Routes", () => {
       env
     );
     expect(res.status).toBe(201);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data.status).toBe("draft");
   });
@@ -440,7 +450,7 @@ describe("nexus-router: Review Routes", () => {
       env
     );
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 
@@ -478,7 +488,7 @@ describe("nexus-router: Review Routes", () => {
       env
     );
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 
@@ -493,7 +503,7 @@ describe("nexus-router: Review Routes", () => {
       env
     );
     expect(res.status).toBe(400);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.error).toContain("feedback");
   });
 
@@ -558,7 +568,7 @@ describe("nexus-router: Delete triggers synced cleanup", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
 
     // Verify the cleanup endpoint was called

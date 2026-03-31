@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
-import { now } from "@nexus/shared";
+import { now, PRODUCT_STATUS, WorkflowRunStatus } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { storageQuery, errorResponse } from "../helpers";
 
@@ -15,7 +15,7 @@ publishing.get("/ready", async (c) => {
               (SELECT COUNT(*) FROM platform_variants pv WHERE pv.product_id = p.id) as variant_count,
               (SELECT COUNT(*) FROM social_variants sv WHERE sv.product_id = p.id) as social_count
        FROM products p
-       WHERE p.status = 'approved'
+       WHERE p.status = '${PRODUCT_STATUS.APPROVED}'
        ORDER BY p.updated_at DESC`
     );
     return c.json<ApiResponse>({ success: true, data });
@@ -38,7 +38,7 @@ publishing.post("/:productId", async (c) => {
     // Update product status to published
     await storageQuery(
       c.env,
-      "UPDATE products SET status = 'published', updated_at = ? WHERE id = ?",
+      `UPDATE products SET status = '${PRODUCT_STATUS.PUBLISHED}', updated_at = ? WHERE id = ?`,
       [ts, productId]
     );
 
@@ -47,7 +47,7 @@ publishing.post("/:productId", async (c) => {
       const placeholders = body.platform_ids.map(() => "?").join(", ");
       await storageQuery(
         c.env,
-        `UPDATE platform_variants SET status = 'published', published_at = ?
+        `UPDATE platform_variants SET status = '${PRODUCT_STATUS.PUBLISHED}', published_at = ?
          WHERE product_id = ? AND platform_id IN (${placeholders})`,
         [ts, productId, ...body.platform_ids]
       );
@@ -58,7 +58,7 @@ publishing.post("/:productId", async (c) => {
       const placeholders = body.channel_ids.map(() => "?").join(", ");
       await storageQuery(
         c.env,
-        `UPDATE social_variants SET status = 'published', published_at = ?
+        `UPDATE social_variants SET status = '${PRODUCT_STATUS.PUBLISHED}', published_at = ?
          WHERE product_id = ? AND channel_id IN (${placeholders})`,
         [ts, productId, ...body.channel_ids]
       );
@@ -67,8 +67,8 @@ publishing.post("/:productId", async (c) => {
     // Update workflow run status
     await storageQuery(
       c.env,
-      `UPDATE workflow_runs SET status = 'published'
-       WHERE product_id = ? AND status = 'approved'`,
+            `UPDATE workflow_runs SET status = '${WorkflowRunStatus.PUBLISHED}'
+             WHERE product_id = ? AND status = '${WorkflowRunStatus.APPROVED}'`,
       [productId]
     );
 
