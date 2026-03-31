@@ -9,8 +9,9 @@
 // ============================================================
 
 import { generateId, now } from "@nexus/shared";
+import type { ApiResponse } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
-import { storageQuery } from "../helpers";
+import { storageQuery, forwardToService } from "../helpers";
 
 // --- Types ---
 
@@ -294,6 +295,38 @@ export async function generateVariations(
     );
   } catch {
     // Analysis is best-effort
+  }
+
+  // Trigger AI-powered workflow runs for each variation
+  for (const v of created) {
+    try {
+      await env.NEXUS_WORKFLOW.fetch("http://nexus-workflow/workflow/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domainId: job.domain_id as string,
+          keyword: `${v.label} (recycled from: ${sourceName})`,
+          categoryId: job.category_id as string | undefined,
+          language: job.language as string | undefined,
+          recyclerVariationId: v.id,
+        }),
+      });
+
+      // Mark variation as processing
+      await storageQuery(
+        env,
+        "UPDATE recycler_variations SET status = 'processing' WHERE id = ?",
+        [v.id]
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[RECYCLER] Failed to trigger workflow for variation ${v.id}: ${msg}`);
+      await storageQuery(
+        env,
+        "UPDATE recycler_variations SET status = 'failed' WHERE id = ?",
+        [v.id]
+      );
+    }
   }
 
   return { variations: created };

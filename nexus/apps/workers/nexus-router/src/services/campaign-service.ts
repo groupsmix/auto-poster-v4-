@@ -238,6 +238,102 @@ export async function getCampaignProgress(
   };
 }
 
+// --- Campaign Execution Engine ---
+
+export async function executeCampaignBatch(
+  campaignId: string,
+  env: RouterEnv
+): Promise<{
+  campaign_id: string;
+  products_queued: number;
+  status: string;
+}> {
+  // Fetch campaign details
+  const result = (await storageQuery(
+    env,
+    "SELECT * FROM campaigns WHERE id = ? AND status = 'active'",
+    [campaignId]
+  )) as Array<Record<string, unknown>> | { results?: Array<Record<string, unknown>> };
+
+  const rows = Array.isArray(result) ? result : (result?.results ?? []);
+  if (rows.length === 0) {
+    throw new Error("Campaign not found or not active");
+  }
+
+  const campaign = rows[0];
+  const targetCount = campaign.target_count as number;
+  const productsCreated = campaign.products_created as number;
+  const dailyTarget = campaign.daily_target as number;
+  const domainId = campaign.domain_id as string;
+  const nicheKeywords = campaign.niche_keywords
+    ? (JSON.parse(campaign.niche_keywords as string) as string[])
+    : [];
+  const platforms = campaign.platforms
+    ? (JSON.parse(campaign.platforms as string) as string[])
+    : undefined;
+  const socialChannels = campaign.social_channels
+    ? (JSON.parse(campaign.social_channels as string) as string[])
+    : undefined;
+  const language = (campaign.language as string) ?? "en";
+  const autoApproveThreshold = campaign.auto_approve_threshold as number | undefined;
+
+  // Calculate how many products to create this batch
+  const remaining = targetCount - productsCreated;
+  if (remaining <= 0) {
+    // Campaign already complete
+    await storageQuery(
+      env,
+      "UPDATE campaigns SET status = 'completed', updated_at = ? WHERE id = ?",
+      [now(), campaignId]
+    );
+    return { campaign_id: campaignId, products_queued: 0, status: "completed" };
+  }
+
+  const batchSize = Math.min(dailyTarget, remaining, 5); // Cap at 5 per batch
+  let queued = 0;
+
+  for (let i = 0; i < batchSize; i++) {
+    try {
+      const keyword = nicheKeywords.length > 0
+        ? nicheKeywords[Math.floor(Math.random() * nicheKeywords.length)]
+        : "general";
+
+      await env.NEXUS_WORKFLOW.fetch("http://nexus-workflow/workflow/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domainId,
+          keyword: `${keyword} (campaign: ${campaign.name})`,
+          platforms,
+          socialChannels,
+          language,
+          autoApproveThreshold,
+          campaignId,
+        }),
+      });
+      queued++;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[CAMPAIGN] Failed to queue product ${i + 1}: ${msg}`);
+    }
+  }
+
+  // Update products_created counter
+  if (queued > 0) {
+    await storageQuery(
+      env,
+      `UPDATE campaigns SET products_created = products_created + ?, updated_at = ? WHERE id = ?`,
+      [queued, now(), campaignId]
+    );
+  }
+
+  return {
+    campaign_id: campaignId,
+    products_queued: queued,
+    status: productsCreated + queued >= targetCount ? "completed" : "active",
+  };
+}
+
 // --- Increment Campaign Counters ---
 
 export async function incrementCampaignCounter(

@@ -175,6 +175,139 @@ revenue.post("/records/bulk", async (c) => {
 });
 
 // ============================================================
+// CSV Import
+// ============================================================
+
+// POST /api/revenue/import/csv — import revenue records from CSV text
+revenue.post("/import/csv", async (c) => {
+  try {
+    const body = await c.req.json<{
+      connection_id: string;
+      platform: string;
+      csv: string;
+      column_map?: Record<string, string>;
+    }>();
+
+    if (!body.connection_id || !body.platform || !body.csv) {
+      return c.json<ApiResponse>(
+        { success: false, error: "connection_id, platform, and csv are required" },
+        400
+      );
+    }
+
+    // Parse CSV lines
+    const lines = body.csv.trim().split("\n");
+    if (lines.length < 2) {
+      return c.json<ApiResponse>(
+        { success: false, error: "CSV must have a header row and at least one data row" },
+        400
+      );
+    }
+
+    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/['"]/g, ""));
+    const colMap = body.column_map ?? {};
+    const resolve = (field: string): number =>
+      headers.indexOf(colMap[field] ?? field);
+
+    // Resolve column indices
+    const colRevenue = resolve("revenue");
+    const colOrderDate = resolve("order_date");
+    if (colRevenue === -1 || colOrderDate === -1) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: `CSV must contain 'revenue' and 'order_date' columns (found: ${headers.join(", ")}). Use column_map to remap.`,
+        },
+        400
+      );
+    }
+    const colOrderId = resolve("external_order_id");
+    const colProductId = resolve("external_product_id");
+    const colProductTitle = resolve("external_product_title");
+    const colSku = resolve("sku");
+    const colQuantity = resolve("quantity");
+    const colCurrency = resolve("currency");
+    const colFees = resolve("fees");
+    const colNetRevenue = resolve("net_revenue");
+
+    const records: Array<{
+      connection_id: string;
+      platform: string;
+      external_order_id?: string;
+      external_product_id?: string;
+      external_product_title?: string;
+      sku?: string;
+      quantity?: number;
+      revenue: number;
+      currency?: string;
+      fees?: number;
+      net_revenue?: number;
+      order_date: string;
+    }> = [];
+
+    const errors: string[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      // Simple CSV parser (handles quoted fields with commas)
+      const cols: string[] = [];
+      let current = "";
+      let inQuotes = false;
+      for (const ch of line) {
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === "," && !inQuotes) {
+          cols.push(current.trim());
+          current = "";
+        } else {
+          current += ch;
+        }
+      }
+      cols.push(current.trim());
+
+      const revenue = parseFloat(cols[colRevenue]);
+      const orderDate = cols[colOrderDate];
+      if (isNaN(revenue) || !orderDate) {
+        errors.push(`Row ${i + 1}: invalid revenue or order_date`);
+        continue;
+      }
+
+      records.push({
+        connection_id: body.connection_id,
+        platform: body.platform,
+        external_order_id: colOrderId !== -1 ? cols[colOrderId] : undefined,
+        external_product_id: colProductId !== -1 ? cols[colProductId] : undefined,
+        external_product_title: colProductTitle !== -1 ? cols[colProductTitle] : undefined,
+        sku: colSku !== -1 ? cols[colSku] : undefined,
+        quantity: colQuantity !== -1 ? parseInt(cols[colQuantity]) || undefined : undefined,
+        revenue,
+        currency: colCurrency !== -1 ? cols[colCurrency] : undefined,
+        fees: colFees !== -1 ? parseFloat(cols[colFees]) || undefined : undefined,
+        net_revenue: colNetRevenue !== -1 ? parseFloat(cols[colNetRevenue]) || undefined : undefined,
+        order_date: orderDate,
+      });
+    }
+
+    if (records.length === 0) {
+      return c.json<ApiResponse>(
+        { success: false, error: `No valid records parsed. Errors: ${errors.join("; ")}` },
+        400
+      );
+    }
+
+    const result = await addRevenueRecords(records, c.env);
+    return c.json<ApiResponse>({
+      success: true,
+      data: { ...result, parse_errors: errors },
+    });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// ============================================================
 // Sync & Matching
 // ============================================================
 

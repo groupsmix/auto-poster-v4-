@@ -13,6 +13,7 @@ import {
   updateCampaign,
   deleteCampaign,
   getCampaignProgress,
+  executeCampaignBatch,
 } from "../services/campaign-service";
 
 const campaigns = new Hono<{ Bindings: RouterEnv }>();
@@ -92,6 +93,17 @@ campaigns.put("/:id", async (c) => {
     const body = await c.req.json<Record<string, unknown>>();
     const result = await updateCampaign(id, body, c.env);
     return c.json<ApiResponse>({ success: true, data: result });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// POST /api/campaigns/:id/execute — execute a batch of products for this campaign
+campaigns.post("/:id/execute", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const data = await executeCampaignBatch(id, c.env);
+    return c.json<ApiResponse>({ success: true, data });
   } catch (err) {
     return errorResponse(c, err);
   }

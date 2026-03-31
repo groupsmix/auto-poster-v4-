@@ -40,6 +40,97 @@ export interface StepResult {
   latencyMs: number;
 }
 
+// --- Helper: generate actual images via Workers AI and store in R2 ---
+
+async function generateAndStoreImages(
+  env: Env,
+  productId: string,
+  imagePrompts: Array<{ description: string; style?: string; dimensions?: { width: number; height: number } }>
+): Promise<Array<{ asset_id: string; r2_key: string; url: string }>> {
+  const results: Array<{ asset_id: string; r2_key: string; url: string }> = [];
+
+  for (const prompt of imagePrompts.slice(0, 3)) {
+    try {
+      // Call Workers AI Stable Diffusion XL via the AI binding
+      const imageResult = (await env.AI.run(
+        "@cf/stabilityai/stable-diffusion-xl-base-1.0",
+        {
+          prompt: prompt.description,
+          num_steps: 20,
+          width: prompt.dimensions?.width ?? 1024,
+          height: prompt.dimensions?.height ?? 1024,
+        }
+      )) as ReadableStream | ArrayBuffer | Uint8Array;
+
+      // Convert to Uint8Array
+      let imageBytes: Uint8Array;
+      if (imageResult instanceof Uint8Array) {
+        imageBytes = imageResult;
+      } else if (imageResult instanceof ArrayBuffer) {
+        imageBytes = new Uint8Array(imageResult);
+      } else {
+        // ReadableStream — collect chunks
+        const reader = (imageResult as ReadableStream).getReader();
+        const chunks: Uint8Array[] = [];
+        let done = false;
+        while (!done) {
+          const read = await reader.read();
+          done = read.done;
+          if (read.value) chunks.push(read.value as Uint8Array);
+        }
+        const totalLength = chunks.reduce((acc, c) => acc + c.length, 0);
+        imageBytes = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          imageBytes.set(chunk, offset);
+          offset += chunk.length;
+        }
+      }
+
+      // Convert to base64 for R2 upload via nexus-storage
+      const base64 = btoa(String.fromCharCode(...imageBytes));
+      const r2Key = `products/${productId}/images/${generateId()}.png`;
+
+      // Upload to R2 via nexus-storage
+      const uploadResp = await env.NEXUS_STORAGE.fetch("http://nexus-storage/r2/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: r2Key, data: base64, contentType: "image/png" }),
+      });
+      const uploadJson = (await uploadResp.json()) as ApiResponse;
+      if (!uploadJson.success) {
+        console.error(`[IMAGE] R2 upload failed for ${r2Key}: ${uploadJson.error}`);
+        continue;
+      }
+
+      // Create asset record in D1
+      const assetId = generateId();
+      const assetUrl = `/r2/${encodeURIComponent(r2Key)}`;
+      await storageQuery(
+        env,
+        `INSERT INTO assets (id, product_id, asset_type, r2_key, url, metadata, created_at)
+         VALUES (?, ?, 'image', ?, ?, ?, ?)`,
+        [
+          assetId,
+          productId,
+          r2Key,
+          assetUrl,
+          JSON.stringify({ prompt: prompt.description, style: prompt.style }),
+          now(),
+        ]
+      );
+
+      results.push({ asset_id: assetId, r2_key: r2Key, url: assetUrl });
+      console.log(`[IMAGE] Generated and stored image: ${r2Key}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[IMAGE] Failed to generate image: ${message}`);
+    }
+  }
+
+  return results;
+}
+
 // --- Helper: call nexus-ai service binding ---
 
 async function callAI(
@@ -346,6 +437,27 @@ export class WorkflowEngine {
           total_cost: totalCost,
           cache_hits: cacheHits,
         });
+
+        // Post-processing: after image_generation step, generate actual images
+        if (stepName === "image_generation" && result.output) {
+          try {
+            const output = result.output as Record<string, unknown>;
+            const imagePrompts = (output.image_prompts ?? output.images ?? []) as Array<{
+              description: string;
+              style?: string;
+              dimensions?: { width: number; height: number };
+            }>;
+            if (imagePrompts.length > 0) {
+              console.log(`[WORKFLOW] Generating ${imagePrompts.length} actual images for product ${input.productId}`);
+              const assets = await generateAndStoreImages(this.env, input.productId, imagePrompts);
+              // Attach generated asset references to the step output
+              priorOutputs[stepName] = { ...output, generated_assets: assets };
+            }
+          } catch (imgErr) {
+            const imgMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
+            console.error(`[WORKFLOW] Image generation post-processing failed (non-fatal): ${imgMsg}`);
+          }
+        }
 
         // Sleep between steps (CF Workflows advantage — zero cost while sleeping)
         // In production, this is handled by the CF Workflows runtime.

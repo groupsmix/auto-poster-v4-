@@ -10,6 +10,7 @@
 // ============================================================
 
 import { generateId, now } from "@nexus/shared";
+import type { ApiResponse } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { storageQuery } from "../helpers";
 

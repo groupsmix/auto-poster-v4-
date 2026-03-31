@@ -2,6 +2,10 @@ name = "nexus-workflow"
 main = "src/index.ts"
 compatibility_date = "2025-04-01"
 
+# ── Workers AI binding (for image generation) ──
+[ai]
+binding = "AI"
+
 # ── Service Bindings (free internal routing) ──
 
 [[services]]
