@@ -35,10 +35,22 @@ export async function callSerpAPI(
     params.set("location", options.location);
   }
 
-  const response = await fetch(
-    `https://serpapi.com/search.json?${params.toString()}`,
-    { method: "GET" }
-  );
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://serpapi.com/search.json?${params.toString()}`,
+      { method: "GET", signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new AICallerError("SerpAPI timed out after 15s", 408);
+    }
+    throw e;
+  }
 
   if (!response.ok) {
     throw new AICallerError(

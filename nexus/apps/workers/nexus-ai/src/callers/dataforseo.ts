@@ -25,23 +25,36 @@ export async function callDataForSEO(
   options?: DataForSEOOptions
 ): Promise<{ text: string; results: KeywordResult[] }> {
   // apiKey format: "login:password" base64 encoded
-  const response = await fetch(
-    "https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${apiKey}`,
-      },
-      body: JSON.stringify([
-        {
-          keywords,
-          location_code: options?.locationCode ?? 2840, // US
-          language_code: options?.languageCode ?? "en",
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(
+      "https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${apiKey}`,
         },
-      ]),
+        body: JSON.stringify([
+          {
+            keywords,
+            location_code: options?.locationCode ?? 2840, // US
+            language_code: options?.languageCode ?? "en",
+          },
+        ]),
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new AICallerError("DataForSEO timed out after 15s", 408);
     }
-  );
+    throw e;
+  }
 
   if (!response.ok) {
     throw new AICallerError(

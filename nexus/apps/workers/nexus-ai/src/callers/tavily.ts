@@ -24,19 +24,32 @@ export async function callTavily(
   query: string,
   options?: TavilyOptions
 ): Promise<{ text: string; results: TavilyResult[] }> {
-  const response = await fetch("https://api.tavily.com/search", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      api_key: apiKey,
-      query,
-      search_depth: options?.searchDepth ?? "basic",
-      max_results: options?.maxResults ?? 5,
-      include_answer: options?.includeAnswer ?? true,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query,
+        search_depth: options?.searchDepth ?? "basic",
+        max_results: options?.maxResults ?? 5,
+        include_answer: options?.includeAnswer ?? true,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new AICallerError("Tavily timed out after 15s", 408);
+    }
+    throw e;
+  }
 
   if (!response.ok) {
     throw new AICallerError(

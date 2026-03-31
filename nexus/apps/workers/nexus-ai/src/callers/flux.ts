@@ -19,21 +19,34 @@ export async function callFal(
 ): Promise<{ url: string }> {
   const model = options?.model ?? "fal-ai/flux-pro";
 
-  const response = await fetch(`https://fal.run/${model}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Key ${apiKey}`,
-    },
-    body: JSON.stringify({
-      prompt,
-      image_size: {
-        width: options?.width ?? 1024,
-        height: options?.height ?? 1024,
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(`https://fal.run/${model}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Key ${apiKey}`,
       },
-      num_inference_steps: options?.steps ?? 28,
-    }),
-  });
+      body: JSON.stringify({
+        prompt,
+        image_size: {
+          width: options?.width ?? 1024,
+          height: options?.height ?? 1024,
+        },
+        num_inference_steps: options?.steps ?? 28,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new AICallerError("fal.ai timed out after 15s", 408);
+    }
+    throw e;
+  }
 
   if (!response.ok) {
     throw new AICallerError(

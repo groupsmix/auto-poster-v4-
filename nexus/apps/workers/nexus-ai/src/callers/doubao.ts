@@ -24,22 +24,35 @@ export async function callDoubao(
   }
   messages.push({ role: "user", content: prompt });
 
-  const response = await fetch(
-    "https://api.siliconflow.cn/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        max_tokens: options?.maxTokens ?? 4096,
-        temperature: options?.temperature ?? 0.7,
-      }),
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(
+      "https://api.siliconflow.cn/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: options?.maxTokens ?? 4096,
+          temperature: options?.temperature ?? 0.7,
+        }),
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new AICallerError("Doubao/SiliconFlow timed out after 15s", 408);
     }
-  );
+    throw e;
+  }
 
   if (!response.ok) {
     throw new AICallerError(

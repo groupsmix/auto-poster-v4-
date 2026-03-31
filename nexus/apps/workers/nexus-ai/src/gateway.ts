@@ -112,52 +112,70 @@ async function callAIviaGatewayInternal(
 
   let response: Response;
 
-  if (provider === "huggingface") {
-    // HuggingFace uses a different API format
-    const url = gatewayPath && accountId && gatewayId
-      ? `${apiUrl}/${modelId}`
-      : `${apiUrl}/${modelId}`;
-    response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: { max_new_tokens: 4096, temperature: 0.7 },
-      }),
-    });
-  } else {
-    // OpenAI-compatible format (DeepSeek, Qwen, Doubao, Groq, Fireworks, Moonshot, MiniMax)
-    // Split prompt into system + user messages for better role adherence.
-    // Convention: everything before "=== TASK ===" is system context (role, rules, constraints);
-    // everything from "=== TASK ===" onward is the user request.
-    const taskSplit = prompt.indexOf("=== TASK ===");
-    const messages =
-      taskSplit > 0
-        ? [
-            { role: "system" as const, content: prompt.slice(0, taskSplit).trim() },
-            { role: "user" as const, content: prompt.slice(taskSplit).trim() },
-          ]
-        : [
-            { role: "system" as const, content: "You are NEXUS — a world-class AI business engine. Follow all instructions precisely and output valid JSON only." },
-            { role: "user" as const, content: prompt },
-          ];
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: modelId,
-        messages,
-        max_tokens: 4096,
-        temperature: 0.7,
-      }),
-    });
+  try {
+    if (provider === "huggingface") {
+      // HuggingFace uses a different API format
+      const url = gatewayPath && accountId && gatewayId
+        ? `${apiUrl}/${modelId}`
+        : `${apiUrl}/${modelId}`;
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: { max_new_tokens: 4096, temperature: 0.7 },
+        }),
+        signal: controller.signal,
+      });
+    } else {
+      // OpenAI-compatible format (DeepSeek, Qwen, Doubao, Groq, Fireworks, Moonshot, MiniMax)
+      // Split prompt into system + user messages for better role adherence.
+      // Convention: everything before "=== TASK ===" is system context (role, rules, constraints);
+      // everything from "=== TASK ===" onward is the user request.
+      const taskSplit = prompt.indexOf("=== TASK ===");
+      const messages =
+        taskSplit > 0
+          ? [
+              { role: "system" as const, content: prompt.slice(0, taskSplit).trim() },
+              { role: "user" as const, content: prompt.slice(taskSplit).trim() },
+            ]
+          : [
+              { role: "system" as const, content: "You are NEXUS — a world-class AI business engine. Follow all instructions precisely and output valid JSON only." },
+              { role: "user" as const, content: prompt },
+            ];
+
+      response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: modelId,
+          messages,
+          max_tokens: 4096,
+          temperature: 0.7,
+        }),
+        signal: controller.signal,
+      });
+    }
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      const err: Error & { status?: number } = new Error(
+        `Gateway call timed out: ${provider}/${modelId} after 15s`
+      );
+      err.status = 408;
+      throw err;
+    }
+    throw e;
   }
 
   const latencyMs = Date.now() - start;
