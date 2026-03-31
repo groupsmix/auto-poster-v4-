@@ -25,6 +25,11 @@ import type {
   RecyclerVariation,
   LocalizationJob,
   LocalizedProduct,
+  ChatMessage,
+  ChatConversation,
+  ChatAction,
+  ChatActionResult,
+  ChatResponse,
 } from "@nexus/shared";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
@@ -449,6 +454,39 @@ export const api = {
       products: (id: string) =>
         request<LocalizedProduct[]>(`/localization/jobs/${id}/products`),
     },
+  },
+
+  // Chatbot endpoints
+  chatbot: {
+    /** Send a message to the AI chatbot */
+    chat: (message: string, conversationId?: string) =>
+      request<ChatResponse>("/chatbot/chat", {
+        method: "POST",
+        body: { message, conversation_id: conversationId },
+      }),
+    /** Execute proposed actions from the chatbot */
+    execute: (conversationId: string, messageId: string, actionIds: string[]) =>
+      request<{ results: ChatActionResult[]; summary_message: ChatMessage }>(
+        "/chatbot/execute",
+        {
+          method: "POST",
+          body: { conversation_id: conversationId, message_id: messageId, action_ids: actionIds },
+        }
+      ),
+    /** List all conversations */
+    listConversations: (limit?: number, offset?: number) => {
+      const params = new URLSearchParams();
+      if (limit) params.set("limit", String(limit));
+      if (offset) params.set("offset", String(offset));
+      const query = params.toString() ? `?${params.toString()}` : "";
+      return request<ChatConversation[]>(`/chatbot/history${query}`);
+    },
+    /** Get messages for a conversation */
+    getMessages: (conversationId: string) =>
+      request<ChatMessage[]>(`/chatbot/history/${conversationId}`),
+    /** Delete a conversation */
+    deleteConversation: (conversationId: string) =>
+      request<void>(`/chatbot/history/${conversationId}`, { method: "DELETE" }),
   },
 
   // AI CEO / Auto-Orchestrator endpoints
@@ -896,4 +934,9 @@ export type {
   ProductAnalysisResult,
   LanguageOption,
   LocalizationCandidate,
+  ChatMessage,
+  ChatConversation,
+  ChatAction,
+  ChatActionResult,
+  ChatResponse,
 };

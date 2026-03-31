@@ -598,6 +598,79 @@ export interface Env {
   [key: string]: unknown;
 }
 
+// --- Chatbot Types ---
+
+export type ChatRole = "user" | "assistant";
+
+export interface ChatMessage {
+  id: string;
+  conversation_id: string;
+  role: ChatRole;
+  content: string;
+  proposed_actions?: ChatAction[];
+  action_results?: ChatActionResult[];
+  created_at: string;
+}
+
+export interface ChatConversation {
+  id: string;
+  title?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** An action the chatbot proposes to execute */
+export interface ChatAction {
+  id: string;
+  type: ChatActionType;
+  label: string;
+  description: string;
+  params: Record<string, unknown>;
+}
+
+export type ChatActionType =
+  | "create_domain"
+  | "create_category"
+  | "start_workflow"
+  | "update_setting"
+  | "add_api_key"
+  | "ceo_setup"
+  | "create_platform"
+  | "create_social_channel"
+  | "approve_product"
+  | "reject_product"
+  | "publish_product"
+  | "update_prompt"
+  | "general_query";
+
+export interface ChatActionResult {
+  action_id: string;
+  success: boolean;
+  message: string;
+  data?: unknown;
+}
+
+/** Request body for /api/chatbot/chat */
+export interface ChatRequest {
+  message: string;
+  conversation_id?: string;
+}
+
+/** Response from /api/chatbot/chat */
+export interface ChatResponse {
+  conversation_id: string;
+  message: ChatMessage;
+  /** If the assistant wants to confirm actions before executing */
+  pending_actions?: ChatAction[];
+}
+
+/** Request body for /api/chatbot/execute */
+export interface ChatExecuteRequest {
+  conversation_id: string;
+  message_id: string;
+  action_ids: string[];
+}
+
 // --- API Response Types ---
 
 export interface ApiResponse<T = unknown> {

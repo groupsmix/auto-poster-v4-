@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Sidebar from "@/components/Sidebar";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ClientProviders from "@/components/ClientProviders";
+import ChatBot from "@/components/ChatBot";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -46,6 +47,7 @@ export default function RootLayout({
               <ErrorBoundary>{children}</ErrorBoundary>
             </div>
           </main>
+          <ChatBot />
         </ClientProviders>
       </body>
     </html>
