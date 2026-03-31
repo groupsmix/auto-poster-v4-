@@ -1,6 +1,15 @@
 // API client utility for nexus-router API
 // Base client with retry logic and authentication
 
+/**
+ * Base URL for all API requests.
+ *
+ * DEPLOYMENT NOTE: When the frontend is deployed on CF Pages (or any
+ * separate domain from the nexus-router worker), the default `/api`
+ * path won't work. You MUST set NEXT_PUBLIC_API_URL to the router
+ * worker's full URL, e.g.:
+ *   NEXT_PUBLIC_API_URL=https://nexus-router.<your-subdomain>.workers.dev
+ */
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 /**
