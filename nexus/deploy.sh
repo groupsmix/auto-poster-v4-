@@ -2,6 +2,10 @@
 # ============================================================
 # NEXUS — Full Deployment Script
 # ============================================================
+# Use this for MANUAL deploys and single-worker re-deploys.
+# For automated CI/CD deploys, push to main — see deploy.yml.
+# For fresh from-scratch setup, use bootstrap.sh instead.
+#
 # Handles the complete deployment pipeline:
 #   1. D1 database migrations
 #   2. Seed prompts, domains, categories, platforms, social channels, AI models
@@ -18,6 +22,12 @@
 #   ./deploy.sh --pages      # Deploy CF Pages only
 #   ./deploy.sh --secrets    # Set all secrets interactively
 #   ./deploy.sh storage      # Deploy a single worker
+#
+# When to use each tool:
+#   deploy.sh     → Manual single-worker or full re-deploys from your machine
+#   bootstrap.sh  → First-time setup or full disaster recovery from scratch
+#   deploy.yml    → Automated CI/CD (triggers on push to main)
+#   rollback.sh   → Emergency rollback all workers to previous version
 # ============================================================
 
 set -euo pipefail

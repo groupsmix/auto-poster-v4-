@@ -3,19 +3,20 @@
 // ============================================================
 
 import type { WorkflowRun, WorkflowStep, WorkflowStatus } from "@nexus/shared";
-import { now } from "@nexus/shared";
+import { now, DEFAULT_PAGE_SIZE } from "@nexus/shared";
 import { executeUpdate } from "./base";
 
-export async function getWorkflowRuns(db: D1Database, productId?: string): Promise<WorkflowRun[]> {
+export async function getWorkflowRuns(db: D1Database, productId?: string, limit = DEFAULT_PAGE_SIZE, offset = 0): Promise<WorkflowRun[]> {
   if (productId) {
     const result = await db
-      .prepare("SELECT id, product_id, batch_id, status, started_at, completed_at, current_step, total_steps, total_tokens, total_cost, cache_hits, error FROM workflow_runs WHERE product_id = ? ORDER BY started_at DESC")
-      .bind(productId)
+      .prepare("SELECT id, product_id, batch_id, status, started_at, completed_at, current_step, total_steps, total_tokens, total_cost, cache_hits, error FROM workflow_runs WHERE product_id = ? ORDER BY started_at DESC LIMIT ? OFFSET ?")
+      .bind(productId, limit, offset)
       .all<WorkflowRun>();
     return result.results;
   }
   const result = await db
-    .prepare("SELECT id, product_id, batch_id, status, started_at, completed_at, current_step, total_steps, total_tokens, total_cost, cache_hits, error FROM workflow_runs ORDER BY started_at DESC")
+    .prepare("SELECT id, product_id, batch_id, status, started_at, completed_at, current_step, total_steps, total_tokens, total_cost, cache_hits, error FROM workflow_runs ORDER BY started_at DESC LIMIT ? OFFSET ?")
+    .bind(limit, offset)
     .all<WorkflowRun>();
   return result.results;
 }

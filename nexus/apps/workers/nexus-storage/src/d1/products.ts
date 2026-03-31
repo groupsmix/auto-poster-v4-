@@ -3,12 +3,13 @@
 // ============================================================
 
 import type { Product } from "@nexus/shared";
-import { now } from "@nexus/shared";
+import { now, DEFAULT_PAGE_SIZE } from "@nexus/shared";
 import { executeUpdate } from "./base";
 
-export async function getProducts(db: D1Database): Promise<Product[]> {
+export async function getProducts(db: D1Database, limit = DEFAULT_PAGE_SIZE, offset = 0): Promise<Product[]> {
   const result = await db
-    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products ORDER BY created_at DESC")
+    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products ORDER BY created_at DESC LIMIT ? OFFSET ?")
+    .bind(limit, offset)
     .all<Product>();
   return result.results;
 }
@@ -20,18 +21,18 @@ export async function getProductById(db: D1Database, id: string): Promise<Produc
     .first<Product>();
 }
 
-export async function getProductsByDomain(db: D1Database, domainId: string): Promise<Product[]> {
+export async function getProductsByDomain(db: D1Database, domainId: string, limit = DEFAULT_PAGE_SIZE, offset = 0): Promise<Product[]> {
   const result = await db
-    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products WHERE domain_id = ? ORDER BY created_at DESC")
-    .bind(domainId)
+    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products WHERE domain_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?")
+    .bind(domainId, limit, offset)
     .all<Product>();
   return result.results;
 }
 
-export async function getProductsByCategory(db: D1Database, categoryId: string): Promise<Product[]> {
+export async function getProductsByCategory(db: D1Database, categoryId: string, limit = DEFAULT_PAGE_SIZE, offset = 0): Promise<Product[]> {
   const result = await db
-    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products WHERE category_id = ? ORDER BY created_at DESC")
-    .bind(categoryId)
+    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products WHERE category_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?")
+    .bind(categoryId, limit, offset)
     .all<Product>();
   return result.results;
 }

@@ -5,7 +5,7 @@
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
-import { errorResponse } from "../helpers";
+import { errorResponse, sanitizeInput } from "../helpers";
 import {
   listSchedules,
   getSchedule,
@@ -64,6 +64,8 @@ schedules.post("/", async (c) => {
         400
       );
     }
+
+    body.name = sanitizeInput(body.name);
 
     if (body.interval_hours !== undefined && (body.interval_hours < 1 || !Number.isFinite(body.interval_hours))) {
       return c.json<ApiResponse>(

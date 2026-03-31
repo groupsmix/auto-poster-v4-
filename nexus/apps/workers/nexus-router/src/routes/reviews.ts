@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
 import { PRODUCT_STATUS } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
-import { storageQuery, errorResponse } from "../helpers";
+import { storageQuery, errorResponse, sanitizeInput } from "../helpers";
 import { approveProduct, rejectProduct } from "../services/review-service";
 
 const reviews = new Hono<{ Bindings: RouterEnv }>();
@@ -70,6 +70,7 @@ reviews.post("/:productId/reject", async (c) => {
       );
     }
 
+    body.feedback = sanitizeInput(body.feedback);
     const result = await rejectProduct(productId, body.feedback, c.env);
     return c.json<ApiResponse>({ success: true, data: result });
   } catch (err) {
