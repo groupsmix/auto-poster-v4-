@@ -76,31 +76,43 @@ step() { echo -e "${CYAN}[STEP]${NC} $1"; }
 run_migrations() {
   step "Running D1 database migrations..."
 
-  local migration_files=(
-    "${MIGRATIONS_DIR}/001_initial_schema.sql"
-    "${MIGRATIONS_DIR}/002_v4_analytics.sql"
-    "${MIGRATIONS_DIR}/003_schema_fixes.sql"
-    "${MIGRATIONS_DIR}/004_updated_at_triggers.sql"
-  )
+  # Ensure _migrations tracking table exists
+  log "Ensuring _migrations tracking table exists..."
+  if [ "$DRY_RUN" = true ]; then
+    info "  (dry run) wrangler d1 execute nexus-db --file=${MIGRATIONS_DIR}/000_migrations_tracker.sql --remote"
+  else
+    npx wrangler d1 execute nexus-db --file="${MIGRATIONS_DIR}/000_migrations_tracker.sql" --remote
+  fi
 
-  for migration in "${migration_files[@]}"; do
-    if [ ! -f "$migration" ]; then
-      warn "Migration file not found: $migration (skipping)"
-      continue
-    fi
-
+  local migration_count=0
+  for migration in $(ls ${MIGRATIONS_DIR}/*.sql 2>/dev/null | sort); do
     local basename
     basename=$(basename "$migration")
-    log "Applying migration: $basename"
 
     if [ "$DRY_RUN" = true ]; then
       info "  (dry run) wrangler d1 execute nexus-db --file=$migration --remote"
-    else
-      npx wrangler d1 execute nexus-db --file="$migration" --remote
+      migration_count=$((migration_count + 1))
+      continue
     fi
 
+    # Skip if already applied
+    local applied
+    applied=$(npx wrangler d1 execute nexus-db --command "SELECT 1 FROM _migrations WHERE name='$basename'" --remote --json 2>/dev/null || echo "[]")
+    if echo "$applied" | grep -q '"1"'; then
+      info "Skipping $basename (already applied)"
+      continue
+    fi
+
+    log "Applying migration: $basename"
+    npx wrangler d1 execute nexus-db --file="$migration" --remote
+    npx wrangler d1 execute nexus-db --command "INSERT OR IGNORE INTO _migrations (name) VALUES ('$basename')" --remote
     log "Migration $basename applied successfully"
+    migration_count=$((migration_count + 1))
   done
+
+  if [ "$migration_count" -eq 0 ]; then
+    log "No new migrations to apply (all already applied)"
+  fi
 
   echo ""
 }

@@ -4,7 +4,7 @@
 -- ============================================================
 
 -- Core domain/category structure
-CREATE TABLE domains (
+CREATE TABLE IF NOT EXISTS domains (
   id          TEXT PRIMARY KEY,
   name        TEXT NOT NULL,
   slug        TEXT UNIQUE,
@@ -15,7 +15,7 @@ CREATE TABLE domains (
   created_at  TEXT DEFAULT (datetime('now'))
 );
 
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
   id          TEXT PRIMARY KEY,
   domain_id   TEXT REFERENCES domains(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE categories (
 );
 
 -- Platform and social channel configs
-CREATE TABLE platforms (
+CREATE TABLE IF NOT EXISTS platforms (
   id              TEXT PRIMARY KEY,
   name            TEXT NOT NULL,
   slug            TEXT UNIQUE,
@@ -42,7 +42,7 @@ CREATE TABLE platforms (
   is_active       BOOLEAN DEFAULT true
 );
 
-CREATE TABLE social_channels (
+CREATE TABLE IF NOT EXISTS social_channels (
   id              TEXT PRIMARY KEY,
   name            TEXT NOT NULL,
   slug            TEXT UNIQUE,
@@ -55,7 +55,7 @@ CREATE TABLE social_channels (
 );
 
 -- Products and their workflow runs
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
   id            TEXT PRIMARY KEY,
   domain_id     TEXT REFERENCES domains(id),
   category_id   TEXT REFERENCES categories(id),
@@ -70,7 +70,7 @@ CREATE TABLE products (
   updated_at    TEXT
 );
 
-CREATE TABLE workflow_runs (
+CREATE TABLE IF NOT EXISTS workflow_runs (
   id            TEXT PRIMARY KEY,
   product_id    TEXT REFERENCES products(id) ON DELETE CASCADE,
   batch_id      TEXT,
@@ -85,7 +85,7 @@ CREATE TABLE workflow_runs (
   error         TEXT
 );
 
-CREATE TABLE workflow_steps (
+CREATE TABLE IF NOT EXISTS workflow_steps (
   id            TEXT PRIMARY KEY,
   run_id        TEXT REFERENCES workflow_runs(id) ON DELETE CASCADE,
   step_name     TEXT NOT NULL,
@@ -104,7 +104,7 @@ CREATE TABLE workflow_steps (
 );
 
 -- Generated assets (files stored in R2)
-CREATE TABLE assets (
+CREATE TABLE IF NOT EXISTS assets (
   id            TEXT PRIMARY KEY,
   product_id    TEXT REFERENCES products(id) ON DELETE CASCADE,
   asset_type    TEXT,
@@ -116,7 +116,7 @@ CREATE TABLE assets (
 );
 
 -- Platform-specific listings per product
-CREATE TABLE platform_variants (
+CREATE TABLE IF NOT EXISTS platform_variants (
   id            TEXT PRIMARY KEY,
   product_id    TEXT REFERENCES products(id) ON DELETE CASCADE,
   platform_id   TEXT REFERENCES platforms(id),
@@ -130,7 +130,7 @@ CREATE TABLE platform_variants (
 );
 
 -- Social media content per product per channel
-CREATE TABLE social_variants (
+CREATE TABLE IF NOT EXISTS social_variants (
   id            TEXT PRIMARY KEY,
   product_id    TEXT REFERENCES products(id) ON DELETE CASCADE,
   channel_id    TEXT REFERENCES social_channels(id),
@@ -141,7 +141,7 @@ CREATE TABLE social_variants (
 );
 
 -- CEO review history
-CREATE TABLE reviews (
+CREATE TABLE IF NOT EXISTS reviews (
   id            TEXT PRIMARY KEY,
   product_id    TEXT REFERENCES products(id) ON DELETE CASCADE,
   run_id        TEXT REFERENCES workflow_runs(id),
@@ -154,7 +154,7 @@ CREATE TABLE reviews (
 );
 
 -- Revision history (full audit trail)
-CREATE TABLE revision_history (
+CREATE TABLE IF NOT EXISTS revision_history (
   id            TEXT PRIMARY KEY,
   product_id    TEXT REFERENCES products(id) ON DELETE CASCADE,
   version       INTEGER,
@@ -167,7 +167,7 @@ CREATE TABLE revision_history (
 );
 
 -- Prompt templates (editable from dashboard Prompt Manager)
-CREATE TABLE prompt_templates (
+CREATE TABLE IF NOT EXISTS prompt_templates (
   id            TEXT PRIMARY KEY,
   layer         TEXT,
   target_id     TEXT,
@@ -179,7 +179,7 @@ CREATE TABLE prompt_templates (
 );
 
 -- AI model registry and failover state
-CREATE TABLE ai_models (
+CREATE TABLE IF NOT EXISTS ai_models (
   id                  TEXT PRIMARY KEY,
   name                TEXT NOT NULL,
   provider            TEXT,
@@ -199,7 +199,7 @@ CREATE TABLE ai_models (
 );
 
 -- Settings
-CREATE TABLE settings (
+CREATE TABLE IF NOT EXISTS settings (
   key           TEXT PRIMARY KEY,
   value         TEXT,
   updated_at    TEXT DEFAULT (datetime('now'))
@@ -210,44 +210,44 @@ CREATE TABLE settings (
 -- ============================================================
 
 -- Products
-CREATE INDEX idx_products_domain_id ON products(domain_id);
-CREATE INDEX idx_products_category_id ON products(category_id);
-CREATE INDEX idx_products_batch_id ON products(batch_id);
-CREATE INDEX idx_products_status ON products(status);
+CREATE INDEX IF NOT EXISTS idx_products_domain_id ON products(domain_id);
+CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_products_batch_id ON products(batch_id);
+CREATE INDEX IF NOT EXISTS idx_products_status ON products(status);
 
 -- Workflow runs
-CREATE INDEX idx_workflow_runs_product_id ON workflow_runs(product_id);
-CREATE INDEX idx_workflow_runs_batch_id ON workflow_runs(batch_id);
-CREATE INDEX idx_workflow_runs_status ON workflow_runs(status);
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_product_id ON workflow_runs(product_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_batch_id ON workflow_runs(batch_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_status ON workflow_runs(status);
 
 -- Workflow steps
-CREATE INDEX idx_workflow_steps_run_id ON workflow_steps(run_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_steps_run_id ON workflow_steps(run_id);
 
 -- Assets
-CREATE INDEX idx_assets_product_id ON assets(product_id);
+CREATE INDEX IF NOT EXISTS idx_assets_product_id ON assets(product_id);
 
 -- Platform variants
-CREATE INDEX idx_platform_variants_product_id ON platform_variants(product_id);
-CREATE INDEX idx_platform_variants_platform_id ON platform_variants(platform_id);
+CREATE INDEX IF NOT EXISTS idx_platform_variants_product_id ON platform_variants(product_id);
+CREATE INDEX IF NOT EXISTS idx_platform_variants_platform_id ON platform_variants(platform_id);
 
 -- Social variants
-CREATE INDEX idx_social_variants_product_id ON social_variants(product_id);
-CREATE INDEX idx_social_variants_channel_id ON social_variants(channel_id);
+CREATE INDEX IF NOT EXISTS idx_social_variants_product_id ON social_variants(product_id);
+CREATE INDEX IF NOT EXISTS idx_social_variants_channel_id ON social_variants(channel_id);
 
 -- Reviews
-CREATE INDEX idx_reviews_product_id ON reviews(product_id);
-CREATE INDEX idx_reviews_run_id ON reviews(run_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews(product_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_run_id ON reviews(run_id);
 
 -- Revision history
-CREATE INDEX idx_revision_history_product_id ON revision_history(product_id);
+CREATE INDEX IF NOT EXISTS idx_revision_history_product_id ON revision_history(product_id);
 
 -- Prompt templates
-CREATE INDEX idx_prompt_templates_layer ON prompt_templates(layer);
-CREATE INDEX idx_prompt_templates_target_id ON prompt_templates(target_id);
+CREATE INDEX IF NOT EXISTS idx_prompt_templates_layer ON prompt_templates(layer);
+CREATE INDEX IF NOT EXISTS idx_prompt_templates_target_id ON prompt_templates(target_id);
 
 -- AI models
-CREATE INDEX idx_ai_models_task_type ON ai_models(task_type);
-CREATE INDEX idx_ai_models_status ON ai_models(status);
+CREATE INDEX IF NOT EXISTS idx_ai_models_task_type ON ai_models(task_type);
+CREATE INDEX IF NOT EXISTS idx_ai_models_status ON ai_models(status);
 
 -- Categories
-CREATE INDEX idx_categories_domain_id ON categories(domain_id);
+CREATE INDEX IF NOT EXISTS idx_categories_domain_id ON categories(domain_id);
