@@ -12,6 +12,28 @@ import {
   jsonResponse,
 } from "../helpers/mocks";
 
+/** Standard API response shape returned by all nexus-router endpoints */
+interface TestApiResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    id?: string;
+    status?: string;
+    product_id?: string;
+    run_id?: string;
+    batch_id?: string;
+    batch_count?: number;
+    steps?: Array<{ step_name: string; status: string }>;
+    products?: Array<{ product_id?: string; run_id?: string; id?: string; status?: string }>;
+    total?: number;
+    completed?: number;
+    [key: string]: unknown;
+  };
+  total?: number;
+  page?: number;
+  pageSize?: number;
+}
+
 /**
  * Since we don't have a browser runner, we simulate the frontend E2E flow
  * by calling the API routes in the same order a user would interact with
@@ -207,7 +229,7 @@ describe("Frontend E2E: Full Workflow Flow", () => {
   it("Step 1: Home page loads — GET /api/domains", async () => {
     const res = await app.fetch(makeRequest("/api/domains"), env);
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 
@@ -220,9 +242,9 @@ describe("Frontend E2E: Full Workflow Flow", () => {
       env
     );
     expect(res.status).toBe(201);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
-    domainId = data.data.id;
+    domainId = data.data!.id!;
     storedData.domains.push({ id: domainId, name: "Home & Living", slug: "home-living" });
   });
 
@@ -232,7 +254,7 @@ describe("Frontend E2E: Full Workflow Flow", () => {
       env
     );
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 
@@ -249,8 +271,8 @@ describe("Frontend E2E: Full Workflow Flow", () => {
       env
     );
     expect(res.status).toBe(201);
-    const data = await res.json() as Record<string, any>;
-    categoryId = data.data.id;
+    const data = await res.json() as TestApiResponse;
+    categoryId = data.data!.id!;
     storedData.categories.push({
       id: categoryId,
       domain_id: domainId,
@@ -275,11 +297,11 @@ describe("Frontend E2E: Full Workflow Flow", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("product_id");
     expect(data.data).toHaveProperty("run_id");
-    productId = data.data.product_id;
+    productId = data.data!.product_id!;
 
     storedData.products.push({
       id: productId,
@@ -305,11 +327,11 @@ describe("Frontend E2E: Full Workflow Flow", () => {
       env
     );
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     // Should show 9 completed steps
-    expect(data.data.steps).toHaveLength(9);
-    expect(data.data.steps.every((s: { status: string }) => s.status === "completed")).toBe(true);
+    expect(data.data!.steps).toHaveLength(9);
+    expect(data.data!.steps!.every((s) => s.status === "completed")).toBe(true);
   });
 
   it("Step 7: View pending reviews — GET /api/reviews/pending", async () => {
@@ -318,7 +340,7 @@ describe("Frontend E2E: Full Workflow Flow", () => {
       env
     );
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 
@@ -330,9 +352,9 @@ describe("Frontend E2E: Full Workflow Flow", () => {
       env
     );
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
-    expect(data.data.status).toBe("approved");
+    expect(data.data!.status).toBe("approved");
   });
 });
 
@@ -375,7 +397,7 @@ describe("Frontend E2E: Batch Workflow Flow", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 
@@ -385,7 +407,7 @@ describe("Frontend E2E: Batch Workflow Flow", () => {
       env
     );
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 });
@@ -429,9 +451,9 @@ describe("Frontend E2E: Reject and Revise Flow", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
-    expect(data.data.status).toBe("rejected");
+    expect(data.data!.status).toBe("rejected");
   });
 
   it("starts revision with feedback — POST /api/workflow/revise/:runId", async () => {
@@ -447,7 +469,7 @@ describe("Frontend E2E: Reject and Revise Flow", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 });

@@ -13,14 +13,14 @@ history.get("/", async (c) => {
     const pageSize = parseInt(c.req.query("pageSize") ?? String(DEFAULT_PAGE_SIZE), 10);
     const offset = (page - 1) * pageSize;
 
-    const countResult = (await storageQuery(
+    const countResult = await storageQuery<{ results?: Array<{ total: number }> }>(
       c.env,
       "SELECT COUNT(*) as total FROM workflow_runs"
-    )) as { results?: Array<{ total: number }> };
+    );
 
     const total = countResult?.results?.[0]?.total ?? 0;
 
-    const data = await storageQuery(
+    const data = await storageQuery<unknown[]>(
       c.env,
       `SELECT wr.*, p.name as product_name, p.domain_id, p.category_id
        FROM workflow_runs wr
@@ -32,7 +32,7 @@ history.get("/", async (c) => {
 
     return c.json<PaginatedResponse>({
       success: true,
-      data: data as unknown[],
+      data,
       total,
       page,
       pageSize,
@@ -47,21 +47,18 @@ history.get("/:runId", async (c) => {
   try {
     const runId = c.req.param("runId");
 
-    const runsResult = (await storageQuery(
+    const runsResult = await storageQuery<{ results?: Array<Record<string, unknown>> }>(
       c.env,
       `SELECT wr.*, p.name as product_name, p.domain_id, p.category_id, p.niche
        FROM workflow_runs wr
        LEFT JOIN products p ON p.id = wr.product_id
        WHERE wr.id = ?`,
       [runId]
-    )) as { results?: Array<Record<string, unknown>> };
+    );
 
     const runs = runsResult?.results ?? [];
     if (runs.length === 0) {
-      return c.json<ApiResponse>(
-        { success: false, error: "Workflow run not found" },
-        404
-      );
+      return errorResponse(c, new Error("Workflow run not found"), 404);
     }
 
     const steps = await storageQuery(

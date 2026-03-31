@@ -35,13 +35,7 @@ prompts.get("/:layer", async (c) => {
     ];
 
     if (!validLayers.includes(layer)) {
-      return c.json<ApiResponse>(
-        {
-          success: false,
-          error: `Invalid layer. Must be one of: ${validLayers.join(", ")}`,
-        },
-        400
-      );
+      return errorResponse(c, new Error(`Invalid layer. Must be one of: ${validLayers.join(", ")}`), 400);
     }
 
     const data = await storageQuery(
@@ -76,11 +70,11 @@ prompts.put("/:id", async (c) => {
     if (body.prompt !== undefined) {
       // Save current prompt to prompt_versions before overwriting
       try {
-        const current = (await storageQuery(
+        const current = await storageQuery<Array<Record<string, unknown>> | { results?: Array<Record<string, unknown>> }>(
           c.env,
           "SELECT id, prompt, version, name, layer FROM prompt_templates WHERE id = ?",
           [id]
-        )) as Array<Record<string, unknown>> | { results?: Array<Record<string, unknown>> };
+        );
         const rows = Array.isArray(current) ? current : (current?.results ?? []);
         if (rows.length > 0 && rows[0].prompt) {
           await storageQuery(
@@ -114,10 +108,7 @@ prompts.put("/:id", async (c) => {
     }
 
     if (sets.length === 0) {
-      return c.json<ApiResponse>(
-        { success: false, error: "No fields to update" },
-        400
-      );
+      return errorResponse(c, new Error("No fields to update"), 400);
     }
 
     sets.push("updated_at = ?");
@@ -158,26 +149,23 @@ prompts.post("/:id/revert/:versionId", async (c) => {
     const versionId = c.req.param("versionId");
 
     // Fetch the version to revert to
-    const versionResult = (await storageQuery(
+    const versionResult = await storageQuery<Array<{ prompt: string; version: number }> | { results?: Array<{ prompt: string; version: number }> }>(
       c.env,
       "SELECT prompt, version FROM prompt_versions WHERE id = ? AND prompt_id = ?",
       [versionId, id]
-    )) as Array<{ prompt: string; version: number }> | { results?: Array<{ prompt: string; version: number }> };
+    );
 
     const rows = Array.isArray(versionResult) ? versionResult : (versionResult?.results ?? []);
     if (rows.length === 0) {
-      return c.json<ApiResponse>(
-        { success: false, error: "Version not found" },
-        404
-      );
+      return errorResponse(c, new Error("Version not found"), 404);
     }
 
     // Save current prompt as a version before reverting
-    const current = (await storageQuery(
+    const current = await storageQuery<Array<Record<string, unknown>> | { results?: Array<Record<string, unknown>> }>(
       c.env,
       "SELECT prompt, version, name, layer FROM prompt_templates WHERE id = ?",
       [id]
-    )) as Array<Record<string, unknown>> | { results?: Array<Record<string, unknown>> };
+    );
     const currentRows = Array.isArray(current) ? current : (current?.results ?? []);
     if (currentRows.length > 0 && currentRows[0].prompt) {
       await storageQuery(

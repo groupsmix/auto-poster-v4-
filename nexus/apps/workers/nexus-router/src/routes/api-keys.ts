@@ -38,10 +38,10 @@ const KNOWN_KEYS: Record<string, string> = {
 apiKeys.get("/", async (c) => {
   try {
     // Query ai_models to check which keys are configured
-    const models = (await storageQuery(
+    const models = await storageQuery<{ api_key_secret_name: string; status: string }[]>(
       c.env,
       "SELECT api_key_secret_name, status FROM ai_models WHERE api_key_secret_name IS NOT NULL"
-    )) as { api_key_secret_name: string; status: string }[];
+    );
 
     const configuredKeys = new Set(
       (models || []).map((m) => m.api_key_secret_name)
@@ -66,10 +66,7 @@ apiKeys.post("/:keyName", async (c) => {
     const body = await c.req.json<{ api_key?: string }>();
 
     if (!body.api_key) {
-      return c.json<ApiResponse>(
-        { success: false, error: "api_key is required" },
-        400
-      );
+      return errorResponse(c, new Error("api_key is required"), 400);
     }
 
     // Update all ai_models that use this key name

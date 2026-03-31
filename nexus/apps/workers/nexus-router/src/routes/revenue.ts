@@ -14,11 +14,13 @@ import {
   deleteConnection,
   addRevenueRecord,
   addRevenueRecords,
+  addManualRevenueRecord,
   matchRevenueToProducts,
   updateSyncStatus,
   getRevenueDashboard,
   getRevenueByProduct,
 } from "../services/revenue-service";
+import type { ManualRevenueInput } from "../services/revenue-service";
 
 const revenue = new Hono<{ Bindings: RouterEnv }>();
 
@@ -132,6 +134,22 @@ revenue.post("/records", async (c) => {
     }
 
     const result = await addRevenueRecord(body, c.env);
+    return c.json<ApiResponse>({ success: true, data: result }, 201);
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// POST /api/revenue/records/manual — add revenue record without a platform connection
+revenue.post("/records/manual", async (c) => {
+  try {
+    const body = await c.req.json<ManualRevenueInput>();
+
+    if (body.revenue === undefined || !body.order_date) {
+      return errorResponse(c, new Error("revenue and order_date are required"), 400);
+    }
+
+    const result = await addManualRevenueRecord(body, c.env);
     return c.json<ApiResponse>({ success: true, data: result }, 201);
   } catch (err) {
     return errorResponse(c, err);

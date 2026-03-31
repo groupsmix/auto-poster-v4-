@@ -126,4 +126,221 @@ publishing.get("/:productId/export", async (c) => {
   }
 });
 
+// ============================================================
+// Platform-Ready Export Formats
+// ============================================================
+
+interface VariantRow {
+  title?: string;
+  description?: string;
+  tags?: string;
+  price?: number;
+  platform_name?: string;
+  platform_slug?: string;
+}
+
+interface AssetRow {
+  url?: string;
+  alt_text?: string;
+  asset_type?: string;
+}
+
+interface ProductRow {
+  name?: string;
+  niche?: string;
+}
+
+function extractRows<T>(result: unknown): T[] {
+  if (Array.isArray(result)) return result as T[];
+  const obj = result as { results?: T[] } | undefined;
+  return obj?.results ?? [];
+}
+
+function parseTags(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as string[]) : [];
+  } catch {
+    return raw.split(",").map((t) => t.trim()).filter(Boolean);
+  }
+}
+
+// GET /api/publish/:productId/export/etsy-csv — Etsy-ready CSV
+publishing.get("/:productId/export/etsy-csv", async (c) => {
+  try {
+    const productId = c.req.param("productId");
+
+    const [variantsRaw, assetsRaw] = await Promise.all([
+      storageQuery(
+        c.env,
+        `SELECT pv.title, pv.description, pv.tags, pv.price,
+                pl.name as platform_name, pl.slug as platform_slug
+         FROM platform_variants pv
+         JOIN platforms pl ON pl.id = pv.platform_id
+         WHERE pv.product_id = ?`,
+        [productId]
+      ),
+      storageQuery(c.env, "SELECT url, alt_text, asset_type FROM assets WHERE product_id = ?", [
+        productId,
+      ]),
+    ]);
+
+    const variants = extractRows<VariantRow>(variantsRaw);
+    const assets = extractRows<AssetRow>(assetsRaw);
+    const imageUrls = assets
+      .filter((a) => a.asset_type === "image" || !a.asset_type)
+      .map((a) => a.url ?? "");
+
+    // Etsy CSV header
+    const headers = [
+      "title", "description", "price", "quantity", "tags",
+      "image1", "image2", "image3", "image4", "image5",
+      "when_made", "who_made", "is_supply", "taxonomy_id",
+    ];
+
+    const escapeCSV = (val: string): string => {
+      if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+        return `"${val.replace(/"/g, '""')}"`;
+      }
+      return val;
+    };
+
+    const rows = variants.map((v) => {
+      const tags = parseTags(v.tags as string | undefined);
+      return [
+        escapeCSV(v.title ?? ""),
+        escapeCSV(v.description ?? ""),
+        String(v.price ?? "0.00"),
+        "999",
+        escapeCSV(tags.slice(0, 13).join(",")),
+        imageUrls[0] ?? "",
+        imageUrls[1] ?? "",
+        imageUrls[2] ?? "",
+        imageUrls[3] ?? "",
+        imageUrls[4] ?? "",
+        "2020_2025",
+        "i_did",
+        "false",
+        "",
+      ].join(",");
+    });
+
+    const csv = [headers.join(","), ...rows].join("\n");
+
+    return new Response(csv, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="etsy-${productId}.csv"`,
+      },
+    });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// GET /api/publish/:productId/export/gumroad-json — Gumroad-ready JSON
+publishing.get("/:productId/export/gumroad-json", async (c) => {
+  try {
+    const productId = c.req.param("productId");
+
+    const [productRaw, variantsRaw, assetsRaw] = await Promise.all([
+      storageQuery(c.env, "SELECT name, niche FROM products WHERE id = ?", [productId]),
+      storageQuery(
+        c.env,
+        `SELECT pv.title, pv.description, pv.tags, pv.price
+         FROM platform_variants pv
+         WHERE pv.product_id = ?`,
+        [productId]
+      ),
+      storageQuery(c.env, "SELECT url, alt_text, asset_type FROM assets WHERE product_id = ?", [
+        productId,
+      ]),
+    ]);
+
+    const products = extractRows<ProductRow>(productRaw);
+    const variants = extractRows<VariantRow>(variantsRaw);
+    const assets = extractRows<AssetRow>(assetsRaw);
+    const product = products[0];
+    const variant = variants[0];
+
+    const gumroadPayload = {
+      name: variant?.title ?? product?.name ?? "",
+      description: variant?.description ?? "",
+      price: (variant?.price ?? 0) * 100, // Gumroad uses cents
+      tags: parseTags(variant?.tags as string | undefined),
+      preview_url: assets.find((a) => a.asset_type === "image" || !a.asset_type)?.url ?? null,
+      published: true,
+      customizable_price: false,
+    };
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: {
+        format: "gumroad",
+        product_id: productId,
+        payload: gumroadPayload,
+      },
+    });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// GET /api/publish/:productId/export/shopify-json — Shopify-ready JSON
+publishing.get("/:productId/export/shopify-json", async (c) => {
+  try {
+    const productId = c.req.param("productId");
+
+    const [productRaw, variantsRaw, assetsRaw] = await Promise.all([
+      storageQuery(c.env, "SELECT name, niche FROM products WHERE id = ?", [productId]),
+      storageQuery(
+        c.env,
+        `SELECT pv.title, pv.description, pv.tags, pv.price
+         FROM platform_variants pv
+         WHERE pv.product_id = ?`,
+        [productId]
+      ),
+      storageQuery(c.env, "SELECT url, alt_text, asset_type FROM assets WHERE product_id = ?", [
+        productId,
+      ]),
+    ]);
+
+    const products = extractRows<ProductRow>(productRaw);
+    const variants = extractRows<VariantRow>(variantsRaw);
+    const assets = extractRows<AssetRow>(assetsRaw);
+    const product = products[0];
+
+    const shopifyPayload = {
+      product: {
+        title: variants[0]?.title ?? product?.name ?? "",
+        body_html: variants[0]?.description ?? "",
+        vendor: "",
+        product_type: product?.niche ?? "",
+        tags: parseTags(variants[0]?.tags as string | undefined).join(", "),
+        variants: variants.map((v) => ({
+          title: v.title ?? "Default",
+          price: String(v.price ?? "0.00"),
+          sku: "",
+          inventory_quantity: 999,
+        })),
+        images: assets
+          .filter((a) => a.asset_type === "image" || !a.asset_type)
+          .map((a) => ({ src: a.url ?? "", alt: a.alt_text ?? "" })),
+      },
+    };
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: {
+        format: "shopify",
+        product_id: productId,
+        payload: shopifyPayload,
+      },
+    });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
 export default publishing;
