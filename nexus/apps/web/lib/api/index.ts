@@ -1,0 +1,82 @@
+// ============================================================
+// API module — re-exports
+// ============================================================
+
+export { api } from "./endpoints";
+export { request } from "./client";
+export type { ApiResponse } from "./client";
+
+// Re-export all types (preserves the same public API as the old api.ts)
+export type {
+  ReviewItem,
+  ReviewDetail,
+  PlatformVariantData,
+  SocialVariantData,
+  PublishableProduct,
+  PlatformFull,
+  SocialChannelFull,
+  AnalyticsSummary,
+  AIUsageOverTime,
+  CostBreakdownItem,
+  CacheHitTrendItem,
+  DomainBreakdownItem,
+  CategoryBreakdownItem,
+  AILeaderboardEntry,
+  AnalyticsDashboard,
+  ProductListParams,
+  RunListParams,
+  RevisionEntry,
+  SettingsMap,
+  APIKeyEntry,
+  CEONicheAnalysis,
+  CEOWorkflowConfig,
+  CEOAnalysis,
+  CEOSetupResponse,
+  CEOConfigResponse,
+  CEOConfigSummary,
+  ScheduleRunEntry,
+  ScheduleTickResult,
+  CampaignProgress,
+  RevenueDashboardParams,
+  ProductRevenueDetail,
+  TopSellerProduct,
+  ProductAnalysisResult,
+  LanguageOption,
+  LocalizationCandidate,
+} from "./types";
+
+// Re-export shared types that were re-exported from the old api.ts
+export type {
+  Domain,
+  Category,
+  PromptTemplate,
+  PromptVersion,
+  AIModel,
+  Product,
+  ProductStatus,
+  Asset,
+  Platform,
+  SocialChannel,
+  WorkflowRun,
+  WorkflowStep,
+  Schedule,
+  Campaign,
+  PlatformConnection,
+  RevenueDashboard,
+  ROIDashboard,
+  ROIReport,
+  ROISnapshot,
+  NicheCost,
+  RecyclerJob,
+  RecyclerVariation,
+  LocalizationJob,
+  LocalizedProduct,
+  ChatMessage,
+  ChatConversation,
+  ChatAction,
+  ChatActionResult,
+  ChatResponse,
+  ProjectBuild,
+  ProjectBuildProgress,
+  ProjectBuildFile,
+} from "@nexus/shared";
