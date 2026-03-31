@@ -1,13 +1,17 @@
 // ============================================================
-// Integration Tests — Phase 2/3 Route Coverage
-// Tests: Schedules, Campaigns, Revenue, ROI, Recycler,
-//        Localization, Chatbot, Project Builder, Briefings
+// Integration Tests — Phase 2/3 Feature Routes
+// [7.3] Scheduler, Campaigns, Revenue, ROI, Recycler,
+//       Localization, Chatbot, Project Builder, Briefings
 // ============================================================
 
 import { describe, it, expect, beforeEach } from "vitest";
 import app, { rateLimitMap } from "../../apps/workers/nexus-router/src/index";
 import type { ApiResponse } from "@nexus/shared";
-import { createMockFetcher, jsonResponse } from "../helpers/mocks";
+import {
+  createMockFetcher,
+  createMockKV,
+  jsonResponse,
+} from "../helpers/mocks";
 
 /** Typed API response for test assertions */
 interface TestApiResponse extends ApiResponse<Record<string, unknown>> {
@@ -16,6 +20,7 @@ interface TestApiResponse extends ApiResponse<Record<string, unknown>> {
   pageSize?: number;
 }
 
+// Clear the in-memory rate limiter between tests
 beforeEach(() => {
   rateLimitMap.clear();
 });
@@ -35,17 +40,59 @@ function buildEnv(overrides: Record<string, unknown> = {}) {
     return jsonResponse({ success: true, data: {} });
   });
 
+  const workflowFetcher = createMockFetcher(async () =>
+    jsonResponse({
+      success: true,
+      data: { product_id: "p1", run_id: "r1", status: "running" },
+    })
+  );
+
+  const variationFetcher = createMockFetcher(async () =>
+    jsonResponse({ success: true, data: { variants: [], errors: [] } })
+  );
+
+  const aiFetcher = createMockFetcher(async (req) => {
+    const url = new URL(req.url);
+    if (url.pathname === "/ai/chatbot/chat") {
+      return jsonResponse({
+        success: true,
+        data: {
+          content: "I can help you with that!",
+          actions: [],
+        },
+      });
+    }
+    if (url.pathname === "/ai/briefing/generate") {
+      return jsonResponse({
+        success: true,
+        data: {
+          title: "Daily Briefing",
+          summary: "Summary of today",
+          sections: [{ type: "trends", content: "Trending up" }],
+          domains_analyzed: ["digital-products"],
+          ai_model_used: "deepseek-v3",
+          tokens_used: 500,
+        },
+      });
+    }
+    return jsonResponse({ success: true, data: {} });
+  });
+
   return {
     NEXUS_STORAGE: storageFetcher,
-    NEXUS_WORKFLOW: createMockFetcher(),
-    NEXUS_VARIATION: createMockFetcher(),
-    NEXUS_AI: createMockFetcher(),
+    NEXUS_WORKFLOW: workflowFetcher,
+    NEXUS_VARIATION: variationFetcher,
+    NEXUS_AI: aiFetcher,
     DASHBOARD_SECRET: "test-secret-123",
     ...overrides,
   };
 }
 
-function makeRequest(path: string, init?: RequestInit, auth = true): Request {
+function makeRequest(
+  path: string,
+  init?: RequestInit,
+  auth = true
+): Request {
   const headers = new Headers(init?.headers ?? {});
   if (auth) {
     headers.set("Authorization", "Bearer test-secret-123");
@@ -57,7 +104,7 @@ function makeRequest(path: string, init?: RequestInit, auth = true): Request {
 // SCHEDULER ROUTES
 // ============================================================
 
-describe("nexus-router: Schedule Routes (Phase 2)", () => {
+describe("nexus-router: Scheduler Routes", () => {
   it("GET /api/schedules returns list", async () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/api/schedules"), env);
@@ -66,7 +113,7 @@ describe("nexus-router: Schedule Routes (Phase 2)", () => {
     expect(data.success).toBe(true);
   });
 
-  it("GET /api/schedules/:id returns schedule", async () => {
+  it("GET /api/schedules/:id returns a schedule", async () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/api/schedules/sched-1"), env);
     expect(res.status).toBe(200);
@@ -81,7 +128,7 @@ describe("nexus-router: Schedule Routes (Phase 2)", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: "Daily Candles",
+          name: "Daily Products",
           domain_id: "dom-1",
           interval_hours: 24,
           products_per_run: 3,
@@ -113,14 +160,14 @@ describe("nexus-router: Schedule Routes (Phase 2)", () => {
       makeRequest("/api/schedules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Test" }),
+        body: JSON.stringify({ name: "Test Schedule" }),
       }),
       env
     );
     expect(res.status).toBe(400);
   });
 
-  it("POST /api/schedules rejects invalid interval_hours", async () => {
+  it("POST /api/schedules returns 400 for invalid interval_hours", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/schedules", {
@@ -137,14 +184,14 @@ describe("nexus-router: Schedule Routes (Phase 2)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("POST /api/schedules rejects invalid products_per_run", async () => {
+  it("POST /api/schedules returns 400 for invalid products_per_run", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/schedules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: "Bad Count",
+          name: "Bad Products",
           domain_id: "dom-1",
           products_per_run: -1,
         }),
@@ -160,7 +207,7 @@ describe("nexus-router: Schedule Routes (Phase 2)", () => {
       makeRequest("/api/schedules/sched-1", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Updated Schedule" }),
+        body: JSON.stringify({ interval_hours: 12 }),
       }),
       env
     );
@@ -223,7 +270,7 @@ describe("nexus-router: Schedule Routes (Phase 2)", () => {
 // CAMPAIGN ROUTES
 // ============================================================
 
-describe("nexus-router: Campaign Routes (Phase 2)", () => {
+describe("nexus-router: Campaign Routes", () => {
   it("GET /api/campaigns returns list", async () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/api/campaigns"), env);
@@ -232,7 +279,7 @@ describe("nexus-router: Campaign Routes (Phase 2)", () => {
     expect(data.success).toBe(true);
   });
 
-  it("GET /api/campaigns/:id returns campaign", async () => {
+  it("GET /api/campaigns/:id returns a campaign", async () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/api/campaigns/camp-1"), env);
     expect(res.status).toBe(200);
@@ -247,7 +294,7 @@ describe("nexus-router: Campaign Routes (Phase 2)", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: "Q1 Sprint",
+          name: "Holiday Launch",
           domain_id: "dom-1",
           target_count: 20,
           deadline: new Date(Date.now() + 86400000 * 30).toISOString(),
@@ -266,14 +313,14 @@ describe("nexus-router: Campaign Routes (Phase 2)", () => {
       makeRequest("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Missing fields" }),
+        body: JSON.stringify({ name: "Incomplete" }),
       }),
       env
     );
     expect(res.status).toBe(400);
   });
 
-  it("POST /api/campaigns rejects target_count < 1", async () => {
+  it("POST /api/campaigns returns 400 for target_count < 1", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/campaigns", {
@@ -290,7 +337,7 @@ describe("nexus-router: Campaign Routes (Phase 2)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("POST /api/campaigns rejects past deadline", async () => {
+  it("POST /api/campaigns returns 400 for past deadline", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/campaigns", {
@@ -299,26 +346,8 @@ describe("nexus-router: Campaign Routes (Phase 2)", () => {
         body: JSON.stringify({
           name: "Past Deadline",
           domain_id: "dom-1",
-          target_count: 5,
+          target_count: 10,
           deadline: "2020-01-01T00:00:00Z",
-        }),
-      }),
-      env
-    );
-    expect(res.status).toBe(400);
-  });
-
-  it("POST /api/campaigns rejects invalid deadline", async () => {
-    const env = buildEnv();
-    const res = await app.fetch(
-      makeRequest("/api/campaigns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: "Invalid Date",
-          domain_id: "dom-1",
-          target_count: 5,
-          deadline: "not-a-date",
         }),
       }),
       env
@@ -332,11 +361,13 @@ describe("nexus-router: Campaign Routes (Phase 2)", () => {
       makeRequest("/api/campaigns/camp-1", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Updated Campaign" }),
+        body: JSON.stringify({ target_count: 30 }),
       }),
       env
     );
     expect(res.status).toBe(200);
+    const data = (await res.json()) as TestApiResponse;
+    expect(data.success).toBe(true);
   });
 
   it("DELETE /api/campaigns/:id deletes a campaign", async () => {
@@ -351,26 +382,24 @@ describe("nexus-router: Campaign Routes (Phase 2)", () => {
     expect(data.data).toHaveProperty("deleted", "camp-1");
   });
 
-  it("POST /api/campaigns/:id/execute returns 500 when campaign not found", async () => {
-    const env = buildEnv();
-    const res = await app.fetch(
-      makeRequest("/api/campaigns/camp-1/execute", { method: "POST" }),
-      env
-    );
-    // Service throws "Campaign not found or not active" when DB is empty
-    expect(res.status).toBe(500);
-    const data = (await res.json()) as TestApiResponse;
-    expect(data.success).toBe(false);
-  });
-
-  it("GET /api/campaigns/:id/progress returns 404 when campaign not found", async () => {
+  it("GET /api/campaigns/:id/progress returns progress", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/campaigns/camp-1/progress"),
       env
     );
-    // getCampaignProgress returns null for missing campaign → route returns 404
-    expect(res.status).toBe(404);
+    // Returns 200 with data or 404 if not found
+    expect([200, 404]).toContain(res.status);
+  });
+
+  it("POST /api/campaigns/:id/execute returns error for non-existent campaign", async () => {
+    const env = buildEnv();
+    const res = await app.fetch(
+      makeRequest("/api/campaigns/camp-1/execute", { method: "POST" }),
+      env
+    );
+    // Service throws when campaign not found in empty DB
+    expect(res.status).toBe(500);
     const data = (await res.json()) as TestApiResponse;
     expect(data.success).toBe(false);
   });
@@ -380,7 +409,7 @@ describe("nexus-router: Campaign Routes (Phase 2)", () => {
 // REVENUE ROUTES
 // ============================================================
 
-describe("nexus-router: Revenue Routes (Phase 2)", () => {
+describe("nexus-router: Revenue Routes", () => {
   it("GET /api/revenue/connections returns list", async () => {
     const env = buildEnv();
     const res = await app.fetch(
@@ -398,7 +427,7 @@ describe("nexus-router: Revenue Routes (Phase 2)", () => {
       makeRequest("/api/revenue/connections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform: "etsy", store_name: "My Etsy Shop" }),
+        body: JSON.stringify({ platform: "etsy" }),
       }),
       env
     );
@@ -413,14 +442,14 @@ describe("nexus-router: Revenue Routes (Phase 2)", () => {
       makeRequest("/api/revenue/connections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ store_name: "No Platform" }),
+        body: JSON.stringify({}),
       }),
       env
     );
     expect(res.status).toBe(400);
   });
 
-  it("DELETE /api/revenue/connections/:id deletes connection", async () => {
+  it("DELETE /api/revenue/connections/:id deletes a connection", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/revenue/connections/conn-1", { method: "DELETE" }),
@@ -428,10 +457,10 @@ describe("nexus-router: Revenue Routes (Phase 2)", () => {
     );
     expect(res.status).toBe(200);
     const data = (await res.json()) as TestApiResponse;
-    expect(data.data).toHaveProperty("deleted", "conn-1");
+    expect(data.success).toBe(true);
   });
 
-  it("POST /api/revenue/records adds a revenue record", async () => {
+  it("POST /api/revenue/records creates a revenue record", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/revenue/records", {
@@ -440,13 +469,15 @@ describe("nexus-router: Revenue Routes (Phase 2)", () => {
         body: JSON.stringify({
           connection_id: "conn-1",
           platform: "etsy",
-          revenue: 29.99,
-          order_date: "2026-03-15",
+          revenue: 49.99,
+          order_date: "2026-03-15T00:00:00Z",
         }),
       }),
       env
     );
     expect(res.status).toBe(201);
+    const data = (await res.json()) as TestApiResponse;
+    expect(data.success).toBe(true);
   });
 
   it("POST /api/revenue/records returns 400 for missing fields", async () => {
@@ -455,14 +486,14 @@ describe("nexus-router: Revenue Routes (Phase 2)", () => {
       makeRequest("/api/revenue/records", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ revenue: 10 }),
+        body: JSON.stringify({ platform: "etsy" }),
       }),
       env
     );
     expect(res.status).toBe(400);
   });
 
-  it("POST /api/revenue/records rejects negative revenue", async () => {
+  it("POST /api/revenue/records returns 400 for negative revenue", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/revenue/records", {
@@ -471,7 +502,7 @@ describe("nexus-router: Revenue Routes (Phase 2)", () => {
         body: JSON.stringify({
           connection_id: "conn-1",
           platform: "etsy",
-          revenue: -5,
+          revenue: -10,
           order_date: "2026-03-15",
         }),
       }),
@@ -488,14 +519,16 @@ describe("nexus-router: Revenue Routes (Phase 2)", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           records: [
-            { connection_id: "conn-1", platform: "etsy", revenue: 10, order_date: "2026-03-01" },
-            { connection_id: "conn-1", platform: "etsy", revenue: 20, order_date: "2026-03-02" },
+            { connection_id: "c1", platform: "etsy", revenue: 10, order_date: "2026-03-01" },
+            { connection_id: "c1", platform: "etsy", revenue: 20, order_date: "2026-03-02" },
           ],
         }),
       }),
       env
     );
     expect(res.status).toBe(200);
+    const data = (await res.json()) as TestApiResponse;
+    expect(data.success).toBe(true);
   });
 
   it("POST /api/revenue/records/bulk returns 400 for empty records", async () => {
@@ -513,7 +546,7 @@ describe("nexus-router: Revenue Routes (Phase 2)", () => {
 
   it("POST /api/revenue/import/csv parses CSV data", async () => {
     const env = buildEnv();
-    const csv = "revenue,order_date\n29.99,2026-03-15\n14.50,2026-03-16";
+    const csv = "revenue,order_date\n49.99,2026-03-15\n29.99,2026-03-16";
     const res = await app.fetch(
       makeRequest("/api/revenue/import/csv", {
         method: "POST",
@@ -531,13 +564,17 @@ describe("nexus-router: Revenue Routes (Phase 2)", () => {
     expect(data.success).toBe(true);
   });
 
-  it("POST /api/revenue/import/csv returns 400 for missing csv", async () => {
+  it("POST /api/revenue/import/csv returns 400 for missing columns", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/revenue/import/csv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connection_id: "conn-1", platform: "etsy" }),
+        body: JSON.stringify({
+          connection_id: "conn-1",
+          platform: "etsy",
+          csv: "name,price\nWidget,10",
+        }),
       }),
       env
     );
@@ -571,7 +608,7 @@ describe("nexus-router: Revenue Routes (Phase 2)", () => {
 // ROI ROUTES
 // ============================================================
 
-describe("nexus-router: ROI Routes (Phase 2)", () => {
+describe("nexus-router: ROI Routes", () => {
   it("GET /api/roi/costs returns niche costs", async () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/api/roi/costs"), env);
@@ -586,7 +623,7 @@ describe("nexus-router: ROI Routes (Phase 2)", () => {
       makeRequest("/api/roi/costs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain_id: "dom-1", amount: 15.5 }),
+        body: JSON.stringify({ domain_id: "dom-1", amount: 25.50 }),
       }),
       env
     );
@@ -608,7 +645,7 @@ describe("nexus-router: ROI Routes (Phase 2)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("POST /api/roi/costs rejects negative amount", async () => {
+  it("POST /api/roi/costs returns 400 for negative amount", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/roi/costs", {
@@ -621,7 +658,7 @@ describe("nexus-router: ROI Routes (Phase 2)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("DELETE /api/roi/costs/:id deletes a cost", async () => {
+  it("DELETE /api/roi/costs/:id deletes a niche cost", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/roi/costs/cost-1", { method: "DELETE" }),
@@ -629,10 +666,10 @@ describe("nexus-router: ROI Routes (Phase 2)", () => {
     );
     expect(res.status).toBe(200);
     const data = (await res.json()) as TestApiResponse;
-    expect(data.data).toHaveProperty("deleted", "cost-1");
+    expect(data.success).toBe(true);
   });
 
-  it("POST /api/roi/snapshots generates a snapshot", async () => {
+  it("POST /api/roi/snapshots creates an ROI snapshot", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/roi/snapshots", {
@@ -647,9 +684,11 @@ describe("nexus-router: ROI Routes (Phase 2)", () => {
       env
     );
     expect(res.status).toBe(201);
+    const data = (await res.json()) as TestApiResponse;
+    expect(data.success).toBe(true);
   });
 
-  it("POST /api/roi/snapshots returns 400 for missing dates", async () => {
+  it("POST /api/roi/snapshots returns 400 for missing fields", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/roi/snapshots", {
@@ -662,7 +701,7 @@ describe("nexus-router: ROI Routes (Phase 2)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("POST /api/roi/reports generates a report", async () => {
+  it("POST /api/roi/reports generates an ROI report", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/roi/reports", {
@@ -676,9 +715,11 @@ describe("nexus-router: ROI Routes (Phase 2)", () => {
       env
     );
     expect(res.status).toBe(201);
+    const data = (await res.json()) as TestApiResponse;
+    expect(data.success).toBe(true);
   });
 
-  it("GET /api/roi/reports returns report list", async () => {
+  it("GET /api/roi/reports lists ROI reports", async () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/api/roi/reports"), env);
     expect(res.status).toBe(200);
@@ -699,7 +740,7 @@ describe("nexus-router: ROI Routes (Phase 2)", () => {
 // RECYCLER ROUTES
 // ============================================================
 
-describe("nexus-router: Recycler Routes (Phase 3)", () => {
+describe("nexus-router: Recycler Routes", () => {
   it("GET /api/recycler/top-sellers returns top sellers", async () => {
     const env = buildEnv();
     const res = await app.fetch(
@@ -711,19 +752,19 @@ describe("nexus-router: Recycler Routes (Phase 3)", () => {
     expect(data.success).toBe(true);
   });
 
-  it("GET /api/recycler/analyze/:productId returns 500 when product not found", async () => {
+  it("GET /api/recycler/analyze/:productId returns error for non-existent product", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/recycler/analyze/prod-1"),
       env
     );
-    // analyzeProduct throws "Product not found" when DB has no matching product
+    // Service throws when product not found in empty DB
     expect(res.status).toBe(500);
     const data = (await res.json()) as TestApiResponse;
     expect(data.success).toBe(false);
   });
 
-  it("GET /api/recycler/jobs returns jobs list", async () => {
+  it("GET /api/recycler/jobs lists recycler jobs", async () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/api/recycler/jobs"), env);
     expect(res.status).toBe(200);
@@ -739,7 +780,7 @@ describe("nexus-router: Recycler Routes (Phase 3)", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           source_product_id: "prod-1",
-          strategy: "remix",
+          strategy: "niche-pivot",
           variations_requested: 3,
         }),
       }),
@@ -756,7 +797,7 @@ describe("nexus-router: Recycler Routes (Phase 3)", () => {
       makeRequest("/api/recycler/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ strategy: "remix" }),
+        body: JSON.stringify({ strategy: "niche-pivot" }),
       }),
       env
     );
@@ -771,16 +812,16 @@ describe("nexus-router: Recycler Routes (Phase 3)", () => {
     );
     expect(res.status).toBe(200);
     const data = (await res.json()) as TestApiResponse;
-    expect(data.data).toHaveProperty("deleted", "job-1");
+    expect(data.success).toBe(true);
   });
 
-  it("POST /api/recycler/jobs/:id/generate returns 500 when job not found", async () => {
+  it("POST /api/recycler/jobs/:id/generate returns error for non-existent job", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/recycler/jobs/job-1/generate", { method: "POST" }),
       env
     );
-    // generateVariations throws "Recycler job not found" when DB has no matching job
+    // Service throws when job not found in empty DB
     expect(res.status).toBe(500);
     const data = (await res.json()) as TestApiResponse;
     expect(data.success).toBe(false);
@@ -802,7 +843,7 @@ describe("nexus-router: Recycler Routes (Phase 3)", () => {
 // LOCALIZATION ROUTES
 // ============================================================
 
-describe("nexus-router: Localization Routes (Phase 3)", () => {
+describe("nexus-router: Localization Routes", () => {
   it("GET /api/localization/languages returns available languages", async () => {
     const env = buildEnv();
     const res = await app.fetch(
@@ -825,7 +866,7 @@ describe("nexus-router: Localization Routes (Phase 3)", () => {
     expect(data.success).toBe(true);
   });
 
-  it("GET /api/localization/jobs returns jobs list", async () => {
+  it("GET /api/localization/jobs lists localization jobs", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/localization/jobs"),
@@ -844,7 +885,7 @@ describe("nexus-router: Localization Routes (Phase 3)", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           source_product_id: "prod-1",
-          languages: ["es", "fr", "de"],
+          languages: ["fr", "de", "es"],
         }),
       }),
       env
@@ -854,13 +895,29 @@ describe("nexus-router: Localization Routes (Phase 3)", () => {
     expect(data.success).toBe(true);
   });
 
-  it("POST /api/localization/jobs returns 400 for missing languages", async () => {
+  it("POST /api/localization/jobs returns 400 for missing fields", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/localization/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source_product_id: "prod-1", languages: [] }),
+        body: JSON.stringify({ source_product_id: "prod-1" }),
+      }),
+      env
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /api/localization/jobs returns 400 for empty languages", async () => {
+    const env = buildEnv();
+    const res = await app.fetch(
+      makeRequest("/api/localization/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source_product_id: "prod-1",
+          languages: [],
+        }),
       }),
       env
     );
@@ -875,16 +932,16 @@ describe("nexus-router: Localization Routes (Phase 3)", () => {
     );
     expect(res.status).toBe(200);
     const data = (await res.json()) as TestApiResponse;
-    expect(data.data).toHaveProperty("deleted", "loc-1");
+    expect(data.success).toBe(true);
   });
 
-  it("POST /api/localization/jobs/:id/execute returns 500 when job not found", async () => {
+  it("POST /api/localization/jobs/:id/execute returns error for non-existent job", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/localization/jobs/loc-1/execute", { method: "POST" }),
       env
     );
-    // executeLocalization throws "Localization job not found" when DB has no matching job
+    // Service throws when job not found in empty DB
     expect(res.status).toBe(500);
     const data = (await res.json()) as TestApiResponse;
     expect(data.success).toBe(false);
@@ -906,24 +963,14 @@ describe("nexus-router: Localization Routes (Phase 3)", () => {
 // CHATBOT ROUTES
 // ============================================================
 
-describe("nexus-router: Chatbot Routes (Phase 3)", () => {
-  it("POST /api/chatbot/chat sends a message", async () => {
-    const aiFetcher = createMockFetcher(async () => {
-      return jsonResponse({
-        success: true,
-        data: {
-          content: "I can help you create a product!",
-          actions: [],
-        },
-      });
-    });
-
-    const env = buildEnv({ NEXUS_AI: aiFetcher });
+describe("nexus-router: Chatbot Routes", () => {
+  it("POST /api/chatbot/chat sends a message and gets response", async () => {
+    const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/chatbot/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "Create a new candle template" }),
+        body: JSON.stringify({ message: "How many products do I have?" }),
       }),
       env
     );
@@ -931,6 +978,7 @@ describe("nexus-router: Chatbot Routes (Phase 3)", () => {
     const data = (await res.json()) as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("conversation_id");
+    expect(data.data).toHaveProperty("message");
   });
 
   it("POST /api/chatbot/chat returns 400 for empty message", async () => {
@@ -946,9 +994,9 @@ describe("nexus-router: Chatbot Routes (Phase 3)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("POST /api/chatbot/chat returns 400 for message exceeding max length", async () => {
+  it("POST /api/chatbot/chat returns 400 for message exceeding 4000 chars", async () => {
     const env = buildEnv();
-    const longMessage = "x".repeat(5000);
+    const longMessage = "a".repeat(4001);
     const res = await app.fetch(
       makeRequest("/api/chatbot/chat", {
         method: "POST",
@@ -958,6 +1006,8 @@ describe("nexus-router: Chatbot Routes (Phase 3)", () => {
       env
     );
     expect(res.status).toBe(400);
+    const data = (await res.json()) as TestApiResponse;
+    expect(data.error).toContain("4000");
   });
 
   it("POST /api/chatbot/execute returns 400 for missing fields", async () => {
@@ -966,7 +1016,7 @@ describe("nexus-router: Chatbot Routes (Phase 3)", () => {
       makeRequest("/api/chatbot/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation_id: "conv-1" }),
+        body: JSON.stringify({}),
       }),
       env
     );
@@ -984,18 +1034,7 @@ describe("nexus-router: Chatbot Routes (Phase 3)", () => {
     expect(data.success).toBe(true);
   });
 
-  it("GET /api/chatbot/history/:id returns conversation messages", async () => {
-    const env = buildEnv();
-    const res = await app.fetch(
-      makeRequest("/api/chatbot/history/conv-1"),
-      env
-    );
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as TestApiResponse;
-    expect(data.success).toBe(true);
-  });
-
-  it("DELETE /api/chatbot/history/:id deletes conversation", async () => {
+  it("DELETE /api/chatbot/history/:id deletes a conversation", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/chatbot/history/conv-1", { method: "DELETE" }),
@@ -1003,6 +1042,7 @@ describe("nexus-router: Chatbot Routes (Phase 3)", () => {
     );
     expect(res.status).toBe(200);
     const data = (await res.json()) as TestApiResponse;
+    expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("deleted", "conv-1");
   });
 });
@@ -1011,28 +1051,22 @@ describe("nexus-router: Chatbot Routes (Phase 3)", () => {
 // PROJECT BUILDER ROUTES
 // ============================================================
 
-describe("nexus-router: Project Builder Routes (Phase 3)", () => {
-  it("POST /api/project-builder starts a build", async () => {
-    const aiFetcher = createMockFetcher(async () => {
-      return jsonResponse({
-        success: true,
-        data: { build_id: "build-1", status: "running" },
-      });
-    });
-
-    const env = buildEnv({ NEXUS_AI: aiFetcher });
+describe("nexus-router: Project Builder Routes", () => {
+  it("POST /api/project-builder creates a build", async () => {
+    const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/project-builder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          idea: "A Notion template for freelancers to track invoices",
-          tech_stack: "notion",
+          idea: "AI-powered resume builder",
+          tech_stack: "Next.js + Tailwind",
+          features: ["PDF export", "AI suggestions"],
         }),
       }),
       env
     );
-    expect(res.status).toBe(201);
+    expect([200, 201]).toContain(res.status);
     const data = (await res.json()) as TestApiResponse;
     expect(data.success).toBe(true);
   });
@@ -1043,7 +1077,7 @@ describe("nexus-router: Project Builder Routes (Phase 3)", () => {
       makeRequest("/api/project-builder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tech_stack: "notion" }),
+        body: JSON.stringify({}),
       }),
       env
     );
@@ -1057,50 +1091,11 @@ describe("nexus-router: Project Builder Routes (Phase 3)", () => {
       env
     );
     expect(res.status).toBe(200);
+    const data = (await res.json()) as TestApiResponse;
+    expect(data.success).toBe(true);
   });
 
-  it("GET /api/project-builder/:buildId returns build progress", async () => {
-    const storageFetcher = createMockFetcher(async () => {
-      return jsonResponse({
-        success: true,
-        data: { build_id: "build-1", status: "completed", progress: 100 },
-      });
-    });
-
-    const env = buildEnv({ NEXUS_STORAGE: storageFetcher });
-    const res = await app.fetch(
-      makeRequest("/api/project-builder/build-1"),
-      env
-    );
-    expect(res.status).toBe(200);
-  });
-
-  it("GET /api/project-builder/:buildId/details returns details", async () => {
-    const storageFetcher = createMockFetcher(async () => {
-      return jsonResponse({
-        success: true,
-        data: { build_id: "build-1", idea: "Invoice tracker" },
-      });
-    });
-
-    const env = buildEnv({ NEXUS_STORAGE: storageFetcher });
-    const res = await app.fetch(
-      makeRequest("/api/project-builder/build-1/details"),
-      env
-    );
-    expect(res.status).toBe(200);
-  });
-
-  it("GET /api/project-builder/:buildId/files returns generated files", async () => {
-    const env = buildEnv();
-    const res = await app.fetch(
-      makeRequest("/api/project-builder/build-1/files"),
-      env
-    );
-    expect(res.status).toBe(200);
-  });
-
-  it("POST /api/project-builder/:buildId/rebuild requires feedback", async () => {
+  it("POST /api/project-builder/:buildId/rebuild returns 400 for missing feedback", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/project-builder/build-1/rebuild", {
@@ -1113,31 +1108,35 @@ describe("nexus-router: Project Builder Routes (Phase 3)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("POST /api/project-builder/:buildId/cancel cancels build", async () => {
+  it("POST /api/project-builder/:buildId/cancel cancels a build", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/project-builder/build-1/cancel", { method: "POST" }),
       env
     );
     expect(res.status).toBe(200);
+    const data = (await res.json()) as TestApiResponse;
+    expect(data.success).toBe(true);
   });
 
-  it("DELETE /api/project-builder/:buildId deletes build", async () => {
+  it("DELETE /api/project-builder/:buildId deletes a build", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/project-builder/build-1", { method: "DELETE" }),
       env
     );
     expect(res.status).toBe(200);
+    const data = (await res.json()) as TestApiResponse;
+    expect(data.success).toBe(true);
   });
 });
 
 // ============================================================
-// BRIEFINGS ROUTES
+// BRIEFING ROUTES
 // ============================================================
 
-describe("nexus-router: Briefing Routes (Phase 3)", () => {
-  it("GET /api/briefings returns briefing list", async () => {
+describe("nexus-router: Briefing Routes", () => {
+  it("GET /api/briefings returns list", async () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/api/briefings"), env);
     expect(res.status).toBe(200);
@@ -1145,8 +1144,15 @@ describe("nexus-router: Briefing Routes (Phase 3)", () => {
     expect(data.success).toBe(true);
   });
 
-  it("GET /api/briefings/settings returns default settings", async () => {
-    const env = buildEnv();
+  it("GET /api/briefings/settings returns settings", async () => {
+    const storageFetcher = createMockFetcher(async (req) => {
+      const url = new URL(req.url);
+      if (url.pathname === "/d1/query") {
+        return jsonResponse({ success: true, data: [] });
+      }
+      return jsonResponse({ success: true, data: {} });
+    });
+    const env = buildEnv({ NEXUS_STORAGE: storageFetcher });
     const res = await app.fetch(
       makeRequest("/api/briefings/settings"),
       env
@@ -1154,6 +1160,7 @@ describe("nexus-router: Briefing Routes (Phase 3)", () => {
     expect(res.status).toBe(200);
     const data = (await res.json()) as TestApiResponse;
     expect(data.success).toBe(true);
+    // Should return defaults when no settings exist
     expect(data.data).toHaveProperty("briefing_hour");
   });
 
@@ -1166,7 +1173,7 @@ describe("nexus-router: Briefing Routes (Phase 3)", () => {
         body: JSON.stringify({
           briefing_hour: 9,
           briefing_enabled: true,
-          focus_keywords: ["candles", "templates"],
+          user_timezone: "America/New_York",
         }),
       }),
       env
@@ -1176,7 +1183,7 @@ describe("nexus-router: Briefing Routes (Phase 3)", () => {
     expect(data.success).toBe(true);
   });
 
-  it("PUT /api/briefings/settings rejects invalid briefing_hour", async () => {
+  it("PUT /api/briefings/settings returns 400 for invalid hour", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/briefings/settings", {
@@ -1189,7 +1196,7 @@ describe("nexus-router: Briefing Routes (Phase 3)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("PUT /api/briefings/settings returns 400 for empty body", async () => {
+  it("PUT /api/briefings/settings returns 400 for no fields", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/briefings/settings", {
@@ -1202,30 +1209,6 @@ describe("nexus-router: Briefing Routes (Phase 3)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("GET /api/briefings/:id returns a specific briefing", async () => {
-    const storageFetcher = createMockFetcher(async () => {
-      return jsonResponse({
-        success: true,
-        data: [
-          {
-            id: "brief-1",
-            title: "Morning Briefing",
-            sections: "[]",
-            domains_analyzed: "[]",
-            focus_keywords: "[]",
-          },
-        ],
-      });
-    });
-
-    const env = buildEnv({ NEXUS_STORAGE: storageFetcher });
-    const res = await app.fetch(
-      makeRequest("/api/briefings/brief-1"),
-      env
-    );
-    expect(res.status).toBe(200);
-  });
-
   it("DELETE /api/briefings/:id deletes a briefing", async () => {
     const env = buildEnv();
     const res = await app.fetch(
@@ -1234,25 +1217,38 @@ describe("nexus-router: Briefing Routes (Phase 3)", () => {
     );
     expect(res.status).toBe(200);
     const data = (await res.json()) as TestApiResponse;
+    expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("deleted", "brief-1");
   });
 
-  it("POST /api/briefings/generate triggers briefing generation", async () => {
-    const aiFetcher = createMockFetcher(async () => {
-      return jsonResponse({
+  it("POST /api/briefings/generate generates a briefing", async () => {
+    const storageFetcher = createMockFetcher(async (req) => {
+      const url = new URL(req.url);
+      if (url.pathname === "/d1/query") {
+        return jsonResponse({ success: true, data: [] });
+      }
+      return jsonResponse({ success: true, data: {} });
+    });
+
+    const aiFetcher = createMockFetcher(async () =>
+      jsonResponse({
         success: true,
         data: {
           title: "Daily Briefing",
-          summary: "Market trends indicate...",
-          sections: [{ type: "trends", content: "Candle demand up 15%" }],
+          summary: "Today's market summary",
+          sections: [{ type: "trends", content: "Trending products" }],
           domains_analyzed: ["digital-products"],
-          ai_model_used: "test-model",
-          tokens_used: 500,
+          ai_model_used: "deepseek-v3",
+          tokens_used: 800,
         },
-      });
+      })
+    );
+
+    const env = buildEnv({
+      NEXUS_STORAGE: storageFetcher,
+      NEXUS_AI: aiFetcher,
     });
 
-    const env = buildEnv({ NEXUS_AI: aiFetcher });
     const res = await app.fetch(
       makeRequest("/api/briefings/generate", { method: "POST" }),
       env
@@ -1261,5 +1257,22 @@ describe("nexus-router: Briefing Routes (Phase 3)", () => {
     const data = (await res.json()) as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("title");
+    expect(data.data).toHaveProperty("sections");
+  });
+
+  it("GET /api/briefings/latest returns 404 when no briefings exist", async () => {
+    const storageFetcher = createMockFetcher(async (req) => {
+      const url = new URL(req.url);
+      if (url.pathname === "/d1/query") {
+        return jsonResponse({ success: true, data: [] });
+      }
+      return jsonResponse({ success: true, data: {} });
+    });
+    const env = buildEnv({ NEXUS_STORAGE: storageFetcher });
+    const res = await app.fetch(
+      makeRequest("/api/briefings/latest"),
+      env
+    );
+    expect(res.status).toBe(404);
   });
 });

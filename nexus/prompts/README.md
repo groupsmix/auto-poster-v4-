@@ -1,163 +1,185 @@
 # NEXUS Prompt Template Guide
 
-How prompt layers are assembled, how to write new templates, and best practices.
+How prompts are structured, assembled, and used throughout the NEXUS workflow engine.
 
----
+## Prompt Layer Architecture
+
+NEXUS uses a **layered prompt assembly** system. Each AI call combines multiple prompt layers into a single final prompt. The layers are assembled in this order:
+
+```
+1. Master Prompt        (prompts/master.txt)
+   ↓ Sets core identity, rules, and quality standards
+2. Role Prompt          (prompts/roles/{role}.txt)
+   ↓ Specializes the AI for a specific task type
+3. Domain Prompt        (prompts/domains/{domain-slug}.txt)
+   ↓ Adds domain-specific knowledge and context
+4. Category Prompt      (prompts/categories/{category-slug}.txt)
+   ↓ Narrows to the specific product category
+5. Platform Prompt      (prompts/platforms/{platform-slug}.txt)
+   ↓ Adapts output for the target marketplace
+6. Social Prompt        (prompts/social/{channel-slug}.txt)
+   ↓ Adapts output for social media channels
+7. Context Prompt       (prompts/context.txt)
+   ↓ Injects data from prior workflow steps
+8. Step-Specific Prompt (built dynamically by each workflow step)
+   ↓ The actual task instructions + JSON schema
+```
+
+Not every layer is used in every call. The workflow engine selects layers based on the current step and product configuration.
 
 ## Directory Structure
 
 ```
-prompts/
-  master.txt          # Core NEXUS system prompt (10 rules, persona, anti-patterns)
-  context.txt         # Chain-of-thought context assembly (research, strategy, feedback)
-  review.txt          # CEO Review scoring rubric (7 criteria, approval logic)
-  domains/            # Domain-specific knowledge (digital-products, pod, ecommerce, ...)
-  roles/              # Role personas (copywriter, designer, seo, researcher, coder, reviewer)
-  categories/         # Category-specific rules (notion-templates, pdf-guides, t-shirts, ...)
-  platforms/          # Platform adaptation (etsy, gumroad, shopify, amazon-kdp, redbubble)
-  social/             # Social channel content (instagram, linkedin, pinterest, tiktok, x-twitter)
+nexus/prompts/
+├── master.txt              # Core identity and rules (always included)
+├── context.txt             # Chain-of-thought template for prior step data
+├── review.txt              # Quality review criteria
+├── roles/                  # Task-type specializations
+│   ├── researcher.txt      # Market research tasks
+│   ├── copywriter.txt      # Content generation tasks
+│   ├── seo.txt             # SEO optimization tasks
+│   ├── designer.txt        # Image/design prompt tasks
+│   ├── reviewer.txt        # Quality review tasks
+│   └── coder.txt           # Code generation tasks
+├── domains/                # Domain-specific knowledge
+│   ├── digital-products.txt
+│   ├── pod.txt
+│   ├── ecommerce.txt
+│   ├── freelance-services.txt
+│   ├── content-media.txt
+│   ├── affiliate-marketing.txt
+│   ├── knowledge-education.txt
+│   ├── specialized-tech.txt
+│   ├── automation-nocode.txt
+│   └── space-innovation.txt
+├── categories/             # Category-specific prompts
+│   ├── notion-templates.txt
+│   ├── pdf-guides.txt
+│   ├── t-shirts.txt
+│   ├── wall-art-posters.txt
+│   └── ... (17 category files)
+├── platforms/              # Marketplace-specific rules
+│   ├── etsy.txt
+│   ├── gumroad.txt
+│   ├── shopify.txt
+│   ├── amazon-kdp.txt
+│   └── redbubble.txt
+└── social/                 # Social media channel rules
+    ├── instagram.txt
+    ├── pinterest.txt
+    ├── tiktok.txt
+    ├── x-twitter.txt
+    └── linkedin.txt
 ```
-
----
-
-## How Prompt Layers Are Assembled
-
-Every AI call builds a final prompt by stacking layers. The order matters:
-
-```
-1. master.txt         — Always included. Sets persona, core rules, anti-patterns.
-2. context.txt        — Injects prior step outputs (research, strategy, revision feedback).
-3. roles/{role}.txt   — Sets the expert persona for this step (copywriter, seo, etc.).
-4. domains/{dom}.txt  — Adds domain-specific knowledge (digital-products, pod, etc.).
-5. categories/{cat}.txt — Adds category-specific rules (notion-templates, mugs, etc.).
-6. platforms/{plat}.txt — Adapts output for the target platform (etsy, gumroad, etc.).
-7. social/{channel}.txt — Adapts output for social promotion (instagram, tiktok, etc.).
-```
-
-Not every layer is used every time. The workflow step determines which layers apply:
-
-| Workflow Step     | Layers Used                                        |
-|-------------------|----------------------------------------------------|
-| Research          | master + context + role(researcher) + domain        |
-| Content Writing   | master + context + role(copywriter) + domain + category |
-| SEO Optimization  | master + context + role(seo) + domain + platform    |
-| Platform Variants | master + context + role(copywriter) + platform      |
-| Social Content    | master + context + role(copywriter) + social        |
-| CEO Review        | review.txt (standalone, includes its own rubric)    |
-| Design Brief      | master + context + role(designer) + domain          |
-
----
 
 ## How to Write a New Prompt Template
 
-### 1. Pick the right directory
+### 1. Identify the Layer
 
-- **Domain** — broad business vertical (e.g., `freelance-services.txt`)
-- **Category** — specific product type within a domain (e.g., `resume-cv-templates.txt`)
-- **Platform** — marketplace where products are sold (e.g., `etsy.txt`)
-- **Social** — social channel for promotion (e.g., `tiktok.txt`)
-- **Role** — expert persona for a workflow step (e.g., `seo.txt`)
+Decide which layer your new prompt belongs to:
+- **Role**: New type of AI task (e.g., `translator.txt`)
+- **Domain**: New business domain (e.g., `health-wellness.txt`)
+- **Category**: New product category (e.g., `ebook-covers.txt`)
+- **Platform**: New marketplace (e.g., `creative-market.txt`)
+- **Social**: New social channel (e.g., `youtube.txt`)
 
-### 2. Follow the existing pattern
+### 2. Follow the Existing Pattern
 
-Every template follows this structure:
+Each layer type has a consistent structure. Look at an existing file in the same directory for the pattern:
+
+**Role prompts** (`roles/*.txt`):
+- Start with the expert persona definition
+- List specific skills and knowledge areas
+- Define output quality standards
+- Include do's and don'ts
+
+**Domain prompts** (`domains/*.txt`):
+- Describe the business domain
+- List typical products and niches
+- Include market-specific vocabulary
+- Note common buyer personas
+
+**Category prompts** (`categories/*.txt`):
+- Define the product type precisely
+- List key attributes buyers care about
+- Include category-specific keywords
+- Note competitive landscape
+
+**Platform prompts** (`platforms/*.txt`):
+- Platform algorithm rules and best practices
+- Character limits and formatting rules
+- SEO requirements specific to the platform
+- Buyer behavior patterns on that platform
+
+**Social prompts** (`social/*.txt`):
+- Platform content rules and limits
+- Hashtag strategies
+- Engagement patterns
+- Audience expectations
+
+### 3. Use Template Variables
+
+The workflow engine substitutes these variables at runtime:
+
+| Variable | Description | Available In |
+|----------|-------------|--------------|
+| `{niche}` | The product niche/topic | All layers |
+| `{domain_name}` | Business domain name | Domain, category |
+| `{category_name}` | Product category name | Category |
+| `{platform_name}` | Target marketplace | Platform |
+| `{language}` | Target language code | All layers |
+| `{step_1_research_output}` | Research step results | Context layer |
+| `{step_2_strategy_output}` | Strategy step results | Context layer |
+| `{cached_similar_products}` | Similar product data | Context layer |
+| `{ceo_feedback}` | Revision feedback | Context layer |
+
+### 4. Quality Checklist
+
+Before adding a new prompt:
+
+- [ ] Read `master.txt` to understand the core rules your prompt must respect
+- [ ] Check that your prompt doesn't contradict any master rules
+- [ ] Include specific, actionable instructions (not vague guidance)
+- [ ] Test with a real product workflow to verify output quality
+- [ ] Keep the prompt focused — one layer = one concern
+- [ ] Avoid duplicating instructions already in `master.txt`
+- [ ] Use concrete examples where possible
+
+## How Prompt Layers Are Assembled
+
+The workflow engine (`nexus-workflow`) builds the final prompt for each AI call:
 
 ```
-[Identity / context line]
-   "You are a top-selling Etsy shop owner who has..."
-   "Category: Notion Templates"
-   "Your role: Elite Direct Response Copywriter who has..."
-
-[Key facts / rules]
-   Bullet list of domain-specific knowledge, limits, and constraints.
-
-[Think-before-you-write section]
-   "=== BEFORE YOU WRITE, THINK THROUGH THIS ==="
-   Numbered questions the AI must consider before generating output.
-
-[Anti-patterns]
-   "=== ANTI-PATTERNS (NEVER DO) ==="
-   Explicit list of what NOT to do.
-
-[Good vs Bad examples]
-   "=== EXAMPLE OF GOOD VS BAD ==="
-   Concrete examples showing the quality bar.
-
-[Template variables]
-   {base_product_json}, {output_schema}, {product_json}, etc.
-   These are replaced at runtime with actual data.
+finalPrompt = [
+  masterPrompt,              // Always included
+  rolePrompt,                // Based on step's task type
+  domainPrompt,              // Based on product's domain
+  categoryPrompt,            // Based on product's category (if exists)
+  platformPrompt,            // Based on target platform (if applicable)
+  socialPrompt,              // Based on social channel (if applicable)
+  contextPrompt,             // Filled with prior step outputs
+  stepSpecificInstructions,  // The actual task + JSON schema
+].filter(Boolean).join("\n\n---\n\n");
 ```
 
-### 3. Template variables
-
-Variables use `{curly_brace}` syntax and are injected at runtime:
-
-| Variable                  | Where Used      | Contains                              |
-|---------------------------|-----------------|---------------------------------------|
-| `{base_product_json}`     | platforms/      | The base product data to adapt        |
-| `{output_schema}`         | platforms/      | JSON schema the output must match     |
-| `{product_json}`          | social/         | Product data for social content       |
-| `{product_output_json}`   | review.txt      | Full product package to review        |
-| `{step_1_research_output}`| context.txt     | Research step output                  |
-| `{step_2_strategy_output}`| context.txt     | Strategy step output                  |
-| `{cached_similar_products}`| context.txt    | Similar products from cache           |
-| `{ceo_feedback}`          | context.txt     | Revision feedback from CEO review     |
-
-### 4. Naming convention
-
-- Use lowercase kebab-case: `notion-templates.txt`, `x-twitter.txt`
-- Match the slug used in the domain/category/platform database records
-- Always use `.txt` extension
-
----
-
-## Best Practices
-
-1. **Be specific, not generic.** Include real numbers, price ranges, character limits, and concrete examples. Vague instructions produce vague output.
-
-2. **Include anti-patterns.** Explicitly list what the AI should NOT do. This is more effective than only describing what it should do.
-
-3. **Show, don't tell.** Always include Good vs Bad examples. The AI learns more from one concrete example than from five paragraphs of instructions.
-
-4. **Front-load the identity line.** The first sentence sets the persona and expertise level. Make it specific: "$500K+ revenue" not "experienced seller."
-
-5. **Include platform-specific hard limits.** Character counts, tag limits, and formatting rules must be exact numbers, not approximations.
-
-6. **Keep templates focused.** Each file should cover ONE domain/category/platform/role. Don't combine multiple concerns in a single template.
-
-7. **Use the chain-of-thought pattern.** The "BEFORE YOU WRITE, THINK THROUGH THIS" section forces the AI to reason before generating, which dramatically improves output quality.
-
-8. **Never put secrets or API keys in templates.** Templates are committed to the repo. Use environment variables for any sensitive values.
-
----
+The assembled prompt is then hashed (SHA-256) for AI response caching. Identical prompts return cached results from KV, saving AI costs.
 
 ## Testing a Prompt Change
 
-1. **Find the workflow step** that uses your template layer (see table above).
+1. **Edit the prompt file** in `nexus/prompts/`
+2. **Run the validation script**: `npx tsx scripts/validate-prompts.ts`
+   - Checks for missing template variables
+   - Validates prompt length limits
+   - Ensures required sections exist
+3. **Deploy** the updated prompts (they are loaded from the filesystem at build time)
+4. **Run a test workflow** through the dashboard to verify output quality
+5. **Compare outputs** before and after the change
 
-2. **Run the integration tests** to verify the router still serves the endpoint:
-   ```bash
-   cd nexus && npx vitest run tests/integration/
-   ```
+## Best Practices
 
-3. **Test end-to-end** by triggering a product workflow through the dashboard:
-   - Create a test product in a test domain
-   - Start the workflow and let it run through the step that uses your template
-   - Review the AI output in the CEO Review screen
-   - Check that the output follows your template's rules and avoids its anti-patterns
-
-4. **Compare before/after** by running the same product through the workflow with the old and new template. Look for:
-   - Did the quality score improve in CEO Review?
-   - Does the output avoid the anti-patterns you listed?
-   - Are platform-specific limits respected (character counts, tag counts)?
-   - Does the output sound human, not AI-generated?
-
----
-
-## Adding a New Domain, Category, or Platform
-
-1. Create the `.txt` file in the correct directory
-2. Follow the template structure described above
-3. Add the corresponding record in the dashboard (Domains, Categories, or Platforms screen)
-4. The system automatically picks up new templates by matching the slug in the filename to the database record
-5. Run integration tests to verify nothing broke
+- **Be specific, not generic.** "Write a title under 140 characters that includes the primary keyword" beats "Write a good title."
+- **Include anti-patterns.** Tell the AI what NOT to do. See `master.txt` rule #7 for an example.
+- **Use chain-of-thought.** The `context.txt` template forces step-by-step reasoning before output generation.
+- **Platform rules are law.** Each platform has hard limits (character counts, tag limits). These must be exact — the AI can't "kind of" follow a 140-char limit.
+- **Test with edge cases.** Try prompts with unusual niches, long inputs, and minimal context to find failure modes.
+- **Keep prompts DRY.** If something applies to ALL tasks, put it in `master.txt`. Don't repeat it in every role file.
