@@ -843,3 +843,237 @@ export interface LocalizationNotes {
   platform_specific: boolean;
   social_content_adapted: boolean;
 }
+
+// --- AI Project Builder ---
+
+export type ProjectBuildStatus =
+  | "planning"
+  | "plan_complete"
+  | "building"
+  | "validating"
+  | "fixing"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export type ProjectBuildPhase = "plan" | "build" | "validate";
+
+export type BuildAgentRole =
+  | "ceo"
+  | "architect"
+  | "contract_generator"
+  | "contract_validator"
+  | "designer"
+  | "db_architect"
+  | "backend_dev"
+  | "frontend_dev"
+  | "integrator"
+  | "structural_validator"
+  | "code_reviewer"
+  | "qa_validator"
+  | "fixer";
+
+/** Input to start a new project build */
+export interface ProjectBuildInput {
+  idea: string;
+  tech_stack?: string;
+  features?: string[];
+  target_user?: string;
+  design_style?: string;
+}
+
+/** The main project build entity */
+export interface ProjectBuild {
+  id: string;
+  idea: string;
+  tech_stack?: string;
+  features?: string[];
+  target_user?: string;
+  design_style?: string;
+  status: ProjectBuildStatus;
+  current_phase: ProjectBuildPhase;
+  current_cycle: number;
+  max_cycles: number;
+  quality_score?: number;
+  spec?: ProjectSpec;
+  blueprint?: ArchitectureBlueprint;
+  validation_report?: ValidationReport;
+  total_files: number;
+  total_tokens: number;
+  total_cost: number;
+  error?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+/** Project Specification Document — output of AI CEO */
+export interface ProjectSpec {
+  project_name: string;
+  problem_statement: string;
+  target_users: string;
+  core_features: string[];
+  pages: string[];
+  data_entities: string[];
+  user_flows: string[];
+  tech_stack: {
+    frontend: string;
+    backend: string;
+    database: string;
+    styling: string;
+  };
+  integrations: string[];
+  auth_flow: string;
+}
+
+/** Architecture Blueprint — output of AI Architect */
+export interface ArchitectureBlueprint {
+  database_schema: DatabaseSchemaContract;
+  api_endpoints: ApiEndpointContract[];
+  pages: PageContract[];
+  components: ComponentContract[];
+  file_structure: string[];
+  auth_flow: string;
+  state_management: string;
+}
+
+/** Database schema contract */
+export interface DatabaseSchemaContract {
+  tables: Array<{
+    name: string;
+    columns: Array<{
+      name: string;
+      type: string;
+      primary_key?: boolean;
+      nullable?: boolean;
+      default_value?: string;
+      references?: string;
+    }>;
+  }>;
+}
+
+/** API endpoint contract */
+export interface ApiEndpointContract {
+  method: string;
+  path: string;
+  description: string;
+  request_body?: Record<string, unknown>;
+  response_shape: Record<string, unknown>;
+  auth_required: boolean;
+}
+
+/** Page contract */
+export interface PageContract {
+  route: string;
+  name: string;
+  layout: string;
+  components: string[];
+  data_requirements: string[];
+}
+
+/** Component contract */
+export interface ComponentContract {
+  name: string;
+  props: Record<string, string>;
+  state?: Record<string, string>;
+  events?: string[];
+}
+
+/** Validation report — output of Phase 3 */
+export interface ValidationReport {
+  structural_score: number;
+  code_review_score: number;
+  qa_score: number;
+  overall_score: number;
+  passed: boolean;
+  structural_issues: ValidationIssue[];
+  code_review_issues: ValidationIssue[];
+  qa_issues: ValidationIssue[];
+  suggestions: string[];
+}
+
+/** A single validation issue */
+export interface ValidationIssue {
+  file: string;
+  line?: number;
+  severity: "error" | "warning" | "info";
+  message: string;
+  suggested_fix?: string;
+}
+
+/** A step within the project build pipeline */
+export interface ProjectBuildStep {
+  id: string;
+  build_id: string;
+  phase: ProjectBuildPhase;
+  agent_role: BuildAgentRole;
+  step_order: number;
+  status: string;
+  cycle: number;
+  output?: Record<string, unknown>;
+  ai_model?: string;
+  tokens_used: number;
+  cost: number;
+  cached: boolean;
+  latency_ms?: number;
+  error?: string;
+  started_at?: string;
+  completed_at?: string;
+}
+
+/** A generated file within the project build */
+export interface ProjectBuildFile {
+  id: string;
+  build_id: string;
+  file_path: string;
+  content: string;
+  agent_role: BuildAgentRole;
+  cycle: number;
+  language?: string;
+  size_bytes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Progress tracking for the project builder UI */
+export interface ProjectBuildProgress {
+  build_id: string;
+  status: ProjectBuildStatus;
+  current_phase: ProjectBuildPhase;
+  current_cycle: number;
+  max_cycles: number;
+  quality_score?: number;
+  phases: {
+    plan: {
+      status: string;
+      steps: Array<{
+        agent_role: BuildAgentRole;
+        status: string;
+        ai_model?: string;
+        latency_ms?: number;
+      }>;
+    };
+    build: {
+      status: string;
+      layers: Array<{
+        agents: Array<{
+          agent_role: BuildAgentRole;
+          status: string;
+          files_generated?: number;
+        }>;
+      }>;
+    };
+    validate: {
+      status: string;
+      steps: Array<{
+        agent_role: BuildAgentRole;
+        status: string;
+        score?: number;
+        issues_found?: number;
+      }>;
+    };
+  };
+  total_files: number;
+  total_tokens: number;
+  total_cost: number;
+}

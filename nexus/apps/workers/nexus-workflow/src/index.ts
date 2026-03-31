@@ -10,6 +10,8 @@ import { generateId, slugify, now } from "@nexus/shared";
 import { WorkflowEngine, type WorkflowInput } from "./engine";
 import { BatchOrchestrator, type BatchInput } from "./batch";
 import type { ProductContext, StepName } from "./steps";
+import { ProjectBuilderEngine } from "./project-builder";
+import type { ProjectBuildInput } from "@nexus/shared";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -497,6 +499,182 @@ app.post("/workflow/retry-from-step/:runId", async (c) => {
       { success: false, error: message },
       500
     );
+  }
+});
+
+// ============================================================
+// PROJECT BUILDER ROUTES
+// ============================================================
+
+// POST /workflow/project-builder/start — Start a new project build
+app.post("/workflow/project-builder/start", async (c) => {
+  try {
+    const body = await c.req.json<ProjectBuildInput>();
+
+    if (!body.idea || body.idea.trim().length === 0) {
+      return c.json<ApiResponse>(
+        { success: false, error: "Missing required field: idea" },
+        400
+      );
+    }
+
+    const engine = new ProjectBuilderEngine(c.env, getExecutionCtx(c));
+    const { buildId } = await engine.startBuild(body);
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { build_id: buildId, status: "planning" },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[PROJECT-BUILDER] Start failed:", message);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
+});
+
+// GET /workflow/project-builder/list — List all project builds
+app.get("/workflow/project-builder/list", async (c) => {
+  try {
+    const page = parseInt(c.req.query("page") ?? "1", 10);
+    const pageSize = parseInt(c.req.query("pageSize") ?? "20", 10);
+
+    const engine = new ProjectBuilderEngine(c.env);
+    const { builds, total } = await engine.listBuilds(page, pageSize);
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { builds, total, page, pageSize },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
+});
+
+// GET /workflow/project-builder/:buildId — Get build status & progress
+app.get("/workflow/project-builder/:buildId", async (c) => {
+  try {
+    const buildId = c.req.param("buildId");
+    if (!buildId) {
+      return c.json<ApiResponse>({ success: false, error: "Missing buildId" }, 400);
+    }
+
+    const engine = new ProjectBuilderEngine(c.env);
+    const progress = await engine.getBuildProgress(buildId);
+
+    if (!progress) {
+      return c.json<ApiResponse>({ success: false, error: `Build ${buildId} not found` }, 404);
+    }
+
+    return c.json<ApiResponse>({ success: true, data: progress });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
+});
+
+// GET /workflow/project-builder/:buildId/details — Get full build details
+app.get("/workflow/project-builder/:buildId/details", async (c) => {
+  try {
+    const buildId = c.req.param("buildId");
+    if (!buildId) {
+      return c.json<ApiResponse>({ success: false, error: "Missing buildId" }, 400);
+    }
+
+    const engine = new ProjectBuilderEngine(c.env);
+    const build = await engine.getBuild(buildId);
+
+    if (!build) {
+      return c.json<ApiResponse>({ success: false, error: `Build ${buildId} not found` }, 404);
+    }
+
+    return c.json<ApiResponse>({ success: true, data: build });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
+});
+
+// GET /workflow/project-builder/:buildId/files — Get generated files
+app.get("/workflow/project-builder/:buildId/files", async (c) => {
+  try {
+    const buildId = c.req.param("buildId");
+    if (!buildId) {
+      return c.json<ApiResponse>({ success: false, error: "Missing buildId" }, 400);
+    }
+
+    const engine = new ProjectBuilderEngine(c.env);
+    const files = await engine.getBuildFiles(buildId);
+
+    return c.json<ApiResponse>({ success: true, data: { files } });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
+});
+
+// POST /workflow/project-builder/:buildId/rebuild — Rebuild with feedback
+app.post("/workflow/project-builder/:buildId/rebuild", async (c) => {
+  try {
+    const buildId = c.req.param("buildId");
+    if (!buildId) {
+      return c.json<ApiResponse>({ success: false, error: "Missing buildId" }, 400);
+    }
+
+    const body = await c.req.json<{ feedback: string }>();
+    if (!body.feedback) {
+      return c.json<ApiResponse>({ success: false, error: "Missing feedback" }, 400);
+    }
+
+    const engine = new ProjectBuilderEngine(c.env, getExecutionCtx(c));
+    await engine.rebuildWithFeedback(buildId, body.feedback);
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { build_id: buildId, status: "building" },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
+});
+
+// POST /workflow/project-builder/:buildId/cancel — Cancel a build
+app.post("/workflow/project-builder/:buildId/cancel", async (c) => {
+  try {
+    const buildId = c.req.param("buildId");
+    if (!buildId) {
+      return c.json<ApiResponse>({ success: false, error: "Missing buildId" }, 400);
+    }
+
+    const engine = new ProjectBuilderEngine(c.env);
+    await engine.cancelBuild(buildId);
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { build_id: buildId, status: "cancelled" },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
+});
+
+// DELETE /workflow/project-builder/:buildId — Delete a build
+app.delete("/workflow/project-builder/:buildId", async (c) => {
+  try {
+    const buildId = c.req.param("buildId");
+    if (!buildId) {
+      return c.json<ApiResponse>({ success: false, error: "Missing buildId" }, 400);
+    }
+
+    const engine = new ProjectBuilderEngine(c.env);
+    await engine.deleteBuild(buildId);
+
+    return c.json<ApiResponse>({ success: true, data: { deleted: true } });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });
 

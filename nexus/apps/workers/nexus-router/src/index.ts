@@ -40,6 +40,7 @@ import roiRoutes from "./routes/roi";
 import recyclerRoutes from "./routes/recycler";
 import localizationRoutes from "./routes/localization";
 import chatbot from "./routes/chatbot";
+import projectBuilder from "./routes/project-builder";
 
 const app = new Hono<{ Bindings: RouterEnv; Variables: { requestId: string } }>();
 
@@ -308,6 +309,7 @@ app.route("/api/roi", roiRoutes);
 app.route("/api/recycler", recyclerRoutes);
 app.route("/api/localization", localizationRoutes);
 app.route("/api/chatbot", chatbot);
+app.route("/api/project-builder", projectBuilder);
 
 // ============================================================
 // 404 catch-all
