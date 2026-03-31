@@ -72,14 +72,25 @@ export function useApiQuery<T>(
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
 
+  // Stable reference to fallback — avoids recreating doFetch every render
+  // when callers pass an inline literal (e.g. `[] as Domain[]`).
+  const fallbackRef = useRef(fallback);
+  fallbackRef.current = fallback;
+
   // Track whether we've completed at least one fetch
   const hasLoadedRef = useRef(false);
   // Prevent overlapping fetches from piling up requests
   const isFetchingRef = useRef(false);
+  // Cooldown after errors to prevent rapid-fire retry loops
+  const errorCooldownRef = useRef(0);
 
   const doFetch = useCallback(async () => {
     // Skip if a fetch is already in-flight to prevent request pile-up
     if (isFetchingRef.current) return;
+
+    // Respect error cooldown — don't retry until cooldown expires
+    if (errorCooldownRef.current > Date.now()) return;
+
     isFetchingRef.current = true;
 
     // Only show loading spinner on the initial fetch, not on background refetches
@@ -94,29 +105,35 @@ export function useApiQuery<T>(
         setData(response.data);
         setIsUsingMock(false);
         setError(null);
+        // Clear cooldown on success
+        errorCooldownRef.current = 0;
       } else {
         // API returned an unsuccessful response — keep existing data if we have it,
         // otherwise use fallback
         if (!hasLoadedRef.current) {
-          setData(fallback);
+          setData(fallbackRef.current);
         }
         setError(response.error || "Failed to load data");
         setIsUsingMock(true);
+        // Set cooldown: 5s after error to prevent rapid retry loops
+        errorCooldownRef.current = Date.now() + 5000;
       }
     } catch (e) {
       // Network / parse error — keep existing data if we have it
       if (!hasLoadedRef.current) {
-        setData(fallback);
+        setData(fallbackRef.current);
       }
       setError(e instanceof Error ? e.message : "Network error");
       setIsUsingMock(true);
+      // Set cooldown: 5s after error
+      errorCooldownRef.current = Date.now() + 5000;
     } finally {
       setLoading(false);
       hasLoadedRef.current = true;
       isFetchingRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fallback, ...deps]);
+  }, deps);
 
   // Initial fetch + re-fetch when deps change
   useEffect(() => {
