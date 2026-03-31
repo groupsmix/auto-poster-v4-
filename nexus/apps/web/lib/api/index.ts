@@ -18,6 +18,7 @@ export type {
   AnalyticsSummary,
   AIUsageOverTime,
   CostBreakdownItem,
+  StepCostItem,
   CacheHitTrendItem,
   DomainBreakdownItem,
   CategoryBreakdownItem,

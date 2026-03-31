@@ -113,6 +113,15 @@ export interface CostBreakdownItem {
   cost: number;
 }
 
+export interface StepCostItem {
+  step_name: string;
+  total_runs: number;
+  total_cost: number;
+  avg_cost: number;
+  total_tokens: number;
+  avg_latency_ms: number;
+}
+
 export interface CacheHitTrendItem {
   date: string;
   hit_rate: number;

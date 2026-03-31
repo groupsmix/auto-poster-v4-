@@ -44,6 +44,7 @@ import type {
   AnalyticsSummary,
   AIUsageOverTime,
   CostBreakdownItem,
+  StepCostItem,
   CacheHitTrendItem,
   DomainBreakdownItem,
   CategoryBreakdownItem,
@@ -250,6 +251,8 @@ export const api = {
     aiLeaderboard: () => request<AILeaderboardEntry[]>("/analytics/ai-leaderboard"),
     /** Single dashboard endpoint that returns all analytics data in one request (5.4) */
     dashboard: () => request<AnalyticsDashboard>("/analytics/dashboard"),
+    /** Per-step cost breakdown from workflow_steps table */
+    costByStep: () => request<StepCostItem[]>("/analytics/cost-by-step"),
   },
 
   // History endpoints
@@ -495,6 +498,17 @@ export const api = {
       update: (data: Partial<BriefingSettingsData>) =>
         request<{ updated: boolean }>("/briefings/settings", { method: "PUT", body: data }),
     },
+  },
+
+  // Etsy Platform API endpoints (#18)
+  etsy: {
+    status: () => request<{ connected: boolean; shop_id?: string; token_expires_at?: number }>("/etsy/status"),
+    connect: (redirectUri: string) =>
+      request<{ url: string; state: string }>("/etsy/connect", { method: "POST", body: { redirect_uri: redirectUri } }),
+    callback: (code: string, state: string) =>
+      request<{ shop_id: string }>("/etsy/callback", { method: "POST", body: { code, state } }),
+    publish: (productId: string) =>
+      request<{ listing_id: string; url: string; status: string }>(`/etsy/publish/${productId}`, { method: "POST", body: {} }),
   },
 
   // AI CEO / Auto-Orchestrator endpoints

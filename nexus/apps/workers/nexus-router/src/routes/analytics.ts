@@ -105,4 +105,28 @@ analytics.get("/health", async (c) => {
   }
 });
 
+// GET /api/analytics/cost-by-step — per-step cost aggregation from workflow_steps
+analytics.get("/cost-by-step", async (c) => {
+  try {
+    const data = await storageQuery(
+      c.env,
+      `SELECT
+        ws.step_name,
+        COUNT(*) as total_runs,
+        SUM(ws.cost) as total_cost,
+        AVG(ws.cost) as avg_cost,
+        SUM(ws.tokens_used) as total_tokens,
+        AVG(ws.latency_ms) as avg_latency_ms
+      FROM workflow_steps ws
+      WHERE ws.status = 'completed'
+      GROUP BY ws.step_name
+      ORDER BY total_cost DESC`
+    );
+
+    return c.json<ApiResponse>({ success: true, data });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
 export default analytics;

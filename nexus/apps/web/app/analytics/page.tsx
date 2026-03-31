@@ -2,7 +2,7 @@
 
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
-import type { AnalyticsDashboard } from "@/lib/api";
+import type { AnalyticsDashboard, StepCostItem } from "@/lib/api";
 import AnalyticsCharts from "@/components/AnalyticsCharts";
 
 function SummaryCard({
@@ -55,6 +55,11 @@ export default function AnalyticsPage() {
   const { data: dashboard, loading } = useApiQuery(
     () => api.analytics.dashboard(),
     emptyDashboard,
+  );
+
+  const { data: stepCosts } = useApiQuery(
+    () => api.analytics.costByStep(),
+    [] as StepCostItem[],
   );
 
   const { summary, aiUsage, costBreakdown, cacheHitTrend, productsByDomain, productsByCategory, leaderboard } = dashboard;
@@ -158,6 +163,43 @@ export default function AnalyticsPage() {
             productsByDomain={productsByDomain}
             productsByCategory={productsByCategory}
           />
+
+          {/* Per-Step Cost Breakdown (#14) */}
+          {stepCosts.length > 0 && (
+            <div className="rounded-xl border border-card-border bg-card-bg p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4">
+                Cost Breakdown by Workflow Step
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-card-border text-left">
+                      <th className="pb-2 text-xs font-medium text-muted uppercase tracking-wider">Step</th>
+                      <th className="pb-2 text-xs font-medium text-muted uppercase tracking-wider">Runs</th>
+                      <th className="pb-2 text-xs font-medium text-muted uppercase tracking-wider">Total Cost</th>
+                      <th className="pb-2 text-xs font-medium text-muted uppercase tracking-wider">Avg Cost</th>
+                      <th className="pb-2 text-xs font-medium text-muted uppercase tracking-wider">Total Tokens</th>
+                      <th className="pb-2 text-xs font-medium text-muted uppercase tracking-wider">Avg Latency</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stepCosts.map((step) => (
+                      <tr key={step.step_name} className="border-b border-card-border last:border-0">
+                        <td className="py-2.5 font-medium text-foreground capitalize">
+                          {step.step_name.replace(/_/g, " ")}
+                        </td>
+                        <td className="py-2.5 text-muted">{step.total_runs}</td>
+                        <td className="py-2.5 text-muted font-mono">${step.total_cost.toFixed(4)}</td>
+                        <td className="py-2.5 text-muted font-mono">${step.avg_cost.toFixed(4)}</td>
+                        <td className="py-2.5 text-muted font-mono">{(step.total_tokens ?? 0).toLocaleString()}</td>
+                        <td className="py-2.5 text-muted">{Math.round(step.avg_latency_ms ?? 0)}ms</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Bottom Section: Leaderboard + Stats */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
