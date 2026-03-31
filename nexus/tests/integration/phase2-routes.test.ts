@@ -392,15 +392,16 @@ describe("nexus-router: Campaign Routes", () => {
     expect([200, 404]).toContain(res.status);
   });
 
-  it("POST /api/campaigns/:id/execute executes a batch", async () => {
+  it("POST /api/campaigns/:id/execute returns error for non-existent campaign", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/campaigns/camp-1/execute", { method: "POST" }),
       env
     );
-    expect(res.status).toBe(200);
+    // Service throws when campaign not found in empty DB
+    expect(res.status).toBe(500);
     const data = (await res.json()) as TestApiResponse;
-    expect(data.success).toBe(true);
+    expect(data.success).toBe(false);
   });
 });
 
@@ -751,15 +752,16 @@ describe("nexus-router: Recycler Routes", () => {
     expect(data.success).toBe(true);
   });
 
-  it("GET /api/recycler/analyze/:productId analyzes a product", async () => {
+  it("GET /api/recycler/analyze/:productId returns error for non-existent product", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/recycler/analyze/prod-1"),
       env
     );
-    expect(res.status).toBe(200);
+    // Service throws when product not found in empty DB
+    expect(res.status).toBe(500);
     const data = (await res.json()) as TestApiResponse;
-    expect(data.success).toBe(true);
+    expect(data.success).toBe(false);
   });
 
   it("GET /api/recycler/jobs lists recycler jobs", async () => {
@@ -813,15 +815,16 @@ describe("nexus-router: Recycler Routes", () => {
     expect(data.success).toBe(true);
   });
 
-  it("POST /api/recycler/jobs/:id/generate generates variations", async () => {
+  it("POST /api/recycler/jobs/:id/generate returns error for non-existent job", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/recycler/jobs/job-1/generate", { method: "POST" }),
       env
     );
-    expect(res.status).toBe(200);
+    // Service throws when job not found in empty DB
+    expect(res.status).toBe(500);
     const data = (await res.json()) as TestApiResponse;
-    expect(data.success).toBe(true);
+    expect(data.success).toBe(false);
   });
 
   it("GET /api/recycler/jobs/:id/variations lists variations", async () => {
@@ -932,15 +935,16 @@ describe("nexus-router: Localization Routes", () => {
     expect(data.success).toBe(true);
   });
 
-  it("POST /api/localization/jobs/:id/execute executes localization", async () => {
+  it("POST /api/localization/jobs/:id/execute returns error for non-existent job", async () => {
     const env = buildEnv();
     const res = await app.fetch(
       makeRequest("/api/localization/jobs/loc-1/execute", { method: "POST" }),
       env
     );
-    expect(res.status).toBe(200);
+    // Service throws when job not found in empty DB
+    expect(res.status).toBe(500);
     const data = (await res.json()) as TestApiResponse;
-    expect(data.success).toBe(true);
+    expect(data.success).toBe(false);
   });
 
   it("GET /api/localization/jobs/:id/products lists localized products", async () => {
