@@ -66,26 +66,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run migration 001
-        run: npx wrangler d1 execute nexus-db --file=migrations/001_initial_schema.sql --remote
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Run migration 002
-        run: npx wrangler d1 execute nexus-db --file=migrations/002_v4_analytics.sql --remote
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Run migration 003
-        run: npx wrangler d1 execute nexus-db --file=migrations/003_schema_fixes.sql --remote
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Run migration 004
-        run: npx wrangler d1 execute nexus-db --file=migrations/004_updated_at_triggers.sql --remote
+      - name: Run all D1 migrations
+        run: |
+          for migration in $(ls migrations/*.sql | sort); do
+            echo "Running $migration..."
+            npx wrangler d1 execute nexus-db --file="$migration" --remote
+          done
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
