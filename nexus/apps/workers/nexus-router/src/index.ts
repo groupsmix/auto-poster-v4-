@@ -97,7 +97,7 @@ app.use("/api/*", async (c, next) => {
 // Rate limiting middleware (7.3)
 // 20 requests per minute per IP using in-memory counter
 // Resets on worker restart — acceptable for personal use (1 user)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+export const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 app.use("/api/*", async (c, next) => {
   const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
