@@ -270,18 +270,30 @@ const STEP_CONFIGS: Record<StepName, StepConfig> = {
     role: "researcher",
     usesPlatformPrompt: false,
     usesVariationWorker: false,
-    taskPrompt: `Conduct comprehensive market research for this product concept.
+    taskPrompt: `Conduct deep market research for this product concept. You are analyzing this niche as if you're about to invest $10,000 of your own money into it.
 
-Find:
-1. Current market trends and demand signals in this niche
-2. Top competitors — what they sell, at what price, what works
-3. Target audience — demographics, pain points, buying triggers
-4. Optimal price range based on competitor analysis
-5. High-value keywords with buyer intent
-6. Untapped niche opportunities and angles
+=== THINK STEP-BY-STEP BEFORE RESEARCHING ===
 
-Be specific. Use real data patterns. No generic advice.
-Every insight must be actionable for product creation.`,
+STEP 1: Who is the buyer? What problem are they trying to solve? What do they type into the search bar?
+STEP 2: Who are the top 5 sellers in this niche? What are they doing right? What gaps are they leaving?
+STEP 3: What price point maximizes revenue (not just sales volume)?
+STEP 4: What keywords have HIGH buyer intent vs just browsing intent?
+
+=== NOW RESEARCH AND DELIVER ===
+
+1. Market trends — specific demand signals ("search volume up 40% YoY" not "growing market")
+2. Competitor analysis — what top sellers charge, their strengths AND weaknesses, gaps you can exploit
+3. Target audience — demographics, psychographics, pain points, buying triggers, objections
+4. Price range — min/max/recommended with justification from competitor data
+5. Keywords — buyer-intent keywords only ("buy notion planner" not "what is notion")
+6. Niche opportunities — untapped angles competitors are missing
+7. Demand signals — specific evidence this niche has paying customers
+
+=== QUALITY RULES ===
+- Every trend must be specific and verifiable, not vague
+- Every keyword must have buyer intent — informational keywords are worthless
+- Every competitor insight must be actionable ("their descriptions lack FAQ" not "competition exists")
+- If your insight could apply to ANY niche, it's too vague. Make it specific to THIS niche.`,
     contextKeys: [],
     revisable: true,
   },
@@ -292,19 +304,31 @@ Every insight must be actionable for product creation.`,
     role: "researcher",
     usesPlatformPrompt: false,
     usesVariationWorker: false,
-    taskPrompt: `Build a comprehensive product strategy based on the research findings.
+    taskPrompt: `Build a razor-sharp product strategy based on the research findings. Every decision must be backed by specific data from the research phase.
 
-Define:
-1. Market positioning — how this product stands out
-2. Unique angle — what makes this different from competitors
-3. Target persona — detailed buyer profile
-4. Value proposition — the core promise to the buyer
-5. Competitive advantages — why buy THIS over alternatives
-6. Pricing strategy — exact price with justification
-7. Content direction — tone, style, approach for all copy
-8. SEO strategy — keyword targeting approach
+=== THINK STEP-BY-STEP BEFORE STRATEGIZING ===
 
-Every decision must reference the research data. No guessing.`,
+STEP 1: Review the research data. What is the single biggest opportunity identified?
+STEP 2: Who is the IDEAL buyer? Not "everyone" — the ONE person most likely to buy.
+STEP 3: What positioning makes this product impossible to compare with competitors? (If buyers can easily compare, they'll choose the cheapest.)
+STEP 4: What price maximizes revenue? (Not the cheapest, not the most expensive — the sweet spot.)
+
+=== NOW BUILD THE STRATEGY ===
+
+1. Positioning — how this product stands out in a crowded market. Be specific: "The only [X] designed specifically for [Y audience] who struggle with [Z problem]"
+2. Unique angle — what makes this IMPOSSIBLE to ignore vs competitors. Reference specific competitor weaknesses from research.
+3. Target persona — detailed buyer profile with name, age, job, pain points, buying triggers, objections, and where they hang out online
+4. Value proposition — one sentence that makes the buyer think "I NEED this." Format: "[Product] helps [audience] [achieve outcome] without [pain point]"
+5. Competitive advantages — 3-5 specific reasons to buy THIS over alternatives, each referencing competitor gaps
+6. Pricing strategy — exact price with justification from competitor data and perceived value analysis
+7. Content direction — tone, style, emotional triggers, and narrative approach for all copy
+8. SEO strategy — primary keyword target, secondary keywords, and platform-specific keyword approach
+
+=== QUALITY RULES ===
+- Every decision MUST reference specific data from the research phase
+- No generic positioning ("high-quality product" is banned — say what makes it high-quality)
+- The value proposition must pass the "So what?" test — if a buyer can say "so what?", it's too vague
+- Pricing must include psychological pricing rationale ($12.99 not $13, $27 not $30)`,
     contextKeys: ["research"],
     revisable: true,
   },
@@ -315,20 +339,40 @@ Every decision must reference the research data. No guessing.`,
     role: "copywriter",
     usesPlatformPrompt: false,
     usesVariationWorker: false,
-    taskPrompt: `Create the complete product content package.
+    taskPrompt: `Create the complete product content package. This is the core sales copy that will determine whether buyers click "Add to Cart" or scroll past.
 
-Generate:
-1. Product name — memorable, SEO-friendly, niche-specific
-2. Tagline — one sentence that sells the transformation
-3. Full description — 2000-5000 words, human-quality, conversion-optimized
-4. Feature list — specific, benefit-oriented features
-5. Benefits — outcome-focused, emotional triggers
-6. FAQ section — address real buyer objections
-7. Use cases — specific scenarios showing product value
+=== THINK STEP-BY-STEP BEFORE WRITING ===
 
-Follow the strategy decisions. Match the positioning and persona.
-Write like a real expert human — zero AI-sounding output.
-Every sentence must either build desire or eliminate doubt.`,
+STEP 1: Review the strategy. Who is the target persona? What's their biggest pain point?
+STEP 2: What are the 3 strongest emotional triggers for this audience? (Fear of missing out? Desire for transformation? Frustration with current solutions?)
+STEP 3: Plan the narrative arc: Hook → Pain → Solution → Proof → CTA
+STEP 4: What objections will the buyer have? Plan to address each one.
+
+=== NOW CREATE THE CONTENT ===
+
+1. Product name — memorable, SEO-friendly, niche-specific. Front-load the primary keyword.
+2. Tagline — one sentence that sells the TRANSFORMATION, not the product. "From [pain] to [outcome]" format.
+3. Full description (2000-5000 words) — human-quality, conversion-optimized:
+   - Open with a vivid scenario the buyer relates to (NOT "Introducing..." or "Welcome to...")
+   - Address the pain point in the buyer's own language
+   - Present the product as the solution with specific proof
+   - Include scannable formatting: headers, bullets, short paragraphs
+   - End with a clear, urgent CTA
+4. Features — each feature MUST be paired with its buyer benefit ("Weekly review template" → "Never lose track of your goals again")
+5. Benefits — outcome-focused, emotional, specific ("Save 5 hours/week" not "Save time")
+6. FAQ (5+ questions) — address REAL buyer objections: "Is this worth the price?", "Will this work for me?", "How hard is setup?"
+7. Use cases — 3-5 specific scenarios showing the product solving real problems for real people
+
+=== ANTI-PATTERNS (NEVER DO) ===
+- Never start with "Introducing..." or "Welcome to our..."
+- Never use "comprehensive", "ultimate", "game-changer", "elevate", "unlock", "seamless"
+- Never list features without translating each into a buyer benefit
+- Never write FAQ answers longer than 2-3 sentences
+- Never write all sentences the same length — vary your rhythm naturally
+
+=== EXAMPLE OF GOOD DESCRIPTION OPENING ===
+BAD: "This comprehensive Notion template will help you organize your life and boost your productivity!"
+GOOD: "Monday morning. You open one dashboard and everything's there — priorities ranked, deadlines mapped, habits tracked. No more scattered notes. No more forgotten tasks. Just clarity."`,
     contextKeys: ["research", "strategy"],
     revisable: true,
   },
@@ -339,20 +383,37 @@ Every sentence must either build desire or eliminate doubt.`,
     role: "seo",
     usesPlatformPrompt: false,
     usesVariationWorker: false,
-    taskPrompt: `Optimize all content for maximum organic discoverability.
+    taskPrompt: `Optimize all content for maximum organic discoverability across target platforms. Your SEO must be invisible — it reads like great copy that happens to be perfectly optimized.
 
-Create:
-1. SEO title — keyword-rich, attention-grabbing, platform-appropriate length
-2. Meta description — max 160 chars, includes primary keyword, has CTA
-3. Primary keywords — 3-5 high-intent keywords
-4. Secondary keywords — 5-10 supporting long-tail keywords
-5. Tags — platform-optimized tag set
-6. URL slug — clean, keyword-rich
-7. Keyword density notes — where to naturally place keywords
+=== THINK STEP-BY-STEP BEFORE OPTIMIZING ===
 
-Never sacrifice readability for keywords.
-Best SEO reads like natural language.
-Consider the target platforms and their specific SEO rules.`,
+STEP 1: What does the BUYER type into the search bar? (Not what describes the product — what the buyer actually searches)
+STEP 2: Which keywords from the research have the highest PURCHASE intent?
+STEP 3: Where does each platform weight keywords most heavily? (Title? Tags? Description? Backend fields?)
+STEP 4: What long-tail variations capture niche buyers that competitors miss?
+
+=== NOW OPTIMIZE ===
+
+1. SEO title — primary keyword in the FIRST 40 characters. Remaining characters for secondary keywords and benefit hooks. Must be attention-grabbing AND algorithm-friendly.
+2. Meta description — max 160 chars. Must include primary keyword AND a compelling CTA. This is your mini-ad in search results.
+3. Primary keywords (3-5) — high buyer-intent keywords that signal purchase readiness
+4. Secondary keywords (5-10) — long-tail variations that capture niche searches
+5. Tags — platform-optimized set. Etsy: exactly 13 tags. Redbubble: exactly 15. Each tag is a separate search opportunity.
+6. URL slug — short, lowercase, hyphenated, includes primary keyword
+7. Keyword density notes — specific placement instructions for natural keyword integration
+
+=== SEO RULES (NEVER BREAK) ===
+- Primary keyword MUST be in the first 40 characters of the title
+- Tags must NOT repeat exact words already in the title (platforms already index the title)
+- Tags must mix broad terms (1-2 words) with specific long-tail phrases (3-5 words)
+- Never sacrifice readability for keyword density
+- Every keyword must have buyer intent — informational keywords are worthless for product listings
+- Meta descriptions must include both the primary keyword AND a CTA
+
+=== EXAMPLE ===
+BAD title: "Beautiful Digital Planner Template for Organization and Productivity 2024"
+GOOD title: "ADHD Planner Notion Template | Daily Focus Dashboard + Weekly Review System"
+WHY: Primary keyword front-loaded, pipe separator, specific features as secondary keywords.`,
     contextKeys: ["research", "strategy", "content_generation"],
     revisable: true,
   },
@@ -363,19 +424,31 @@ Consider the target platforms and their specific SEO rules.`,
     role: "copywriter",
     usesPlatformPrompt: false,
     usesVariationWorker: false,
-    taskPrompt: `Create detailed image generation prompts for this product.
+    taskPrompt: `Create detailed image generation prompts that will make buyers STOP scrolling and CLICK. Remember: the thumbnail is seen at 150x150px on mobile — if it doesn't pop at that size, it fails.
 
-Generate:
-1. Multiple image prompts — each with description, style, dimensions, purpose
-2. Cover/hero image — the main product visual
-3. Feature showcase images — highlighting key features
-4. Lifestyle/context images — showing product in use
-5. Mockup instructions — how to present the product on platforms
-6. Thumbnail concept — optimized for small display (mobile browsing)
+=== THINK STEP-BY-STEP BEFORE DESIGNING ===
 
-Consider the product type, target audience, and platform requirements.
-Image prompts must be specific enough for AI image generators.
-Think about what converts browsers to buyers visually.`,
+STEP 1: What will the thumbnail look like at 150x150px on a phone? Can you read any text? Does it stand out in a grid of competitors?
+STEP 2: What emotion should the buyer feel when they see the hero image? (Excitement? Relief? Aspiration?)
+STEP 3: What visual proof shows this product is high-quality? (Clean UI screenshots for digital, lifestyle shots for physical)
+STEP 4: What mockup context makes the buyer imagine themselves USING this product?
+
+=== NOW CREATE IMAGE PROMPTS ===
+
+1. Hero/cover image — the main product visual. Must show the product IN CONTEXT, not isolated on white. Lifestyle mockups convert 3x better than flat-lay.
+2. Feature showcase images (2-3) — each highlighting a specific feature with a benefit callout
+3. Lifestyle/context images (1-2) — showing the product being used by the target persona in their real environment
+4. Mockup instructions — specific guidance for presenting the product on each target platform
+5. Thumbnail concept — designed for 150x150px visibility. High contrast, readable text, clear subject.
+
+=== IMAGE PROMPT RULES ===
+- Every prompt must specify: subject, style, mood/lighting, color palette, composition, and dimensions
+- Use color psychology: blue for trust (finance), green for growth (planners), warm tones for creativity
+- Hero images must show the product in context, not isolated on white
+- Include at least one "feature zoom" showing a specific detail
+- Thumbnail must work at 150x150px — if you can't read it small, redesign it
+- Never use generic stock photo language ("happy person at desk") — be specific about the scene, emotion, and setting
+- Platform-specific dimensions: Etsy 2000x2000 square, Gumroad wide hero banner, Pinterest 1000x1500 vertical`,
     contextKeys: ["research", "strategy", "content_generation"],
     revisable: true,
   },
@@ -386,18 +459,30 @@ Think about what converts browsers to buyers visually.`,
     role: "copywriter",
     usesPlatformPrompt: true,
     usesVariationWorker: true,
-    taskPrompt: `Rewrite the product listing for each target platform.
+    taskPrompt: `Rewrite the product listing for each target platform. Each platform has COMPLETELY different buyers, algorithms, and conversion psychology. A listing that works on Etsy will FAIL on Gumroad.
 
-For EACH platform:
-1. Adapt title to platform's character limit and tone
-2. Rewrite description for platform's audience and style
-3. Generate platform-specific tags within platform limits
-4. Adjust pricing for platform's buyer psychology
-5. Create platform-appropriate CTA
-6. Add platform-specific notes
+=== THINK STEP-BY-STEP FOR EACH PLATFORM ===
 
-Do NOT copy the base listing. Fully adapt each variant.
-Each platform has different buyers, different SEO, different tone.`,
+STEP 1: Who is the buyer on THIS platform? What are they looking for? How do they browse?
+STEP 2: What does this platform's algorithm reward? (Tags? Keywords? Click-through rate? Sales velocity?)
+STEP 3: What tone and style converts on THIS platform? (Etsy = warm/personal, Gumroad = creator-to-creator, Shopify = brand-driven)
+STEP 4: What are the HARD constraints? (Character limits, tag counts, forbidden words)
+
+=== FOR EACH PLATFORM, DELIVER ===
+
+1. Title — adapted to platform's character limit, tone, and SEO rules. Primary keyword front-loaded.
+2. Description — COMPLETELY rewritten for platform's audience. Not adapted — rewritten from scratch.
+3. Tags — platform-specific, using ALL available tag slots. Each tag is a search opportunity.
+4. Price — adjusted for platform's buyer psychology and competitive landscape
+5. CTA — platform-appropriate call to action
+6. Notes — platform-specific optimization tips
+
+=== CRITICAL RULES ===
+- Do NOT copy-paste between platforms. Each variant must feel native to its platform.
+- Etsy buyers want warmth and story. Gumroad buyers want value and outcomes. Shopify buyers want brand trust.
+- Use ALL available tag slots on every platform (Etsy=13, Redbubble=15, etc.)
+- Respect every character limit as a HARD constraint — never exceed.
+- Each variant should feel like it was written by a top seller ON THAT SPECIFIC PLATFORM.`,
     contextKeys: ["content_generation", "seo_optimization"],
     revisable: true,
   },
@@ -408,19 +493,34 @@ Each platform has different buyers, different SEO, different tone.`,
     role: "copywriter",
     usesPlatformPrompt: false,
     usesVariationWorker: true,
-    taskPrompt: `Create social media content for each selected channel.
+    taskPrompt: `Create social media content for each selected channel. The hook is EVERYTHING — if the first line doesn't stop the scroll, nothing else matters.
 
-For EACH channel:
-1. Write content matching the channel's format and tone
-2. Create a strong hook that stops scrolling
-3. Include relevant hashtags within channel limits
-4. Add a clear CTA appropriate for the channel
-5. Follow the channel's content format exactly
+=== THINK STEP-BY-STEP FOR EACH CHANNEL ===
 
-Each social channel has different audiences and expectations.
-TikTok is fast and punchy. LinkedIn is professional and insightful.
-Instagram is visual and aspirational. Pinterest is search-optimized.
-X/Twitter is witty and value-dense.`,
+STEP 1: What makes someone STOP scrolling on THIS channel? (TikTok = pattern interrupt, Instagram = visual + curiosity, LinkedIn = bold professional claim, Pinterest = searchable inspiration, X = witty one-liner)
+STEP 2: What format gets the most SAVES/BOOKMARKS on this channel? (Saves = algorithmic gold everywhere)
+STEP 3: What CTA actually drives conversions on this channel? ("Link in bio" vs "Link in comments" vs direct link)
+STEP 4: What are the HARD constraints? (Character limits, hashtag counts, format rules)
+
+=== FOR EACH CHANNEL, DELIVER ===
+
+1. Content — matching the channel's native format and tone exactly
+2. Hook — the first line/sentence that stops the scroll. This is 80% of the post's success.
+3. Hashtags — within channel limits, mixing broad and niche
+4. CTA — channel-appropriate, conversion-focused
+5. Format — exact content structure for the channel
+
+=== CHANNEL-SPECIFIC RULES ===
+- TikTok: Hook in first 1-3 seconds. Raw > polished. End with a question. 3-5 hashtags max.
+- Instagram: First line before "...more" must hook. Carousel > single image. 15-20 hashtags.
+- LinkedIn: First 2 lines before "see more" must hook. NO external links in post body. Professional but human.
+- Pinterest: SEO-first — it's a search engine, not a social network. Keywords > creativity.
+- X/Twitter: Hook tweet must work standalone. No hashtags in body. Bookmark-worthy = algorithmic boost.
+
+=== ANTI-PATTERNS ===
+- Never start with "Check out our new product!" or "We're excited to announce..."
+- Never use the same hook across channels — each platform needs a native hook
+- Never exceed character/hashtag limits — these are HARD constraints`,
     contextKeys: ["content_generation", "seo_optimization", "platform_variants"],
     revisable: true,
   },
@@ -431,18 +531,42 @@ X/Twitter is witty and value-dense.`,
     role: "copywriter",
     usesPlatformPrompt: false,
     usesVariationWorker: true,
-    taskPrompt: `Review ALL generated text and remove any AI-sounding patterns.
+    taskPrompt: `You are a human editor with 10 years of experience. Your job: take AI-generated text and make it IMPOSSIBLE to detect as AI-written. The goal is zero AI-detection score.
 
-Check and fix:
-1. Main product description — remove robotic phrases, add natural flow
-2. All platform variants — ensure each sounds like a real seller wrote it
-3. All social content — make it sound like a real person posting
-4. Remove: "In today's...", "Whether you're...", "This comprehensive...", "Unlock the power of..."
-5. Remove: excessive exclamation marks, corporate jargon, filler words
-6. Add: natural sentence variation, conversational asides, personality
+=== THINK STEP-BY-STEP BEFORE EDITING ===
 
-Track every change made. The goal is zero AI-detection.
-Write like a real human expert, not a language model.`,
+STEP 1: Read through ALL the content. Flag every sentence that "sounds like AI" — you'll know it when you see it.
+STEP 2: Check for these INSTANT-FAIL AI patterns:
+- "In today's..." / "In the world of..." / "In this digital age..."
+- "Whether you're a... or a..."
+- "This comprehensive..." / "This innovative..."
+- "Unlock the power of..." / "Elevate your..." / "Take it to the next level"
+- "Seamless" / "Robust" / "Cutting-edge" / "Game-changer" / "Delve"
+- "It's worth noting that..." / "It's important to remember..."
+- "Moreover" / "Furthermore" / "In conclusion" / "Additionally"
+- Sentences that ALL start the same way or are ALL the same length
+- Excessive exclamation marks (more than 2 per listing)
+STEP 3: Plan natural replacements that sound like a real expert wrote them.
+
+=== NOW HUMANIZE EVERYTHING ===
+
+1. Main product description — rewrite robotic phrases, add natural conversational flow
+2. All platform variants — each must sound like a real top seller on THAT platform wrote it
+3. All social content — must sound like a real person posting, not a brand account
+
+=== HUMANIZATION RULES ===
+- Vary sentence length naturally: short punchy sentences mixed with longer flowing ones
+- Use contractions (don't, won't, it's, they're) — humans always use contractions
+- Start some sentences with "And" or "But" — it's natural
+- Use dashes for asides — like this — instead of always using commas
+- Replace "Moreover" → "Plus" or "Oh, and" or just start the next thought
+- Replace "Furthermore" → "Here's the thing" or drop it entirely
+- Replace "In conclusion" → just make the final point naturally
+- Add occasional sentence fragments. "Worth it." "Not even close." "Game over."
+- Keep the SAME meaning, facts, and approximate length
+- Track every change made so the team can learn from patterns
+
+The result must read like a knowledgeable human expert wrote it from scratch — not like AI text that was "cleaned up."`,
     contextKeys: ["content_generation", "platform_variants", "social_content"],
     revisable: true,
   },
@@ -453,21 +577,35 @@ Write like a real human expert, not a language model.`,
     role: "reviewer",
     usesPlatformPrompt: false,
     usesVariationWorker: false,
-    taskPrompt: `You are the CEO reviewing a product package before it goes to market.
+    taskPrompt: `You are the CEO doing the final quality review before this product goes live. Your approval rate is 35% — you only let through work that competes with the top 10% of sellers on any platform.
 
-Be extremely critical. Your standard: would YOU personally buy this?
+Your standard: Would a top seller with $500K+ revenue publish this EXACTLY as-is, with zero edits?
 
-Review the COMPLETE output package and score each criterion 1-10:
-1. TITLE STRENGTH — attention-grabbing? SEO-optimized? platform-appropriate?
-2. DESCRIPTION QUALITY — does it sell? is it human? answers buyer questions?
-3. SEO QUALITY — right keywords? right density? platform-appropriate?
-4. PRICE LOGIC — competitive? justified? psychologically optimized?
-5. PLATFORM FIT — matches each platform's buyer psychology?
-6. HUMAN QUALITY — does any part sound AI-generated or robotic?
-7. OVERALL READINESS — is this ready to publish?
+=== REVIEW PROCESS (FOLLOW THIS EXACT SEQUENCE) ===
 
-For any score below 8: state exactly what is wrong, what should change, and provide the corrected version.
-Set approved=true ONLY if ALL individual scores are >= 8.`,
+STEP 1 — FIRST IMPRESSION: Read the title and first sentence of the description. Would you click? Would you keep reading? If not, it already fails.
+
+STEP 2 — DEEP REVIEW: Score each criterion 1-10:
+1. TITLE STRENGTH — Does it stop scrolling? Front-load primary keyword? Within platform character limit? Stand out in a grid of 20 competitors?
+2. DESCRIPTION QUALITY — Does the first sentence hook? Does it address pain points? Clear CTA? Would a real buyer read past the fold?
+3. SEO QUALITY — Primary keyword in title + description + tags? All tag slots used? Buyer-intent keywords only?
+4. PRICE LOGIC — Competitive but not cheapest? Psychological pricing used? Description justifies the price?
+5. PLATFORM FIT — Tone matches platform audience? All format rules followed? Platform-specific trust signals included?
+6. HUMAN QUALITY — Scan for AI patterns: "elevate", "unlock", "comprehensive", "In today's...", "Whether you're...". Varied sentence lengths? Natural contractions? Would it pass an AI detector?
+7. OVERALL READINESS — Would you publish this under your own brand right now? Would you be proud if a competitor saw it?
+
+STEP 3 — SCORING CALIBRATION:
+- Score 10: Top 1%. Editor's Picks quality. Flawless.
+- Score 9: Top 5%. Publish immediately. Minor improvements possible.
+- Score 8: Top 15%. Passes the bar. One or two small fixes would elevate it.
+- Score 7: Average. Publishable but won't stand out. Needs improvement.
+- Score 6 or below: Below standard. Major revision required.
+
+STEP 4 — FIXES: For any score below 8, provide:
+- EXACTLY what is wrong (specific, not vague)
+- EXACTLY what should change (with the corrected version ready to use)
+
+Set approved=true ONLY if ALL individual scores are >= 8. One score of 7 means the whole package needs revision.`,
     contextKeys: [
       "research",
       "strategy",

@@ -41,7 +41,11 @@ const AI_PATTERNS = [
   // Opening clichés
   "in today's fast-paced world",
   "in today's digital age",
+  "in today's competitive",
+  "in today's ever",
   "in the ever-evolving landscape",
+  "in the world of",
+  "in this digital age",
   "in an increasingly connected world",
   "as we navigate",
   "it's no secret that",
@@ -52,7 +56,14 @@ const AI_PATTERNS = [
   "let's dive in",
   "let's dive deep",
   "let's explore",
+  "let's delve",
   "without further ado",
+  "are you ready to",
+  "looking to take your",
+  "ready to transform",
+  "welcome to the world of",
+  "welcome to our",
+  "introducing our",
 
   // Buzzwords
   "game-changer",
@@ -66,18 +77,45 @@ const AI_PATTERNS = [
   "revolutionary",
   "innovative solution",
   "seamless integration",
+  "seamless experience",
+  "seamlessly",
   "robust solution",
+  "robust and",
   "holistic approach",
   "best-in-class",
   "next-level",
   "state-of-the-art",
   "unlock your potential",
+  "unlock the power",
+  "unlock the full",
   "take it to the next level",
   "elevate your",
   "supercharge your",
   "skyrocket your",
   "turbocharge",
   "empower you",
+  "empowering",
+  "streamline your",
+  "optimize your workflow",
+  "maximize your",
+  "revolutionize your",
+  "transform your",
+  "comprehensive solution",
+  "comprehensive guide",
+  "this comprehensive",
+  "this innovative",
+  "this powerful",
+  "this unique",
+  "delve into",
+  "delve deeper",
+  "navigate the",
+  "navigate through",
+  "curated",
+  "meticulously",
+  "thoughtfully designed",
+  "carefully crafted",
+  "masterfully",
+  "effortlessly",
 
   // Transition clichés
   "moreover",
@@ -91,6 +129,14 @@ const AI_PATTERNS = [
   "needless to say",
   "it's worth noting that",
   "it's important to note",
+  "it's important to remember",
+  "additionally",
+  "consequently",
+  "in essence",
+  "in summary",
+  "to that end",
+  "with that being said",
+  "that being said",
 
   // Filler
   "absolutely",
@@ -103,6 +149,23 @@ const AI_PATTERNS = [
   "remarkably",
   "significantly",
   "tremendously",
+  "ultimately",
+  "arguably",
+  "interestingly",
+  "notably",
+
+  // Hedging (AI loves to hedge)
+  "it's worth mentioning",
+  "it should be noted",
+  "one might argue",
+  "it can be said",
+
+  // Whether you're patterns
+  "whether you're a",
+  "whether you're looking",
+  "whether you're new",
+  "whether you need",
+  "regardless of whether",
 
   // AI self-references
   "as an ai",
@@ -153,6 +216,24 @@ function computeHumanScore(text: string): number {
   const bulletLines = (text.match(/^[\s]*[-•*]\s/gm) ?? []).length;
   if (bulletLines > 8) score -= (bulletLines - 8) * 2;
 
+  // Penalize for lack of contractions (humans almost always use contractions)
+  const noContractions = !lower.includes("don't") && !lower.includes("won't") &&
+    !lower.includes("it's") && !lower.includes("they're") &&
+    !lower.includes("you're") && !lower.includes("we're") &&
+    !lower.includes("can't") && !lower.includes("doesn't");
+  if (noContractions && sentences.length > 3) score -= 8;
+
+  // Penalize for starting multiple sentences the same way (AI repetition pattern)
+  if (sentences.length > 4) {
+    const starters = sentences.map((s) => s.trim().split(/\s+/)[0]?.toLowerCase() ?? "");
+    const starterCounts: Record<string, number> = {};
+    for (const s of starters) {
+      starterCounts[s] = (starterCounts[s] ?? 0) + 1;
+    }
+    const maxRepeat = Math.max(...Object.values(starterCounts));
+    if (maxRepeat > 3) score -= (maxRepeat - 3) * 3;
+  }
+
   return Math.max(0, Math.min(100, score));
 }
 
@@ -185,34 +266,48 @@ async function callAI(
 // --- The humanizer prompt ---
 
 function buildHumanizerPrompt(content: string, patternsFound: string[]): string {
-  return `You are a human editor. Your job is to take AI-generated text and rewrite it to sound completely natural and human-written.
+  return `You are a senior copywriter with 15 years of e-commerce experience. You've written thousands of product listings that have generated millions in revenue. Your job: take this AI-generated text and rewrite it so it's IMPOSSIBLE to detect as AI-written. Zero AI-detection score is the target.
 
-RULES:
-1. Remove ALL AI patterns and clichés. The text currently contains these AI patterns:
-${patternsFound.length > 0 ? patternsFound.map((p) => `   - "${p}"`).join("\n") : "   (none detected, but still check for subtle AI-ness)"}
+=== AI PATTERNS DETECTED ===
+${patternsFound.length > 0 ? patternsFound.map((p) => `- "${p}" ← MUST BE REMOVED or replaced with natural alternative`).join("\n") : "(none detected by scanner, but still check for subtle AI-ness — the scanner doesn't catch everything)"}
 
-2. Vary sentence length naturally:
-   - Mix short punchy sentences with longer flowing ones
-   - Humans don't write every sentence the same length
-   - Use sentence fragments occasionally ("Worth it." "Not even close.")
+=== HUMANIZATION RULES ===
 
-3. Add natural imperfections:
-   - Use contractions (don't, won't, it's, they're)
-   - Occasionally start sentences with "And" or "But"
-   - Use dashes for asides -- like this -- instead of always using commas
-   - Throw in colloquialisms where appropriate
+1. REMOVE all AI patterns listed above. Replace them with how a real expert human would phrase the same idea.
 
-4. Use conversational transitions:
-   - Instead of "Moreover" → "Plus" or "Oh, and"
-   - Instead of "Furthermore" → "Here's the thing" or just start the next thought
-   - Instead of "In conclusion" → just make your final point naturally
-   - Instead of "It's worth noting" → just state the fact
+2. VARY sentence length naturally:
+   - Mix short punchy sentences (5-8 words) with longer flowing ones (15-25 words)
+   - Add occasional sentence fragments: "Worth it." "Not even close." "Game over."
+   - Never write 3+ sentences in a row that are the same length
 
-5. Keep the SAME meaning and all factual information
-6. Keep the SAME approximate length (don't dramatically shorten or lengthen)
-7. The result should read like a knowledgeable human wrote it from scratch
+3. USE contractions — humans almost always use them:
+   - "do not" → "don't", "will not" → "won't", "it is" → "it's"
+   - "they are" → "they're", "you are" → "you're", "cannot" → "can't"
 
-TEXT TO HUMANIZE:
+4. ADD natural sentence starters:
+   - Start some sentences with "And" or "But" — it's natural
+   - Use dashes for asides — like this — instead of always using commas
+   - Vary your sentence openers (never start 3+ sentences the same way)
+
+5. REPLACE formal transitions:
+   - "Moreover" → "Plus" or "Oh, and" or just start the next thought
+   - "Furthermore" → "Here's the thing" or drop it entirely
+   - "In conclusion" → just make the final point naturally
+   - "Additionally" → "And" or just start the sentence
+   - "It's worth noting" → just state the fact directly
+
+6. KEEP the same meaning, facts, and approximate length
+7. The result must read like a knowledgeable human expert wrote it from scratch — NOT like AI text that was "cleaned up"
+
+=== EXAMPLE OF GOOD HUMANIZATION ===
+
+AI VERSION: "This comprehensive digital planner is designed to help you streamline your daily workflow. Whether you're a busy professional or a student, this innovative tool will empower you to take your productivity to the next level. It's worth noting that the template includes 50+ pages of meticulously crafted content."
+
+HUMAN VERSION: "50+ pages. Every single one designed to actually get used — not just look pretty in your Notion workspace. I built this after burning through a dozen planners that collected digital dust. The daily layout works because it's flexible. Miss a day? No guilt spirals. Just pick up where you left off."
+
+NOTICE: The human version uses contractions, varied sentence lengths, fragments, personal voice, specific details, and zero AI buzzwords.
+
+=== TEXT TO HUMANIZE ===
 ---
 ${content}
 ---
@@ -249,8 +344,8 @@ export class Humanizer {
     const patternsFound = detectAIPatterns(content);
     const preScore = computeHumanScore(content);
 
-    // If already very human, skip AI call
-    if (preScore >= 90 && patternsFound.length === 0) {
+    // If already very human, skip AI call (threshold raised to 95 for stricter humanization)
+    if (preScore >= 95 && patternsFound.length === 0) {
       return {
         original: content,
         humanized: content,

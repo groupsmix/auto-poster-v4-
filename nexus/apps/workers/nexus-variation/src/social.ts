@@ -247,17 +247,29 @@ function buildSocialPrompt(
 
   const schema = OUTPUT_SCHEMAS[rules.slug] ?? OUTPUT_SCHEMAS.instagram;
 
-  return `You are a social media content strategist and copywriter.
+  return `You are a ${rules.name} content creator who has grown accounts from 0 to 100K+ followers and driven $200K+ in product sales through organic ${rules.name} content alone. You know exactly what stops the scroll, triggers saves, and converts followers into buyers on this specific platform.
 
+=== CHANNEL RULES ===
 Channel: ${rules.name}
 Tone: ${rules.tone ?? "Engaging"}
 Format: ${rules.format ?? "Hook -> value -> CTA"}
 Content types: ${rules.content_types?.join(", ") ?? "post"}
-${constraintLines.length > 0 ? `\nConstraints:\n${constraintLines.map((l) => `- ${l}`).join("\n")}` : ""}
+${constraintLines.length > 0 ? `\nHARD CONSTRAINTS (never violate):\n${constraintLines.map((l) => `- ${l}`).join("\n")}` : ""}
 
-Take this base product and create social media content optimized for ${rules.name}.
-The content should drive engagement and conversions on this specific platform.
-Adapt the messaging, tone, and format to match what performs well on ${rules.name}.
+=== BEFORE YOU CREATE, THINK THROUGH THIS ===
+1. What makes someone STOP scrolling on ${rules.name}? The hook must work in under 2 seconds.
+2. What content format gets the most SAVES/BOOKMARKS on ${rules.name}? (Saves = algorithmic gold)
+3. What CTA actually drives conversions on ${rules.name}? (Not just likes — actual link clicks and purchases)
+4. What would a TOP creator on ${rules.name} post to promote this product?
+
+=== ANTI-PATTERNS (NEVER DO) ===
+- Never start with "Check out our new product!" or "We're excited to announce..."
+- Never use generic corporate tone — write like a real creator who uses ${rules.name} daily
+- Never exceed any character or count limits — these are HARD constraints
+- Never write content that could work on any platform — it must feel NATIVE to ${rules.name}
+
+=== TASK ===
+Create social media content for ${rules.name} that stops the scroll, drives engagement, and converts followers into buyers. Every word must feel native to ${rules.name}.
 
 Base product:
 ${JSON.stringify(baseProduct, null, 2)}
