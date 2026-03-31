@@ -146,10 +146,18 @@ app.use("/api/*", async (c, next) => {
   const encoder = new TextEncoder();
   const tokenBytes = encoder.encode(token);
   const secretBytes = encoder.encode(secret);
-  if (
-    tokenBytes.byteLength !== secretBytes.byteLength ||
-    !crypto.subtle.timingSafeEqual(tokenBytes, secretBytes)
-  ) {
+  if (tokenBytes.byteLength !== secretBytes.byteLength) {
+    return c.json<ApiResponse>(
+      { success: false, error: "Invalid authentication token" },
+      401
+    );
+  }
+  // Constant-time byte comparison (prevents timing side-channel)
+  let mismatch = 0;
+  for (let i = 0; i < tokenBytes.byteLength; i++) {
+    mismatch |= tokenBytes[i] ^ secretBytes[i];
+  }
+  if (mismatch !== 0) {
     return c.json<ApiResponse>(
       { success: false, error: "Invalid authentication token" },
       401
