@@ -29,3 +29,12 @@ CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
 
 -- Chatbot messages: queried by conversation
 CREATE INDEX IF NOT EXISTS idx_chatbot_messages_conversation ON chatbot_messages(conversation_id);
+
+-- Revenue records: fuzzy matching performance (order_id lookups, date-range scans,
+-- and title/description text matching via COLLATE NOCASE)
+CREATE INDEX IF NOT EXISTS idx_revenue_records_order_id ON revenue_records(order_id);
+CREATE INDEX IF NOT EXISTS idx_revenue_records_created_at ON revenue_records(created_at);
+CREATE INDEX IF NOT EXISTS idx_revenue_records_title ON revenue_records(title COLLATE NOCASE);
+
+-- Revenue connections: lookup by platform type
+CREATE INDEX IF NOT EXISTS idx_revenue_connections_platform ON revenue_connections(platform);

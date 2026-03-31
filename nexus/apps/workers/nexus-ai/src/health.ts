@@ -25,6 +25,9 @@ export interface ModelHealthData {
 /** In-memory health store — keyed by model ID */
 const healthStore: Map<string, ModelHealthData> = new Map();
 
+/** Whether we have attempted to restore health data from D1 this isolate lifetime */
+let d1Restored = false;
+
 /** KV key prefix for persisted health data */
 const HEALTH_KV_PREFIX = "health:";
 /** TTL for persisted health data in KV (24 hours — prevents stale data loss across restarts) */
@@ -49,6 +52,9 @@ export async function updateHealthScore(
   env: Env,
   errorMessage?: string
 ): Promise<void> {
+  // Ensure D1 data is loaded before checking in-memory store
+  await restoreFromD1(env);
+
   // Get or create health data, restoring from KV if available
   let health = healthStore.get(modelId);
   if (!health) {
@@ -157,8 +163,64 @@ export async function updateHealthScore(
 // GET HEALTH REPORT — returns all models with their health stats
 // ============================================================
 
+/**
+ * Restore health data from D1 ai_models table on first call.
+ * This ensures health scores survive full worker restarts (not just isolate resets
+ * where KV would suffice). D1 is the authoritative source; KV is a fast fallback.
+ */
+async function restoreFromD1(env: Env): Promise<void> {
+  if (d1Restored) return;
+  d1Restored = true;
+
+  if (!env.NEXUS_STORAGE) return;
+
+  try {
+    const resp = await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sql: `SELECT id, name, total_calls, total_failures, avg_latency_ms, health_score
+              FROM ai_models WHERE total_calls > 0`,
+        params: [],
+      }),
+    });
+
+    const json = (await resp.json()) as {
+      success: boolean;
+      data?: { results?: Array<{
+        id: string;
+        name: string;
+        total_calls: number;
+        total_failures: number;
+        avg_latency_ms: number;
+        health_score: number;
+      }> };
+    };
+
+    if (json.success && json.data?.results) {
+      for (const row of json.data.results) {
+        if (!healthStore.has(row.id)) {
+          healthStore.set(row.id, {
+            modelId: row.id,
+            modelName: row.name,
+            totalCalls: row.total_calls,
+            totalFailures: row.total_failures,
+            avgLatencyMs: row.avg_latency_ms,
+            healthScore: row.health_score,
+          });
+          console.log(`[HEALTH] Restored ${row.id} from D1 (score: ${row.health_score})`);
+        }
+      }
+    }
+  } catch {
+    console.log("[HEALTH] Could not restore health data from D1");
+  }
+}
+
 export async function getHealthReport(env: Env): Promise<ModelHealthData[]> {
-  // Restore any persisted health data not yet in memory
+  // Restore from D1 first (authoritative persistence), then backfill from KV
+  await restoreFromD1(env);
+
   const kvList = await env.KV.list({ prefix: HEALTH_KV_PREFIX }).catch(() => ({ keys: [] }));
   for (const key of kvList.keys) {
     const modelId = key.name.slice(HEALTH_KV_PREFIX.length);

@@ -13,12 +13,27 @@ export interface MockD1Result {
   meta: { changes: number; last_row_id: number; rows_read: number };
 }
 
+/** Mock D1 statement with typed methods for test assertions */
+export interface MockD1Statement {
+  bind: ReturnType<typeof vi.fn>;
+  run: ReturnType<typeof vi.fn>;
+  all: ReturnType<typeof vi.fn>;
+  first: ReturnType<typeof vi.fn>;
+  raw: ReturnType<typeof vi.fn>;
+}
+
+/** Mock D1 database with typed internal accessors for test setup */
+export interface MockD1Database extends D1Database {
+  _tables: Record<string, Record<string, unknown>[]>;
+  _statement: MockD1Statement;
+}
+
 export function createMockD1(
   initialData: Record<string, Record<string, unknown>[]> = {}
-): D1Database {
+): MockD1Database {
   const tables = { ...initialData };
 
-  const mockStatement = {
+  const mockStatement: MockD1Statement = {
     bind: vi.fn().mockReturnThis(),
     run: vi.fn().mockResolvedValue({
       results: [],
@@ -41,12 +56,17 @@ export function createMockD1(
     exec: vi.fn().mockResolvedValue({ count: 0, duration: 0 }),
     _tables: tables,
     _statement: mockStatement,
-  } as unknown as D1Database;
+  } as unknown as MockD1Database;
 }
 
 // --- Mock KV Namespace ---
 
-export function createMockKV(): KVNamespace {
+/** Mock KV namespace with typed internal store for test setup */
+export interface MockKVNamespace extends KVNamespace {
+  _store: Map<string, string>;
+}
+
+export function createMockKV(): MockKVNamespace {
   const store = new Map<string, string>();
 
   return {
@@ -75,12 +95,17 @@ export function createMockKV(): KVNamespace {
       cacheStatus: null,
     })),
     _store: store,
-  } as unknown as KVNamespace;
+  } as unknown as MockKVNamespace;
 }
 
 // --- Mock R2 Bucket ---
 
-export function createMockR2(): R2Bucket {
+/** Mock R2 bucket with typed internal store for test setup */
+export interface MockR2Bucket extends R2Bucket {
+  _objects: Map<string, { body: ArrayBuffer; metadata?: unknown }>;
+}
+
+export function createMockR2(): MockR2Bucket {
   const objects = new Map<string, { body: ArrayBuffer; metadata?: unknown }>();
 
   return {
@@ -142,7 +167,7 @@ export function createMockR2(): R2Bucket {
     createMultipartUpload: vi.fn(),
     resumeMultipartUpload: vi.fn(),
     _objects: objects,
-  } as unknown as R2Bucket;
+  } as unknown as MockR2Bucket;
 }
 
 // --- Mock Fetcher (Service Binding) ---
