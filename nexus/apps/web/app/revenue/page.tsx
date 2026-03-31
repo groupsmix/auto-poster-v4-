@@ -80,9 +80,9 @@ export default function RevenuePage() {
     try {
       await api.revenue.connections.create({
         platform: formPlatform,
-        shop_name: formShopName,
+        store_name: formShopName,
         api_key: formApiKey || undefined,
-        status: "connected",
+        is_active: true,
       });
       setShowConnect(false);
       setFormShopName("");
@@ -231,11 +231,11 @@ export default function RevenuePage() {
                       {formatCurrency(d.revenue)}
                     </td>
                     <td className="py-2.5 text-right text-muted">
-                      {d.product_count}
+                      {d.products}
                     </td>
                     <td className="py-2.5 text-right text-muted">
-                      {d.product_count > 0
-                        ? formatCurrency(d.revenue / d.product_count)
+                      {d.products > 0
+                        ? formatCurrency(d.revenue / d.products)
                         : "$0.00"}
                     </td>
                   </tr>
@@ -306,7 +306,7 @@ export default function RevenuePage() {
                     <span className="text-base font-semibold text-foreground capitalize">
                       {c.platform}
                     </span>
-                    <ConnectionStatusBadge status={c.status} />
+                    <ConnectionStatusBadge status={c.is_active ? "connected" : "disconnected"} />
                     <SyncStatusBadge status={c.sync_status} />
                   </div>
                   <div className="flex items-center gap-2">
@@ -326,10 +326,10 @@ export default function RevenuePage() {
                   </div>
                 </div>
                 <div className="mt-2 text-sm text-muted">
-                  <span>Shop: {c.shop_name}</span>
-                  {c.last_synced_at && (
+                  <span>Shop: {c.store_name}</span>
+                  {c.last_sync_at && (
                     <span className="ml-4">
-                      Last synced: {new Date(c.last_synced_at).toLocaleDateString()}
+                      Last synced: {new Date(c.last_sync_at).toLocaleDateString()}
                     </span>
                   )}
                 </div>
