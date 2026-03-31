@@ -1,6 +1,10 @@
 // ============================================================
 // API endpoint definitions organized by feature
 // ============================================================
+// This file serves as the API reference for all nexus-router
+// endpoints. Each section maps to a feature area with typed
+// request/response definitions.
+// ============================================================
 
 import type {
   Domain,

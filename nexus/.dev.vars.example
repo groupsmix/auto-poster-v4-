@@ -8,20 +8,27 @@
 #   cp .dev.vars.example apps/workers/nexus-ai/.dev.vars
 #   cp .dev.vars.example apps/workers/nexus-storage/.dev.vars
 #   etc.
+#
+# WORKER MAPPING — Which worker needs which variables:
+#   nexus-router:    DASHBOARD_SECRET
+#   nexus-ai:        AI_GATEWAY_ID, all AI API keys below
+#   nexus-storage:   CF_ACCOUNT_ID, CF_IMAGES_TOKEN
+#   nexus-workflow:  (no secrets — uses service bindings)
+#   nexus-variation: (no secrets — uses service bindings)
 # ============================================================
 
-# ── Dashboard Auth (nexus-router) ──
+# === nexus-router ===
 DASHBOARD_SECRET=your-dashboard-secret-here
 
-# ── CF Account (nexus-storage for CF Images) ──
+# === nexus-storage ===
 CF_ACCOUNT_ID=your-cloudflare-account-id
 CF_IMAGES_TOKEN=your-cf-images-api-token
 
-# ── AI Gateway (nexus-ai) ──
+# === nexus-ai ===
 AI_GATEWAY_ID=nexus-gateway
 
 # ============================================================
-# AI API Keys — Active Now (free/cheap)
+# AI API Keys (set on nexus-ai worker)
 # Add key → AI activates. Remove → sleeps. No code change.
 # ============================================================
 

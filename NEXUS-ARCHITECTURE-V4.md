@@ -2029,6 +2029,18 @@ PLACEIT_API_KEY          # Lifestyle mockups
 
 ---
 
+## FEATURE STATUS
+
+| Status | Features |
+|--------|----------|
+| **Core (Ready)** | Domains, Categories, Products, Workflows, Reviews, AI Manager, Analytics, History, Settings, Platforms, Social Channels, Prompts, Publishing, Etsy Integration, AI CEO Orchestrator |
+| **Phase 2 (In Progress)** | Scheduler, Campaigns, Revenue Tracking, Daily Briefings |
+| **Phase 3 (Planned)** | ROI Optimizer, Product Recycler, Localization, Chatbot, Project Builder |
+
+> **Core** features have full backend + frontend implementations. **Phase 2/3** features have frontend pages and API client definitions but backend routes may not be fully wired up yet. The core workflow (domain -> category -> product -> workflow -> review -> approve) is fully functional.
+
+---
+
 ## SUMMARY
 
 | Component | Technology | Cost |
