@@ -120,6 +120,23 @@ const DEFAULT_CHANNEL_RULES: Record<string, ChannelRules> = {
     format: "Hook tweet -> 5-7 value tweets -> CTA tweet",
     content_types: ["single tweet", "thread"],
   },
+  youtube: {
+    name: "YouTube",
+    slug: "youtube",
+    title_max_chars: 100,
+    description_max_chars: 5000,
+    tone: "Engaging, educational, SEO-optimized, thumbnail-worthy",
+    format: "Click-worthy title -> detailed description -> timestamps -> tags",
+    content_types: ["video description", "shorts script", "community post"],
+  },
+  facebook: {
+    name: "Facebook",
+    slug: "facebook",
+    post_max_chars: 63206,
+    tone: "Conversational, community-building, shareable",
+    format: "Relatable opener -> value/story -> engagement question -> CTA",
+    content_types: ["text post", "link post", "carousel post"],
+  },
 };
 
 // --- Per-channel output schemas ---
@@ -153,6 +170,18 @@ const OUTPUT_SCHEMAS: Record<string, Record<string, unknown>> = {
     thread: ["string (value tweets, max 10 total including hook and CTA)"],
     content_type: "one of: single tweet | thread",
     notes: "string (engagement tips, reply strategy)",
+  },
+  youtube: {
+    title: "string (max 100 chars, click-worthy, SEO-optimized)",
+    description: "string (max 5000 chars, detailed with timestamps and tags)",
+    tags: ["string (relevant tags for discoverability)"],
+    content_type: "one of: video description | shorts script | community post",
+    notes: "string (thumbnail tips, SEO strategy)",
+  },
+  facebook: {
+    post: "string (conversational, shareable, community-building)",
+    content_type: "one of: text post | link post | carousel post",
+    notes: "string (engagement tips, best posting time, audience targeting)",
   },
 };
 

@@ -504,4 +504,21 @@ export const DEFAULT_SOCIAL_CHANNEL_RULES: readonly SocialChannelRule[] = [
     format: "Hook tweet -> 5-7 value tweets -> CTA tweet",
     content_types: ["single tweet", "thread"],
   },
+  {
+    slug: "youtube",
+    name: "YouTube",
+    title_max_chars: 100,
+    description_max_chars: 5000,
+    tone: "Engaging, educational, SEO-optimized, thumbnail-worthy",
+    format: "Click-worthy title -> detailed description -> timestamps -> tags",
+    content_types: ["video description", "shorts script", "community post"],
+  },
+  {
+    slug: "facebook",
+    name: "Facebook",
+    post_max_chars: 63206,
+    tone: "Conversational, community-building, shareable",
+    format: "Relatable opener -> value/story -> engagement question -> CTA",
+    content_types: ["text post", "link post", "carousel post"],
+  },
 ] as const;

@@ -337,4 +337,104 @@ app.onError((err, c) => {
   );
 });
 
-export default app;
+// ============================================================
+// Scheduled handler — cron trigger for automatic schedule execution
+// ============================================================
+
+export default {
+  fetch: app.fetch,
+  async scheduled(
+    _event: ScheduledEvent,
+    env: RouterEnv,
+    ctx: ExecutionContext
+  ): Promise<void> {
+    console.log("[CRON] Scheduled tick triggered");
+    try {
+      // Call the internal schedules tick endpoint
+      const resp = await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sql: `SELECT id, name, domain_id, category_id, niche_keywords, products_per_run,
+                       interval_hours, platforms, social_channels, language,
+                       auto_approve_threshold, auto_revise_min_score, max_auto_revisions,
+                       last_run_at, next_run_at
+                FROM schedules
+                WHERE active = 1 AND next_run_at <= ?`,
+          params: [new Date().toISOString()],
+        }),
+      });
+      const json = (await resp.json()) as ApiResponse;
+      if (!json.success || !json.data) {
+        console.error("[CRON] Failed to fetch due schedules:", json.error);
+        return;
+      }
+
+      const schedules = ((json.data as { results?: unknown[] })?.results ?? []) as Array<{
+        id: string;
+        domain_id: string;
+        products_per_run: number;
+        interval_hours: number;
+        niche_keywords?: string;
+        platforms?: string;
+        social_channels?: string;
+        language?: string;
+        auto_approve_threshold?: number;
+        auto_revise_min_score?: number;
+        max_auto_revisions?: number;
+      }>;
+
+      console.log(`[CRON] Found ${schedules.length} due schedule(s)`);
+
+      for (const schedule of schedules) {
+        ctx.waitUntil(
+          (async () => {
+            try {
+              // Trigger workflow for each product in the schedule
+              const keywords = schedule.niche_keywords
+                ? JSON.parse(schedule.niche_keywords) as string[]
+                : [];
+              const keyword = keywords[Math.floor(Math.random() * keywords.length)] ?? "general";
+
+              for (let i = 0; i < (schedule.products_per_run ?? 1); i++) {
+                await env.NEXUS_WORKFLOW.fetch("http://nexus-workflow/workflow/create", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    domainId: schedule.domain_id,
+                    keyword: `${keyword} #${i + 1}`,
+                    platforms: schedule.platforms ? JSON.parse(schedule.platforms) : undefined,
+                    socialChannels: schedule.social_channels ? JSON.parse(schedule.social_channels) : undefined,
+                    language: schedule.language,
+                    autoApproveThreshold: schedule.auto_approve_threshold,
+                  }),
+                });
+              }
+
+              // Update schedule timing
+              const nextRun = new Date(
+                Date.now() + (schedule.interval_hours ?? 24) * 3600 * 1000
+              ).toISOString();
+              await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/query", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  sql: `UPDATE schedules SET last_run_at = ?, next_run_at = ?, total_runs = total_runs + 1 WHERE id = ?`,
+                  params: [new Date().toISOString(), nextRun, schedule.id],
+                }),
+              });
+
+              console.log(`[CRON] Schedule ${schedule.id} executed successfully`);
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              console.error(`[CRON] Schedule ${schedule.id} failed: ${msg}`);
+            }
+          })()
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[CRON] Scheduled handler failed: ${msg}`);
+    }
+  },
+};
