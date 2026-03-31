@@ -248,6 +248,7 @@ async function executeSchedule(
   );
 
   let productsCreated = 0;
+  let productsFailed = 0;
   const productsPerRun = schedule.products_per_run ?? 1;
 
   try {
@@ -323,6 +324,8 @@ async function executeSchedule(
 
       if (workflowResult.success) {
         productsCreated++;
+      } else {
+        productsFailed++;
       }
     }
 
@@ -342,9 +345,9 @@ async function executeSchedule(
     // Update schedule run
     await storageQuery(
       env,
-      `UPDATE schedule_runs SET status = 'completed', products_created = ?, completed_at = ?
+      `UPDATE schedule_runs SET status = 'completed', products_created = ?, products_failed = ?, completed_at = ?
        WHERE id = ?`,
-      [productsCreated, now(), runId]
+      [productsCreated, productsFailed, now(), runId]
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -352,9 +355,9 @@ async function executeSchedule(
     // Update schedule run with error
     await storageQuery(
       env,
-      `UPDATE schedule_runs SET status = 'failed', products_created = ?, error = ?, completed_at = ?
+      `UPDATE schedule_runs SET status = 'failed', products_created = ?, products_failed = ?, error = ?, completed_at = ?
        WHERE id = ?`,
-      [productsCreated, message, now(), runId]
+      [productsCreated, productsFailed, message, now(), runId]
     );
 
     // Still update the next_run_at so we don't keep retrying immediately

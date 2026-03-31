@@ -115,6 +115,7 @@ TASK_MODEL_REGISTRY.image = TASK_MODEL_REGISTRY.copywriting;
 TASK_MODEL_REGISTRY.review = TASK_MODEL_REGISTRY.quality_review;
 TASK_MODEL_REGISTRY.variation = TASK_MODEL_REGISTRY.platform_variation;
 TASK_MODEL_REGISTRY.social = TASK_MODEL_REGISTRY.social_adaptation;
+TASK_MODEL_REGISTRY.seo_formatting = TASK_MODEL_REGISTRY.seo;
 
 // ============================================================
 // HELPER FUNCTIONS

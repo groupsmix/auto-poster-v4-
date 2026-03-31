@@ -194,12 +194,14 @@ app.get("/health", async (c) => {
     c.env.NEXUS_STORAGE.fetch("http://nexus-storage/health"),
     c.env.NEXUS_AI.fetch("http://nexus-ai/health"),
     c.env.NEXUS_WORKFLOW.fetch("http://nexus-workflow/health"),
+    c.env.NEXUS_VARIATION.fetch("http://nexus-variation/health"),
   ]);
 
   const results = {
     storage: checks[0].status === "fulfilled" ? "ok" : "unreachable",
     ai: checks[1].status === "fulfilled" ? "ok" : "unreachable",
     workflow: checks[2].status === "fulfilled" ? "ok" : "unreachable",
+    variation: checks[3].status === "fulfilled" ? "ok" : "unreachable",
   };
 
   const allHealthy = Object.values(results).every((s) => s === "ok");
@@ -216,12 +218,14 @@ app.get("/api/health", async (c) => {
     c.env.NEXUS_STORAGE.fetch("http://nexus-storage/health"),
     c.env.NEXUS_AI.fetch("http://nexus-ai/health"),
     c.env.NEXUS_WORKFLOW.fetch("http://nexus-workflow/health"),
+    c.env.NEXUS_VARIATION.fetch("http://nexus-variation/health"),
   ]);
 
   const serviceStatus = {
     storage: checks[0].status === "fulfilled" ? "ok" : "unreachable",
     ai: checks[1].status === "fulfilled" ? "ok" : "unreachable",
     workflow: checks[2].status === "fulfilled" ? "ok" : "unreachable",
+    variation: checks[3].status === "fulfilled" ? "ok" : "unreachable",
   };
 
   const allHealthy = Object.values(serviceStatus).every((s) => s === "ok");
