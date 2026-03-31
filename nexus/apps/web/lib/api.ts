@@ -30,6 +30,9 @@ import type {
   ChatAction,
   ChatActionResult,
   ChatResponse,
+  ProjectBuild,
+  ProjectBuildProgress,
+  ProjectBuildFile,
 } from "@nexus/shared";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
@@ -489,6 +492,39 @@ export const api = {
       request<void>(`/chatbot/history/${conversationId}`, { method: "DELETE" }),
   },
 
+  // AI Project Builder endpoints
+  projectBuilder: {
+    /** Start a new project build */
+    start: (data: { idea: string; tech_stack?: string; features?: string[]; target_user?: string; design_style?: string }) =>
+      request<{ build_id: string; status: string }>("/project-builder", { method: "POST", body: data }),
+    /** List all project builds */
+    list: (page?: number, pageSize?: number) => {
+      const params = new URLSearchParams();
+      if (page) params.set("page", String(page));
+      if (pageSize) params.set("pageSize", String(pageSize));
+      const query = params.toString() ? `?${params.toString()}` : "";
+      return request<{ builds: ProjectBuild[]; total: number }>(`/project-builder${query}`);
+    },
+    /** Get build progress */
+    getProgress: (buildId: string) =>
+      request<ProjectBuildProgress>(`/project-builder/${buildId}`),
+    /** Get full build details */
+    getDetails: (buildId: string) =>
+      request<ProjectBuild>(`/project-builder/${buildId}/details`),
+    /** Get generated files */
+    getFiles: (buildId: string) =>
+      request<{ files: ProjectBuildFile[] }>(`/project-builder/${buildId}/files`),
+    /** Rebuild with feedback */
+    rebuild: (buildId: string, feedback: string) =>
+      request<{ build_id: string; status: string }>(`/project-builder/${buildId}/rebuild`, { method: "POST", body: { feedback } }),
+    /** Cancel a build */
+    cancel: (buildId: string) =>
+      request<{ build_id: string; status: string }>(`/project-builder/${buildId}/cancel`, { method: "POST", body: {} }),
+    /** Delete a build */
+    delete: (buildId: string) =>
+      request<{ deleted: boolean }>(`/project-builder/${buildId}`, { method: "DELETE" }),
+  },
+
   // AI CEO / Auto-Orchestrator endpoints
   aiCeo: {
     /** Run full CEO analysis for a domain + category */
@@ -939,4 +975,7 @@ export type {
   ChatAction,
   ChatActionResult,
   ChatResponse,
+  ProjectBuild,
+  ProjectBuildProgress,
+  ProjectBuildFile,
 };

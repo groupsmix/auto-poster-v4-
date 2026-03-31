@@ -120,6 +120,74 @@ export const LOCALIZATION_LANGUAGES = [
 /** Localization job statuses */
 export const LOCALIZATION_JOB_STATUSES = ["pending", "running", "completed", "failed"] as const;
 
+// --- AI Project Builder ---
+
+import type { BuildAgentRole, ProjectBuildPhase } from "./types";
+
+/** Maximum build-validate-fix cycles before packaging */
+export const MAX_BUILD_CYCLES = 5;
+
+/** Minimum quality score to auto-pass validation (out of 10) */
+export const MIN_QUALITY_SCORE = 9;
+
+/** Project Builder phases in execution order */
+export const PROJECT_BUILDER_PHASES: readonly ProjectBuildPhase[] = [
+  "plan",
+  "build",
+  "validate",
+] as const;
+
+/** Plan phase steps (sequential) */
+export const PLAN_PHASE_STEPS: readonly BuildAgentRole[] = [
+  "ceo",
+  "architect",
+  "contract_generator",
+  "contract_validator",
+] as const;
+
+/**
+ * Build phase layers (each layer runs in parallel, layers run sequentially).
+ * Layer 1: Design + DB (no dependencies)
+ * Layer 2: Backend + Frontend (depends on Layer 1)
+ * Layer 3: Integrator (depends on Layer 2)
+ */
+export const BUILD_PHASE_LAYERS: readonly (readonly BuildAgentRole[])[] = [
+  ["designer", "db_architect"],
+  ["backend_dev", "frontend_dev"],
+  ["integrator"],
+] as const;
+
+/** Validate phase steps (sequential) */
+export const VALIDATE_PHASE_STEPS: readonly BuildAgentRole[] = [
+  "structural_validator",
+  "code_reviewer",
+  "qa_validator",
+  "fixer",
+] as const;
+
+/** All project builder agent roles in execution order */
+export const ALL_PROJECT_BUILDER_AGENTS: readonly BuildAgentRole[] = [
+  ...PLAN_PHASE_STEPS,
+  "designer",
+  "db_architect",
+  "backend_dev",
+  "frontend_dev",
+  "integrator",
+  ...VALIDATE_PHASE_STEPS,
+] as const;
+
+/** Project builder statuses */
+export const PROJECT_BUILD_STATUSES = [
+  "planning",
+  "plan_complete",
+  "building",
+  "validating",
+  "fixing",
+  "completed",
+  "failed",
+  "cancelled",
+] as const;
+
 // --- Product Statuses ---
 
 /** All supported product statuses */
