@@ -8,7 +8,7 @@ import { executeUpdate } from "./base";
 
 export async function getDomains(db: D1Database): Promise<Domain[]> {
   const result = await db
-    .prepare("SELECT * FROM domains ORDER BY sort_order ASC")
+    .prepare("SELECT id, name, slug, description, icon, sort_order, is_active, created_at FROM domains ORDER BY sort_order ASC")
     .all<Domain>();
   return result.results;
 }

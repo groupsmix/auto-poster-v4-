@@ -7,7 +7,7 @@ import { executeUpdate } from "./base";
 
 export async function getAIModels(db: D1Database): Promise<AIModel[]> {
   const result = await db
-    .prepare("SELECT * FROM ai_models ORDER BY task_type, rank ASC")
+    .prepare("SELECT id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, rate_limit_reset_at, daily_limit_reset_at, is_free_tier, health_score, total_calls, total_failures, avg_latency_ms, notes FROM ai_models ORDER BY task_type, rank ASC")
     .all<AIModel>();
   return result.results;
 }
@@ -23,7 +23,7 @@ export async function getAIModelById(db: D1Database, id: string): Promise<AIMode
 export async function getAIModelsByTaskType(db: D1Database, taskType: string): Promise<AIModel[]> {
   const result = await db
     .prepare(
-      "SELECT * FROM ai_models WHERE task_type = ? AND status = 'active' ORDER BY rank ASC"
+      "SELECT id, name, provider, task_type, rank, api_key_secret_name, is_workers_ai, status, rate_limit_reset_at, daily_limit_reset_at, is_free_tier, health_score, total_calls, total_failures, avg_latency_ms, notes FROM ai_models WHERE task_type = ? AND status = 'active' ORDER BY rank ASC"
     )
     .bind(taskType)
     .all<AIModel>();

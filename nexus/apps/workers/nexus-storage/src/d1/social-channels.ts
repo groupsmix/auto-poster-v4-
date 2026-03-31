@@ -7,7 +7,7 @@ import { executeUpdate } from "./base";
 
 export async function getSocialChannels(db: D1Database): Promise<SocialChannel[]> {
   const result = await db
-    .prepare("SELECT * FROM social_channels ORDER BY name ASC")
+    .prepare("SELECT id, name, slug, caption_max_chars, hashtag_count, tone, format, content_types, is_active FROM social_channels ORDER BY name ASC")
     .all<SocialChannel>();
   return result.results;
 }

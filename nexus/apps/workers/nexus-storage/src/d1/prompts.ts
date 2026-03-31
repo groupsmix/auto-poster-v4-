@@ -9,13 +9,13 @@ import { executeUpdate } from "./base";
 export async function getPromptTemplates(db: D1Database, layer?: string): Promise<PromptTemplate[]> {
   if (layer) {
     const result = await db
-      .prepare("SELECT * FROM prompt_templates WHERE layer = ? AND is_active = 1 ORDER BY name ASC")
+      .prepare("SELECT id, layer, target_id, name, prompt, version, is_active, updated_at FROM prompt_templates WHERE layer = ? AND is_active = 1 ORDER BY name ASC")
       .bind(layer)
       .all<PromptTemplate>();
     return result.results;
   }
   const result = await db
-    .prepare("SELECT * FROM prompt_templates WHERE is_active = 1 ORDER BY layer, name ASC")
+    .prepare("SELECT id, layer, target_id, name, prompt, version, is_active, updated_at FROM prompt_templates WHERE is_active = 1 ORDER BY layer, name ASC")
     .all<PromptTemplate>();
   return result.results;
 }

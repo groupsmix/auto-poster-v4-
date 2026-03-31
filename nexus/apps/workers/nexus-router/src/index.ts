@@ -192,28 +192,8 @@ app.get("/", (c) => {
   });
 });
 
-app.get("/health", async (c) => {
-  const checks = await Promise.allSettled([
-    c.env.NEXUS_STORAGE.fetch("http://nexus-storage/health"),
-    c.env.NEXUS_AI.fetch("http://nexus-ai/health"),
-    c.env.NEXUS_WORKFLOW.fetch("http://nexus-workflow/health"),
-    c.env.NEXUS_VARIATION.fetch("http://nexus-variation/health"),
-  ]);
-
-  const results = {
-    storage: checks[0].status === "fulfilled" ? "ok" : "unreachable",
-    ai: checks[1].status === "fulfilled" ? "ok" : "unreachable",
-    workflow: checks[2].status === "fulfilled" ? "ok" : "unreachable",
-    variation: checks[3].status === "fulfilled" ? "ok" : "unreachable",
-  };
-
-  const allHealthy = Object.values(results).every((s) => s === "ok");
-
-  return c.json({
-    status: allHealthy ? "healthy" : "degraded",
-    services: results,
-  });
-});
+// Minimal health check — no internal service details exposed
+app.get("/health", (c) => c.json({ status: "ok" }));
 
 // Dashboard health endpoint — authenticated, returns extended system status
 app.get("/api/health", async (c) => {

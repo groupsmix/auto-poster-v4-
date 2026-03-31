@@ -11,13 +11,13 @@ import { executeUpdate } from "./base";
 export async function getReviews(db: D1Database, productId?: string): Promise<Review[]> {
   if (productId) {
     const result = await db
-      .prepare("SELECT * FROM reviews WHERE product_id = ? ORDER BY reviewed_at DESC")
+      .prepare("SELECT id, product_id, run_id, version, ai_score, ai_model, decision, feedback, reviewed_at FROM reviews WHERE product_id = ? ORDER BY reviewed_at DESC")
       .bind(productId)
       .all<Review>();
     return result.results;
   }
   const result = await db
-    .prepare("SELECT * FROM reviews ORDER BY reviewed_at DESC")
+    .prepare("SELECT id, product_id, run_id, version, ai_score, ai_model, decision, feedback, reviewed_at FROM reviews ORDER BY reviewed_at DESC")
     .all<Review>();
   return result.results;
 }
@@ -75,7 +75,7 @@ export async function deleteReview(db: D1Database, id: string): Promise<void> {
 export async function getRevisionHistory(db: D1Database, productId: string): Promise<RevisionHistory[]> {
   const result = await db
     .prepare(
-      "SELECT * FROM revision_history WHERE product_id = ? ORDER BY version ASC"
+      "SELECT id, product_id, version, output, feedback, ai_score, ai_model, reviewed_at, decision FROM revision_history WHERE product_id = ? ORDER BY version ASC"
     )
     .bind(productId)
     .all<RevisionHistory>();
