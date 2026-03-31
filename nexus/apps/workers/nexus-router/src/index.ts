@@ -42,6 +42,7 @@ import localizationRoutes from "./routes/localization";
 import chatbot from "./routes/chatbot";
 import projectBuilder from "./routes/project-builder";
 import briefingsRoutes from "./routes/briefings";
+import etsyRoutes from "./routes/etsy";
 import { executeCampaignBatch } from "./services/campaign-service";
 
 const app = new Hono<{ Bindings: RouterEnv; Variables: { requestId: string } }>();
@@ -317,6 +318,7 @@ app.route("/api/localization", localizationRoutes);
 app.route("/api/chatbot", chatbot);
 app.route("/api/project-builder", projectBuilder);
 app.route("/api/briefings", briefingsRoutes);
+app.route("/api/etsy", etsyRoutes);
 
 // ============================================================
 // 404 catch-all
