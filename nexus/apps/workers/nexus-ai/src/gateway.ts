@@ -19,6 +19,8 @@ const PROVIDER_GATEWAY_MAP: Record<string, string> = {
   moonshot: "moonshot",
   huggingface: "huggingface",
   minimax: "minimax",
+  openai: "openai",
+  anthropic: "anthropic",
 };
 
 /** Provider-to-base-URL mapping for API calls */
@@ -31,6 +33,8 @@ const PROVIDER_API_URL: Record<string, string> = {
   moonshot: "https://api.moonshot.cn/v1/chat/completions",
   huggingface: "https://api-inference.huggingface.co/models",
   minimax: "https://api.minimax.chat/v1/text/chatcompletion_v2",
+  openai: "https://api.openai.com/v1/chat/completions",
+  anthropic: "https://api.anthropic.com/v1/messages",
 };
 
 /** Result from an AI Gateway call */
@@ -116,7 +120,23 @@ async function callAIviaGatewayInternal(
   const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
-    if (provider === "huggingface") {
+    if (provider === "anthropic") {
+      // Anthropic uses a different API format (Messages API)
+      response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: modelId,
+          max_tokens: 4096,
+          messages: [{ role: "user", content: prompt }],
+        }),
+        signal: controller.signal,
+      });
+    } else if (provider === "huggingface") {
       // HuggingFace uses a different API format
       const url = gatewayPath && accountId && gatewayId
         ? `${apiUrl}/${modelId}`
@@ -134,7 +154,7 @@ async function callAIviaGatewayInternal(
         signal: controller.signal,
       });
     } else {
-      // OpenAI-compatible format (DeepSeek, Qwen, Doubao, Groq, Fireworks, Moonshot, MiniMax)
+      // OpenAI-compatible format (DeepSeek, Qwen, Doubao, Groq, Fireworks, Moonshot, MiniMax, OpenAI)
       // Split prompt into system + user messages for better role adherence.
       // Convention: everything before "=== TASK ===" is system context (role, rules, constraints);
       // everything from "=== TASK ===" onward is the user request.
@@ -202,7 +222,16 @@ async function callAIviaGatewayInternal(
   let text = "";
   let tokens: number | undefined;
 
-  if (provider === "huggingface") {
+  if (provider === "anthropic") {
+    // Anthropic Messages API response
+    const data = (await response.json()) as {
+      content?: Array<{ type: string; text?: string }>;
+      usage?: { input_tokens?: number; output_tokens?: number };
+    };
+    text = data.content?.find((c) => c.type === "text")?.text ?? "";
+    const usage = data.usage;
+    tokens = usage ? (usage.input_tokens ?? 0) + (usage.output_tokens ?? 0) : undefined;
+  } else if (provider === "huggingface") {
     const data = (await response.json()) as
       | Array<{ generated_text?: string }>
       | { generated_text?: string };

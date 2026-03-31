@@ -28,6 +28,30 @@ const WORKERS_AI_TEXT: AIModelConfig = {
   model: "@cf/meta/llama-3.1-8b-instruct",
 };
 
+// --- Optional paid models (skipped automatically if API key is not set) ---
+// To enable: add ANTHROPIC_API_KEY or OPENAI_API_KEY as worker secrets.
+// If the key is missing the failover engine silently skips the model.
+
+const CLAUDE_SONNET: AIModelConfig = {
+  id: "claude-sonnet",
+  name: "Claude 3.5 Sonnet (Paid)",
+  provider: "anthropic",
+  apiKeyEnvName: "ANTHROPIC_API_KEY",
+  isWorkersAI: false,
+  isFree: false,
+  model: "claude-sonnet-4-20250514",
+};
+
+const GPT4O: AIModelConfig = {
+  id: "gpt-4o",
+  name: "GPT-4o (Paid)",
+  provider: "openai",
+  apiKeyEnvName: "OPENAI_API_KEY",
+  isWorkersAI: false,
+  isFree: false,
+  model: "gpt-4o",
+};
+
 // ============================================================
 // TASK_MODEL_REGISTRY — The master registry
 // ============================================================
@@ -36,6 +60,10 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   // ----------------------------------------------------------
   // RESEARCH TASKS
   // ----------------------------------------------------------
+  // NOTE: Claude and GPT appear first in chains where quality matters most.
+  // They are OPTIONAL — if ANTHROPIC_API_KEY / OPENAI_API_KEY are not set,
+  // the failover engine silently skips them and uses the free models below.
+
   research: [
     { id: "tavily", name: "Tavily Search", provider: "tavily", apiKeyEnvName: "TAVILY_API_KEY", isWorkersAI: false, isFree: true },
     { id: "exa", name: "Exa Neural Search", provider: "exa", apiKeyEnvName: "EXA_API_KEY", isWorkersAI: false, isFree: true },
@@ -55,6 +83,8 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   // WRITING & CONTENT TASKS
   // ----------------------------------------------------------
   writing: [
+    CLAUDE_SONNET,  // Paid — skipped if ANTHROPIC_API_KEY not set
+    GPT4O,          // Paid — skipped if OPENAI_API_KEY not set
     { id: "deepseek-v3-write", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
     { id: "qwen-max", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
     { id: "doubao-pro", name: "Doubao 1.5 Pro", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-pro" },
@@ -63,6 +93,8 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   ],
 
   copywriting: [
+    CLAUDE_SONNET,  // Paid — skipped if ANTHROPIC_API_KEY not set
+    GPT4O,          // Paid — skipped if OPENAI_API_KEY not set
     { id: "deepseek-v3-copy", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
     { id: "doubao-pro-copy", name: "Doubao 1.5 Pro", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-pro" },
     { id: "qwen-max-copy", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
@@ -94,6 +126,8 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   ],
 
   quality_review: [
+    CLAUDE_SONNET,  // Paid — skipped if ANTHROPIC_API_KEY not set
+    GPT4O,          // Paid — skipped if OPENAI_API_KEY not set
     { id: "deepseek-r1-review", name: "DeepSeek-R1", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-reasoner" },
     { id: "qwen-max-review", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
     WORKERS_AI_TEXT,
@@ -103,6 +137,8 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   // REASONING TASKS (used by AI CEO for deep niche analysis)
   // ----------------------------------------------------------
   reasoning: [
+    CLAUDE_SONNET,  // Paid — skipped if ANTHROPIC_API_KEY not set
+    GPT4O,          // Paid — skipped if OPENAI_API_KEY not set
     { id: "deepseek-r1-reason", name: "DeepSeek-R1", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-reasoner" },
     { id: "deepseek-v3-reason", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
     { id: "qwen-max-reason", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
