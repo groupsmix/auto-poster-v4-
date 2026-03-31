@@ -74,7 +74,7 @@ app.post("/variation/platform", async (c) => {
     }>();
 
     if (!body.baseProduct || !body.platformId) {
-      return c.json(
+      return c.json<ApiResponse>(
         { success: false, error: "Missing baseProduct or platformId" },
         400
       );
@@ -86,7 +86,7 @@ app.post("/variation/platform", async (c) => {
       body.platformId
     );
 
-    return c.json({
+    return c.json<ApiResponse>({
       success: true,
       data: {
         variant: result.variant,
@@ -98,7 +98,7 @@ app.post("/variation/platform", async (c) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[VARIATION] Platform variant error:", message);
-    return c.json({ success: false, error: message }, 500);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });
 
@@ -116,7 +116,7 @@ app.post("/variation/platforms", async (c) => {
     }>();
 
     if (!body.baseProduct || !body.platformIds || body.platformIds.length === 0) {
-      return c.json(
+      return c.json<ApiResponse>(
         { success: false, error: "Missing baseProduct or platformIds" },
         400
       );
@@ -128,7 +128,7 @@ app.post("/variation/platforms", async (c) => {
       body.platformIds
     );
 
-    return c.json({
+    return c.json<ApiResponse>({
       success: true,
       data: {
         variants: result.variants,
@@ -141,7 +141,7 @@ app.post("/variation/platforms", async (c) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[VARIATION] Multi-platform error:", message);
-    return c.json({ success: false, error: message }, 500);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });
 
@@ -159,7 +159,7 @@ app.post("/variation/social", async (c) => {
     }>();
 
     if (!body.baseProduct || !body.channelId) {
-      return c.json(
+      return c.json<ApiResponse>(
         { success: false, error: "Missing baseProduct or channelId" },
         400
       );
@@ -171,7 +171,7 @@ app.post("/variation/social", async (c) => {
       body.channelId
     );
 
-    return c.json({
+    return c.json<ApiResponse>({
       success: true,
       data: {
         content: result.content,
@@ -183,7 +183,7 @@ app.post("/variation/social", async (c) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[VARIATION] Social content error:", message);
-    return c.json({ success: false, error: message }, 500);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });
 
@@ -201,7 +201,7 @@ app.post("/variation/socials", async (c) => {
     }>();
 
     if (!body.baseProduct || !body.channelIds || body.channelIds.length === 0) {
-      return c.json(
+      return c.json<ApiResponse>(
         { success: false, error: "Missing baseProduct or channelIds" },
         400
       );
@@ -213,7 +213,7 @@ app.post("/variation/socials", async (c) => {
       body.channelIds
     );
 
-    return c.json({
+    return c.json<ApiResponse>({
       success: true,
       data: {
         contents: result.contents,
@@ -226,7 +226,7 @@ app.post("/variation/socials", async (c) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[VARIATION] Multi-social error:", message);
-    return c.json({ success: false, error: message }, 500);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });
 
@@ -241,7 +241,7 @@ app.post("/variation/humanize", async (c) => {
     const body = await c.req.json<{ content: string }>();
 
     if (!body.content) {
-      return c.json(
+      return c.json<ApiResponse>(
         { success: false, error: "Missing content" },
         400
       );
@@ -250,7 +250,7 @@ app.post("/variation/humanize", async (c) => {
     const humanizer = new Humanizer(c.env);
     const result = await humanizer.humanizeContent(body.content);
 
-    return c.json({
+    return c.json<ApiResponse>({
       success: true,
       data: {
         original: result.original,
@@ -264,7 +264,7 @@ app.post("/variation/humanize", async (c) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[VARIATION] Humanize error:", message);
-    return c.json({ success: false, error: message }, 500);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });
 
@@ -288,7 +288,7 @@ app.post("/variation/humanize-product", async (c) => {
     }>();
 
     if (!body.product || !body.product.name) {
-      return c.json(
+      return c.json<ApiResponse>(
         { success: false, error: "Missing product or product.name" },
         400
       );
@@ -297,14 +297,14 @@ app.post("/variation/humanize-product", async (c) => {
     const humanizer = new Humanizer(c.env);
     const result = await humanizer.humanizeProduct(body.product);
 
-    return c.json({
+    return c.json<ApiResponse>({
       success: true,
       data: result,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[VARIATION] Humanize-product error:", message);
-    return c.json({ success: false, error: message }, 500);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });
 

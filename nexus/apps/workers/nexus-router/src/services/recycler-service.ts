@@ -175,23 +175,65 @@ export async function analyzeProduct(
     }
   }
 
+  const uniqueKeywords = [...new Set(tags)].slice(0, 20);
+  const revenue = revenueRows[0]?.total_revenue ?? 0;
+  const orders = revenueRows[0]?.total_orders ?? 0;
+
+  // Call AI for deeper analysis if the product has meaningful data
+  let aiInsights: { why_it_sells?: string[]; strengths?: string[]; target_audience?: string; positioning?: string } = {};
+  try {
+    const aiPrompt = `Analyze why this product sells well and identify key strengths.
+
+Product: ${product.name ?? "Unknown"}
+Niche: ${product.niche ?? "General"}
+Domain: ${product.domain_name ?? "Unknown"}
+Category: ${product.category_name ?? "Unknown"}
+Revenue: $${revenue}
+Orders: ${orders}
+Keywords: ${uniqueKeywords.join(", ") || "none"}
+Platforms listed: ${variants.length}
+Price: ${variants[0]?.price ? `$${variants[0].price}` : "Not set"}
+
+Return a JSON object with:
+- why_it_sells: string[] (3-5 specific reasons)
+- strengths: string[] (3-5 competitive strengths)
+- target_audience: string (specific audience description)
+- positioning: string (market positioning summary)`;
+
+    const aiResp = await env.NEXUS_AI.fetch("http://nexus-ai/ai/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskType: "reasoning", prompt: aiPrompt }),
+    });
+    const aiResult = (await aiResp.json()) as ApiResponse<{ result: string }>;
+    if (aiResult.success && aiResult.data?.result) {
+      try {
+        aiInsights = JSON.parse(aiResult.data.result);
+      } catch {
+        // AI returned non-JSON, use as-is
+      }
+    }
+  } catch {
+    // AI analysis is best-effort, fall back to heuristic analysis
+  }
+
   const analysis = {
     product_name: product.name,
     domain: product.domain_name,
     category: product.category_name,
     niche: product.niche,
-    revenue: revenueRows[0]?.total_revenue ?? 0,
-    orders: revenueRows[0]?.total_orders ?? 0,
-    why_it_sells: [
+    revenue,
+    orders,
+    why_it_sells: aiInsights.why_it_sells ?? [
       product.niche ? `Strong niche positioning in "${product.niche}"` : "General market appeal",
       variants.length > 0 ? `Listed on ${variants.length} platform(s)` : "Not yet listed",
-      revenueRows[0]?.total_orders > 5 ? "Proven sales velocity" : "Early stage",
+      orders > 5 ? "Proven sales velocity" : "Early stage",
     ],
-    keywords: [...new Set(tags)].slice(0, 20),
-    positioning: product.niche ?? product.category_name ?? "General",
+    keywords: uniqueKeywords,
+    positioning: aiInsights.positioning ?? product.niche ?? product.category_name ?? "General",
     price_point: variants[0]?.price ? `$${variants[0].price}` : "Not set",
-    target_audience: product.domain_name ?? "General audience",
-    strengths: [
+    target_audience: aiInsights.target_audience ?? product.domain_name ?? "General audience",
+    strengths: aiInsights.strengths ?? [
       "Existing content pipeline",
       "Proven niche demand",
       variants.length > 0 ? "Multi-platform presence" : "Ready for platform expansion",
@@ -228,37 +270,83 @@ export async function generateVariations(
   const niche = (job.niche as string) ?? "";
   const requested = (job.variations_requested as number) ?? 10;
 
-  // Generate variation ideas based on strategy
-  const variationIdeas: Array<{ type: string; label: string }> = [];
+  // Generate variation ideas using AI when possible, fall back to templates
+  let variationIdeas: Array<{ type: string; label: string }> = [];
 
-  if (strategy === "angle" || strategy === "all") {
-    variationIdeas.push(
-      { type: "angle", label: `${sourceName} Budget Planner` },
-      { type: "angle", label: `${sourceName} Inspection Guide` },
-      { type: "angle", label: `${sourceName} Checklist Pro` },
-    );
+  try {
+    const strategiesToUse = strategy === "all"
+      ? ["angle", "bundle", "seasonal", "regional"]
+      : [strategy];
+
+    const aiPrompt = `Generate creative product variation ideas for recycling a successful product.
+
+Source product: ${sourceName}
+Niche: ${niche || "General"}
+Strategies: ${strategiesToUse.join(", ")}
+Count needed: ${requested}
+
+For each strategy, generate variation ideas:
+- angle: same niche but different approach/perspective
+- bundle: combine with complementary products
+- seasonal: adapt for specific seasons or holidays
+- regional: adapt for specific regions or markets
+
+Return a JSON array of objects with { type: string, label: string } for each variation idea.
+Make labels specific and creative, not generic.`;
+
+    const aiResp = await env.NEXUS_AI.fetch("http://nexus-ai/ai/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskType: "writing", prompt: aiPrompt }),
+    });
+    const aiResult = (await aiResp.json()) as ApiResponse<{ result: string }>;
+    if (aiResult.success && aiResult.data?.result) {
+      try {
+        const parsed = JSON.parse(aiResult.data.result);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          variationIdeas = parsed.filter(
+            (v: Record<string, unknown>) => typeof v.type === "string" && typeof v.label === "string"
+          );
+        }
+      } catch {
+        // AI returned non-JSON, fall through to template ideas
+      }
+    }
+  } catch {
+    // AI generation is best-effort
   }
 
-  if (strategy === "bundle" || strategy === "all") {
-    variationIdeas.push(
-      { type: "bundle", label: `${niche || sourceName} Starter Kit` },
-      { type: "bundle", label: `${niche || sourceName} Complete Bundle` },
-    );
-  }
+  // Fall back to template-based ideas if AI didn't produce results
+  if (variationIdeas.length === 0) {
+    if (strategy === "angle" || strategy === "all") {
+      variationIdeas.push(
+        { type: "angle", label: `${sourceName} Budget Planner` },
+        { type: "angle", label: `${sourceName} Inspection Guide` },
+        { type: "angle", label: `${sourceName} Checklist Pro` },
+      );
+    }
 
-  if (strategy === "seasonal" || strategy === "all") {
-    variationIdeas.push(
-      { type: "seasonal", label: `Summer ${sourceName}` },
-      { type: "seasonal", label: `Holiday ${sourceName} Planning` },
-    );
-  }
+    if (strategy === "bundle" || strategy === "all") {
+      variationIdeas.push(
+        { type: "bundle", label: `${niche || sourceName} Starter Kit` },
+        { type: "bundle", label: `${niche || sourceName} Complete Bundle` },
+      );
+    }
 
-  if (strategy === "regional" || strategy === "all") {
-    variationIdeas.push(
-      { type: "regional", label: `${sourceName} — US Edition` },
-      { type: "regional", label: `${sourceName} — UK Edition` },
-      { type: "regional", label: `${sourceName} — Dubai Edition` },
-    );
+    if (strategy === "seasonal" || strategy === "all") {
+      variationIdeas.push(
+        { type: "seasonal", label: `Summer ${sourceName}` },
+        { type: "seasonal", label: `Holiday ${sourceName} Planning` },
+      );
+    }
+
+    if (strategy === "regional" || strategy === "all") {
+      variationIdeas.push(
+        { type: "regional", label: `${sourceName} — US Edition` },
+        { type: "regional", label: `${sourceName} — UK Edition` },
+        { type: "regional", label: `${sourceName} — Dubai Edition` },
+      );
+    }
   }
 
   // Limit to requested count

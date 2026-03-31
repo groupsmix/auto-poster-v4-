@@ -10,12 +10,11 @@ const domains = new Hono<{ Bindings: RouterEnv }>();
 domains.get("/:slug", async (c) => {
   try {
     const slug = c.req.param("slug");
-    const data = await storageQuery(
+    const results = await storageQuery<Record<string, unknown>[]>(
       c.env,
       "SELECT * FROM domains WHERE slug = ? OR id = ? LIMIT 1",
       [slug, slug]
     );
-    const results = data as Record<string, unknown>[];
     if (!results || results.length === 0) {
       return c.json<ApiResponse>(
         { success: false, error: "Domain not found" },

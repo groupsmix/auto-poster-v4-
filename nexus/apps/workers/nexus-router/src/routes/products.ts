@@ -37,15 +37,15 @@ products.get("/", async (c) => {
       params.push(batch);
     }
 
-    const countResult = (await storageQuery(
+    const countResult = await storageQuery<{ results?: Array<{ total: number }> }>(
       c.env,
       `SELECT COUNT(*) as total FROM products WHERE ${where}`,
       params
-    )) as { results?: Array<{ total: number }> };
+    );
 
     const total = countResult?.results?.[0]?.total ?? 0;
 
-    const data = await storageQuery(
+    const data = await storageQuery<unknown[]>(
       c.env,
       `SELECT * FROM products WHERE ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [...params, pageSize, offset]
@@ -53,7 +53,7 @@ products.get("/", async (c) => {
 
     return c.json<PaginatedResponse>({
       success: true,
-      data: data as unknown[],
+      data,
       total,
       page,
       pageSize,
@@ -68,11 +68,11 @@ products.get("/:id", async (c) => {
   try {
     const id = c.req.param("id");
 
-    const queryResult = (await storageQuery(
+    const queryResult = await storageQuery<{ results?: Array<Record<string, unknown>> }>(
       c.env,
       "SELECT * FROM products WHERE id = ?",
       [id]
-    )) as { results?: Array<Record<string, unknown>> };
+    );
 
     const rows = queryResult?.results ?? [];
     if (rows.length === 0) {

@@ -4,12 +4,19 @@
 // ============================================================
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ApiResponse } from "@nexus/shared";
 import app from "../../apps/workers/nexus-variation/src/index";
 import {
   createMockFetcher,
   createMockKV,
   jsonResponse,
 } from "../helpers/mocks";
+
+/** Typed API response for test assertions (replaces Record<string, any>) */
+interface TestApiResponse extends ApiResponse<Record<string, unknown>> {
+  service?: string;
+  status?: string;
+}
 
 function buildEnv(overrides: Record<string, unknown> = {}) {
   const aiFetcher = createMockFetcher(async (req) => {
@@ -101,7 +108,7 @@ describe("nexus-variation: Health & Info", () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/"), env);
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data).toHaveProperty("service", "nexus-variation");
   });
 
@@ -109,7 +116,7 @@ describe("nexus-variation: Health & Info", () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/health"), env);
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.status).toBe("healthy");
   });
 });
@@ -134,7 +141,7 @@ describe("nexus-variation: Platform variants", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("variant");
     expect(data.data.variant).toHaveProperty("title");
@@ -179,14 +186,16 @@ describe("nexus-variation: Platform variants", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
+    const variant = (data.data as Record<string, Record<string, unknown>>).variant;
+    const validation = (data.data as Record<string, Record<string, unknown>>).validation;
     // Title should be truncated to 140
-    expect(data.data.variant.title.length).toBeLessThanOrEqual(140);
+    expect((variant.title as string).length).toBeLessThanOrEqual(140);
     // Tags should be truncated to 13 for Etsy
-    expect(data.data.variant.tags.length).toBeLessThanOrEqual(13);
+    expect((variant.tags as string[]).length).toBeLessThanOrEqual(13);
     // Validation should have issues
-    expect(data.data.validation.issues.length).toBeGreaterThan(0);
+    expect((validation.issues as unknown[]).length).toBeGreaterThan(0);
   });
 
   it("POST /variation/platforms generates multiple variants", async () => {
@@ -204,10 +213,10 @@ describe("nexus-variation: Platform variants", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
-    expect(data.data.total).toBe(3);
-    expect(data.data.succeeded).toBeGreaterThan(0);
+    expect(data.data).toHaveProperty("total", 3);
+    expect((data.data as Record<string, unknown>).succeeded).toBeGreaterThan(0);
   });
 
   it("POST /variation/platform returns 400 for missing fields", async () => {
@@ -260,7 +269,7 @@ describe("nexus-variation: Social content", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("content");
     expect(data.data).toHaveProperty("model");
@@ -281,9 +290,9 @@ describe("nexus-variation: Social content", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
-    expect(data.data.total).toBe(3);
+    expect(data.data).toHaveProperty("total", 3);
   });
 
   it("POST /variation/social returns 400 for missing fields", async () => {
@@ -336,14 +345,14 @@ describe("nexus-variation: Humanizer", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("original");
     expect(data.data).toHaveProperty("humanized");
     expect(data.data).toHaveProperty("human_score");
     expect(data.data).toHaveProperty("patterns_found");
     // Should detect AI patterns
-    expect(data.data.patterns_found.length).toBeGreaterThan(0);
+    expect(((data.data as Record<string, unknown>).patterns_found as unknown[]).length).toBeGreaterThan(0);
   });
 
   it("POST /variation/humanize skips already-human text", async () => {
@@ -361,10 +370,10 @@ describe("nexus-variation: Humanizer", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     // Already human text should pass through with high score
-    expect(data.data.human_score).toBeGreaterThanOrEqual(85);
+    expect((data.data as Record<string, unknown>).human_score).toBeGreaterThanOrEqual(85);
   });
 
   it("POST /variation/humanize returns 400 for missing content", async () => {
@@ -400,7 +409,7 @@ describe("nexus-variation: Humanizer", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("name");
     expect(data.data).toHaveProperty("overall_human_score");

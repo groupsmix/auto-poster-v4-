@@ -10,12 +10,11 @@ const settings = new Hono<{ Bindings: RouterEnv }>();
 settings.get("/:key", async (c) => {
   try {
     const key = c.req.param("key");
-    const data = await storageQuery(
+    const results = await storageQuery<Record<string, unknown>[]>(
       c.env,
       "SELECT * FROM settings WHERE key = ? LIMIT 1",
       [key]
     );
-    const results = data as Record<string, unknown>[];
     if (!results || results.length === 0) {
       return c.json<ApiResponse>(
         { success: false, error: "Setting not found" },
