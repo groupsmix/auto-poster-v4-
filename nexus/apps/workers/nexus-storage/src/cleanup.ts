@@ -57,7 +57,10 @@ export class CleanupService {
     const r2Keys = assets.map((a) => a.r2_key).filter(Boolean);
     const cfImageIds = assets.map((a) => a.cf_image_id).filter((id): id is string => !!id);
 
-    // Run all 5 deletions in PARALLEL
+    // Run deletions in PARALLEL
+    // Note: KV AI cache invalidation removed — cached responses expire
+    // naturally via their existing TTLs (1hr, 6hr, 24hr), avoiding
+    // unnecessary KV writes during bulk cleanup.
     const results = await Promise.allSettled([
       // 1. DELETE from D1 (CASCADE handles related rows)
       this.d1.deleteProduct(productId),
@@ -65,13 +68,10 @@ export class CleanupService {
       // 2. DELETE from R2 (all files for this product)
       this.deleteR2Files(r2Keys),
 
-      // 3. DELETE from KV (AI cache entries for this product)
-      this.kv.invalidateAICache(productId),
-
-      // 4. DELETE from CF Images (all images for this product)
+      // 3. DELETE from CF Images (all images for this product)
       this.deleteCFImages(cfImageIds),
 
-      // 5. INVALIDATE AI Gateway cache (placeholder — gateway cache is auto-managed)
+      // 4. INVALIDATE AI Gateway cache (placeholder — gateway cache is auto-managed)
       this.invalidateGatewayCache(productId),
     ]);
 
@@ -87,19 +87,13 @@ export class CleanupService {
     }
 
     if (results[2].status === "fulfilled") {
-      kvEntriesInvalidated = results[2].value;
+      cfImagesDeleted = results[2].value;
     } else {
-      errors.push(`KV invalidation failed: ${results[2].reason}`);
+      errors.push(`CF Images delete failed: ${results[2].reason}`);
     }
 
-    if (results[3].status === "fulfilled") {
-      cfImagesDeleted = results[3].value;
-    } else {
-      errors.push(`CF Images delete failed: ${results[3].reason}`);
-    }
-
-    if (results[4].status === "rejected") {
-      errors.push(`AI Gateway invalidation failed: ${results[4].reason}`);
+    if (results[3].status === "rejected") {
+      errors.push(`AI Gateway invalidation failed: ${results[3].reason}`);
     }
 
     return {
@@ -144,7 +138,9 @@ export class CleanupService {
     const r2Keys = allAssets.map((a) => a.r2_key).filter(Boolean);
     const cfImageIds = allAssets.map((a) => a.cf_image_id).filter((id): id is string => !!id);
 
-    // Run all deletions in PARALLEL
+    // Run deletions in PARALLEL
+    // Note: KV AI cache invalidation removed — cached responses expire
+    // naturally via their existing TTLs, avoiding KV writes during bulk cleanup.
     const results = await Promise.allSettled([
       // 1. DELETE from D1 (CASCADE handles categories -> products -> assets, etc.)
       this.d1.deleteDomain(domainId),
@@ -152,11 +148,8 @@ export class CleanupService {
       // 2. DELETE from R2
       this.deleteR2Files(r2Keys),
 
-      // 3. DELETE from KV (invalidate AI cache for all products + domain config)
-      Promise.all([
-        ...productIds.map((pid) => this.kv.invalidateAICache(pid)),
-        this.kv.deleteConfig(`domain:${domainId}`),
-      ]),
+      // 3. DELETE domain config from KV (keep config cleanup, skip AI cache)
+      this.kv.deleteConfig(`domain:${domainId}`),
 
       // 4. DELETE from CF Images
       this.deleteCFImages(cfImageIds),
@@ -175,13 +168,8 @@ export class CleanupService {
       errors.push(`R2 delete failed: ${results[1].reason}`);
     }
 
-    if (results[2].status === "fulfilled") {
-      const kvResults = results[2].value;
-      kvEntriesInvalidated = kvResults
-        .filter((v): v is number => typeof v === "number")
-        .reduce((sum, n) => sum + n, 0);
-    } else {
-      errors.push(`KV invalidation failed: ${results[2].reason}`);
+    if (results[2].status === "rejected") {
+      errors.push(`KV config delete failed: ${results[2].reason}`);
     }
 
     if (results[3].status === "fulfilled") {
@@ -236,14 +224,14 @@ export class CleanupService {
     const r2Keys = allAssets.map((a) => a.r2_key).filter(Boolean);
     const cfImageIds = allAssets.map((a) => a.cf_image_id).filter((id): id is string => !!id);
 
-    // Run all deletions in PARALLEL
+    // Run deletions in PARALLEL
+    // Note: KV AI cache invalidation removed — cached responses expire
+    // naturally via their existing TTLs, avoiding KV writes during bulk cleanup.
     const results = await Promise.allSettled([
       this.d1.deleteCategory(categoryId),
       this.deleteR2Files(r2Keys),
-      Promise.all([
-        ...productIds.map((pid) => this.kv.invalidateAICache(pid)),
-        this.kv.deleteConfig(`category:${categoryId}`),
-      ]),
+      // Delete category config from KV (keep config cleanup, skip AI cache)
+      this.kv.deleteConfig(`category:${categoryId}`),
       this.deleteCFImages(cfImageIds),
       Promise.all(productIds.map((pid) => this.invalidateGatewayCache(pid))),
     ]);
@@ -258,13 +246,8 @@ export class CleanupService {
       errors.push(`R2 delete failed: ${results[1].reason}`);
     }
 
-    if (results[2].status === "fulfilled") {
-      const kvResults = results[2].value;
-      kvEntriesInvalidated = kvResults
-        .filter((v): v is number => typeof v === "number")
-        .reduce((sum, n) => sum + n, 0);
-    } else {
-      errors.push(`KV invalidation failed: ${results[2].reason}`);
+    if (results[2].status === "rejected") {
+      errors.push(`KV config delete failed: ${results[2].reason}`);
     }
 
     if (results[3].status === "fulfilled") {

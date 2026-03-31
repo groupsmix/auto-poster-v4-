@@ -35,24 +35,37 @@ export async function callHuggingFaceText(
     ? `${options.systemPrompt}\n\n${prompt}`
     : prompt;
 
-  const response = await fetch(
-    `https://api-inference.huggingface.co/models/${model}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        inputs: fullPrompt,
-        parameters: {
-          max_new_tokens: options?.maxTokens ?? 2048,
-          temperature: options?.temperature ?? 0.7,
-          return_full_text: false,
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://api-inference.huggingface.co/models/${model}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
         },
-      }),
+        body: JSON.stringify({
+          inputs: fullPrompt,
+          parameters: {
+            max_new_tokens: options?.maxTokens ?? 2048,
+            temperature: options?.temperature ?? 0.7,
+            return_full_text: false,
+          },
+        }),
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new AICallerError("HuggingFace timed out after 15s", 408);
     }
-  );
+    throw e;
+  }
 
   if (!response.ok) {
     throw new AICallerError(
@@ -80,24 +93,37 @@ export async function callHuggingFaceImage(
   prompt: string,
   options?: HuggingFaceImageOptions
 ): Promise<{ imageData: ArrayBuffer }> {
-  const response = await fetch(
-    `https://api-inference.huggingface.co/models/${model}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: {
-          width: options?.width ?? 1024,
-          height: options?.height ?? 1024,
-          num_inference_steps: options?.steps ?? 30,
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://api-inference.huggingface.co/models/${model}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
         },
-      }),
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            width: options?.width ?? 1024,
+            height: options?.height ?? 1024,
+            num_inference_steps: options?.steps ?? 30,
+          },
+        }),
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new AICallerError("HuggingFace Image timed out after 15s", 408);
     }
-  );
+    throw e;
+  }
 
   if (!response.ok) {
     throw new AICallerError(
@@ -117,19 +143,32 @@ export async function callHuggingFaceMusic(
   apiKey: string,
   prompt: string
 ): Promise<{ audioData: ArrayBuffer }> {
-  const response = await fetch(
-    `https://api-inference.huggingface.co/models/${model}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-      }),
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://api-inference.huggingface.co/models/${model}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+        }),
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new AICallerError("HuggingFace Music timed out after 15s", 408);
     }
-  );
+    throw e;
+  }
 
   if (!response.ok) {
     throw new AICallerError(
@@ -150,19 +189,32 @@ export async function callHuggingFaceTTS(
   text: string,
   _options?: HuggingFaceTTSOptions
 ): Promise<{ audioData: ArrayBuffer }> {
-  const response = await fetch(
-    `https://api-inference.huggingface.co/models/${model}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        inputs: text,
-      }),
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://api-inference.huggingface.co/models/${model}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          inputs: text,
+        }),
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new AICallerError("HuggingFace TTS timed out after 15s", 408);
     }
-  );
+    throw e;
+  }
 
   if (!response.ok) {
     throw new AICallerError(

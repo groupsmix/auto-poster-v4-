@@ -4,7 +4,7 @@
 // ============================================================
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import app from "../../apps/workers/nexus-router/src/index";
+import app, { rateLimitMap } from "../../apps/workers/nexus-router/src/index";
 import type { ApiResponse } from "@nexus/shared";
 import {
   createMockFetcher,
@@ -20,6 +20,11 @@ interface TestApiResponse extends ApiResponse<Record<string, unknown>> {
   service?: string;
   status?: string;
 }
+
+// Clear the in-memory rate limiter between tests so requests don't accumulate
+beforeEach(() => {
+  rateLimitMap.clear();
+});
 
 function buildEnv(overrides: Record<string, unknown> = {}) {
   const storageFetcher = createMockFetcher(async (req) => {

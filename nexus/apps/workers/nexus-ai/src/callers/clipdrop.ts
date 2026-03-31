@@ -27,16 +27,29 @@ export async function callClipDropRemoveBackground(
     new Blob([imageData], { type: "image/png" })
   );
 
-  const response = await fetch(
-    "https://clipdrop-api.co/remove-background/v1",
-    {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-      },
-      body: formData,
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(
+      "https://clipdrop-api.co/remove-background/v1",
+      {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+        },
+        body: formData,
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new AICallerError("Clipdrop remove-background timed out after 15s", 408);
     }
-  );
+    throw e;
+  }
 
   if (!response.ok) {
     throw new AICallerError(
@@ -64,16 +77,29 @@ export async function callClipDropUpscale(
   formData.append("target_width", String(targetWidth ?? 2048));
   formData.append("target_height", String(targetHeight ?? 2048));
 
-  const response = await fetch(
-    "https://clipdrop-api.co/image-upscaling/v1/upscale",
-    {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-      },
-      body: formData,
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(
+      "https://clipdrop-api.co/image-upscaling/v1/upscale",
+      {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+        },
+        body: formData,
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new AICallerError("Clipdrop upscale timed out after 15s", 408);
     }
-  );
+    throw e;
+  }
 
   if (!response.ok) {
     throw new AICallerError(
@@ -102,13 +128,26 @@ export async function callClipDropCleanup(
     new Blob([maskData], { type: "image/png" })
   );
 
-  const response = await fetch("https://clipdrop-api.co/cleanup/v1", {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-    },
-    body: formData,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch("https://clipdrop-api.co/cleanup/v1", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+      },
+      body: formData,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new AICallerError("Clipdrop cleanup timed out after 15s", 408);
+    }
+    throw e;
+  }
 
   if (!response.ok) {
     throw new AICallerError(

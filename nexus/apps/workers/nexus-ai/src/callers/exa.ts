@@ -25,20 +25,33 @@ export async function callExa(
   query: string,
   options?: ExaOptions
 ): Promise<{ text: string; results: ExaResult[] }> {
-  const response = await fetch("https://api.exa.ai/search", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-    },
-    body: JSON.stringify({
-      query,
-      num_results: options?.numResults ?? 5,
-      use_autoprompt: options?.useAutoprompt ?? true,
-      type: options?.type ?? "auto",
-      contents: options?.contentsOptions ?? { text: true },
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch("https://api.exa.ai/search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        query,
+        num_results: options?.numResults ?? 5,
+        use_autoprompt: options?.useAutoprompt ?? true,
+        type: options?.type ?? "auto",
+        contents: options?.contentsOptions ?? { text: true },
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new AICallerError("Exa timed out after 15s", 408);
+    }
+    throw e;
+  }
 
   if (!response.ok) {
     throw new AICallerError(

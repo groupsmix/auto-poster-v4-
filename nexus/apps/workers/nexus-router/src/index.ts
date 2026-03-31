@@ -95,38 +95,33 @@ app.use("/api/*", async (c, next) => {
 });
 
 // Rate limiting middleware (7.3)
-// 20 requests per minute per IP using KV counter
+// 20 requests per minute per IP using in-memory counter
+// Resets on worker restart — acceptable for personal use (1 user)
+export const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
 app.use("/api/*", async (c, next) => {
-  const storage = c.env.NEXUS_STORAGE;
-  if (!storage) {
-    await next();
-    return;
-  }
-
   const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
-  const minute = Math.floor(Date.now() / 60000);
-  const key = `ratelimit:${ip}:${minute}`;
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
 
-  try {
-    const resp = await storage.fetch(`http://nexus-storage/kv/${encodeURIComponent(key)}`);
-    const json = (await resp.json()) as { success: boolean; data?: string };
-    const count = json.success && json.data ? parseInt(json.data as string, 10) : 0;
-
-    if (count >= 20) {
+  if (entry && now < entry.resetAt) {
+    if (entry.count >= 20) {
       return c.json<ApiResponse>(
         { success: false, error: "Rate limit exceeded. Try again in a minute." },
         429
       );
     }
+    entry.count++;
+  } else {
+    // New window or expired — reset counter
+    rateLimitMap.set(ip, { count: 1, resetAt: now + 60000 });
+  }
 
-    // Increment counter — await the write to prevent races
-    await storage.fetch(`http://nexus-storage/kv/${encodeURIComponent(key)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ value: String(count + 1), ttl: 120 }),
-    });
-  } catch {
-    // If rate limit check fails, allow the request through
+  // Periodic cleanup: remove expired entries to prevent unbounded growth
+  if (rateLimitMap.size > 100) {
+    for (const [key, val] of rateLimitMap) {
+      if (now >= val.resetAt) rateLimitMap.delete(key);
+    }
   }
 
   await next();
@@ -230,7 +225,7 @@ app.get("/api/health", async (c) => {
               (SELECT COUNT(*) FROM workflow_runs) as workflow_runs,
               (SELECT COUNT(*) FROM workflow_runs WHERE status = 'running') as running_workflows,
               (SELECT COUNT(*) FROM workflow_runs WHERE status = 'failed') as failed_workflows,
-              (SELECT COUNT(*) FROM analytics) as analytics_events`,
+              (SELECT COUNT(*) FROM analytics WHERE created_at > date('now', '-90 days')) as analytics_events`,
             params: [],
           }),
         }
@@ -421,6 +416,26 @@ export default {
           })()
         );
       }
+
+      // --- Analytics retention: delete events older than 90 days ---
+      ctx.waitUntil(
+        (async () => {
+          try {
+            await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/query", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sql: `DELETE FROM analytics WHERE created_at < datetime('now', '-90 days')`,
+                params: [],
+              }),
+            });
+            console.log("[CRON] Analytics retention cleanup completed");
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`[CRON] Analytics retention cleanup failed: ${msg}`);
+          }
+        })()
+      );
 
       // --- Daily Briefing: timezone-aware generation ---
       ctx.waitUntil(
