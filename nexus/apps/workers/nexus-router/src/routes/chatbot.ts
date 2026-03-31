@@ -31,6 +31,15 @@ chatbot.post("/chat", async (c) => {
       );
     }
 
+    // Enforce maximum message length to prevent token/cost abuse
+    const MAX_MESSAGE_LENGTH = 4000;
+    if (body.message.length > MAX_MESSAGE_LENGTH) {
+      return c.json<ApiResponse>(
+        { success: false, error: `Message too long. Maximum length is ${MAX_MESSAGE_LENGTH} characters.` },
+        400
+      );
+    }
+
     const userMessage = sanitizeInput(body.message);
     let conversationId = body.conversation_id;
 

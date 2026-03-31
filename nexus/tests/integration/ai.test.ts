@@ -11,6 +11,8 @@ import {
   createMockKV,
   createMockFetcher,
   jsonResponse,
+  type MockD1Database,
+  type MockKVNamespace,
 } from "../helpers/mocks";
 
 /** Typed API response for test assertions (replaces Record<string, any>) */
@@ -172,13 +174,13 @@ describe("nexus-ai: POST /ai/run — Failover", () => {
       tokens: 50,
       timestamp: Date.now(),
     });
-    // Set all keys to return the cache entry
-    (kv as any).get = vi.fn().mockResolvedValue({
+    // Override get to always return the cache entry (simulates cache hit)
+    kv.get = vi.fn().mockResolvedValue({
       response: "cached research result",
       model_used: "test-model",
       tokens: 50,
       timestamp: Date.now(),
-    });
+    }) as MockKVNamespace["get"];
 
     const env = buildEnv({ KV: kv });
 
@@ -203,7 +205,7 @@ describe("nexus-ai: POST /ai/run — Failover", () => {
 
   it("falls through to Workers AI when no API keys configured", async () => {
     const db = createMockD1();
-    (db as any)._statement.run.mockResolvedValue({
+    db._statement.run.mockResolvedValue({
       results: [],
       success: true,
       meta: { changes: 0 },
@@ -211,7 +213,7 @@ describe("nexus-ai: POST /ai/run — Failover", () => {
 
     const kv = createMockKV();
     // No cache hit
-    (kv as any).get = vi.fn().mockResolvedValue(null);
+    kv.get = vi.fn().mockResolvedValue(null) as MockKVNamespace["get"];
 
     const ai = {
       run: vi.fn().mockResolvedValue({
@@ -257,10 +259,10 @@ describe("nexus-ai: Cache behavior", () => {
   it("cache miss triggers AI call and writes back to cache", async () => {
     const kv = createMockKV();
     // Ensure no cache hit
-    (kv as any).get = vi.fn().mockResolvedValue(null);
+    kv.get = vi.fn().mockResolvedValue(null) as MockKVNamespace["get"];
 
     const db = createMockD1();
-    (db as any)._statement.run.mockResolvedValue({
+    db._statement.run.mockResolvedValue({
       results: [],
       success: true,
       meta: { changes: 0 },
@@ -309,10 +311,10 @@ describe("nexus-ai: Cache behavior", () => {
 describe("nexus-ai: Health Scoring", () => {
   it("health scores update after successful calls", async () => {
     const kv = createMockKV();
-    (kv as any).get = vi.fn().mockResolvedValue(null);
+    kv.get = vi.fn().mockResolvedValue(null) as MockKVNamespace["get"];
 
     const db = createMockD1();
-    (db as any)._statement.run.mockResolvedValue({
+    db._statement.run.mockResolvedValue({
       results: [],
       success: true,
       meta: { changes: 0 },

@@ -11,6 +11,9 @@ import {
   createMockKV,
   createMockR2,
   jsonResponse,
+  type MockD1Database,
+  type MockKVNamespace,
+  type MockR2Bucket,
 } from "../helpers/mocks";
 
 /** Typed API response for test assertions (replaces Record<string, any>) */
@@ -68,7 +71,7 @@ describe("nexus-storage: D1 Query Route", () => {
   it("POST /d1/query executes SQL and returns results", async () => {
     const db = createMockD1();
     const mockResults = [{ id: "1", name: "Test Domain" }];
-    (db as any)._statement.all.mockResolvedValue({
+    db._statement.all.mockResolvedValue({
       results: mockResults,
       success: true,
       meta: { changes: 0, last_row_id: 0, rows_read: 1 },
@@ -174,8 +177,8 @@ describe("nexus-storage: D1 Query Route", () => {
 
   it("POST /d1/query handles D1 errors gracefully", async () => {
     const db = createMockD1();
-    (db as any)._statement.all.mockRejectedValue(new Error("D1 error"));
-    (db as any)._statement.run.mockRejectedValue(new Error("D1 error"));
+    db._statement.all.mockRejectedValue(new Error("D1 error"));
+    db._statement.run.mockRejectedValue(new Error("D1 error"));
     const env = buildEnv({ DB: db });
 
     const res = await app.fetch(
@@ -220,7 +223,7 @@ describe("nexus-storage: KV Routes", () => {
   it("GET /kv/:key reads a value from KV", async () => {
     const kv = createMockKV();
     // Pre-populate KV
-    (kv as any)._store.set("test-key", '"cached-value"');
+    kv._store.set("test-key", '"cached-value"');
     const env = buildEnv({ CACHE: kv });
 
     const res = await app.fetch(makeRequest("/kv/test-key"), env);
@@ -245,7 +248,7 @@ describe("nexus-storage: KV Routes", () => {
 
   it("DELETE /kv/:key deletes from KV (invalidate)", async () => {
     const kv = createMockKV();
-    (kv as any)._store.set("delete-me", "value");
+    kv._store.set("delete-me", "value");
     const env = buildEnv({ CACHE: kv });
 
     const res = await app.fetch(
@@ -343,7 +346,7 @@ describe("nexus-storage: R2 Routes", () => {
     const r2 = createMockR2();
     // Pre-upload
     const content = new TextEncoder().encode("file content");
-    (r2 as any)._objects.set("my-file.txt", {
+    r2._objects.set("my-file.txt", {
       body: content.buffer,
       metadata: {},
     });
@@ -364,7 +367,7 @@ describe("nexus-storage: R2 Routes", () => {
 
   it("DELETE /r2/:key deletes file from R2", async () => {
     const r2 = createMockR2();
-    (r2 as any)._objects.set("delete-me.txt", {
+    r2._objects.set("delete-me.txt", {
       body: new ArrayBuffer(0),
     });
     const env = buildEnv({ BUCKET: r2 });
@@ -389,12 +392,12 @@ describe("nexus-storage: Synced Deletion / Cleanup", () => {
   it("DELETE /cleanup/product/:id cleans up all services", async () => {
     const db = createMockD1();
     // Mock the query to return product data for cleanup
-    (db as any)._statement.all.mockResolvedValue({
+    db._statement.all.mockResolvedValue({
       results: [],
       success: true,
       meta: { changes: 0, last_row_id: 0, rows_read: 0 },
     });
-    (db as any)._statement.run.mockResolvedValue({
+    db._statement.run.mockResolvedValue({
       results: [],
       success: true,
       meta: { changes: 1, last_row_id: 0, rows_read: 0 },
@@ -414,12 +417,12 @@ describe("nexus-storage: Synced Deletion / Cleanup", () => {
 
   it("DELETE /cleanup/domain/:id cleans up domain", async () => {
     const db = createMockD1();
-    (db as any)._statement.all.mockResolvedValue({
+    db._statement.all.mockResolvedValue({
       results: [],
       success: true,
       meta: { changes: 0, last_row_id: 0, rows_read: 0 },
     });
-    (db as any)._statement.run.mockResolvedValue({
+    db._statement.run.mockResolvedValue({
       results: [],
       success: true,
       meta: { changes: 1, last_row_id: 0, rows_read: 0 },
@@ -438,12 +441,12 @@ describe("nexus-storage: Synced Deletion / Cleanup", () => {
 
   it("DELETE /cleanup/category/:id cleans up category", async () => {
     const db = createMockD1();
-    (db as any)._statement.all.mockResolvedValue({
+    db._statement.all.mockResolvedValue({
       results: [],
       success: true,
       meta: { changes: 0, last_row_id: 0, rows_read: 0 },
     });
-    (db as any)._statement.run.mockResolvedValue({
+    db._statement.run.mockResolvedValue({
       results: [],
       success: true,
       meta: { changes: 1, last_row_id: 0, rows_read: 0 },
@@ -460,12 +463,12 @@ describe("nexus-storage: Synced Deletion / Cleanup", () => {
 
   it("DELETE /cleanup/asset/:id cleans up asset", async () => {
     const db = createMockD1();
-    (db as any)._statement.all.mockResolvedValue({
+    db._statement.all.mockResolvedValue({
       results: [],
       success: true,
       meta: { changes: 0, last_row_id: 0, rows_read: 0 },
     });
-    (db as any)._statement.run.mockResolvedValue({
+    db._statement.run.mockResolvedValue({
       results: [],
       success: true,
       meta: { changes: 1, last_row_id: 0, rows_read: 0 },

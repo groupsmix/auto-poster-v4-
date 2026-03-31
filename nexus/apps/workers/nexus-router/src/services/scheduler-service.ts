@@ -188,26 +188,51 @@ export async function getScheduleRuns(scheduleId: string, env: RouterEnv): Promi
 
 // --- Cron Tick: Execute Due Schedules ---
 
+/**
+ * Execute all schedules that are due to run.
+ * Uses a concurrency guard: before executing a schedule, checks if it already
+ * has a 'running' schedule_run. This prevents duplicate executions when a
+ * previous cron trigger hasn't finished yet.
+ */
 export async function executeDueSchedules(env: RouterEnv): Promise<{
   executed: number;
+  skipped: number;
   results: Array<{ schedule_id: string; schedule_name: string; products_created: number; status: string }>;
 }> {
   const ts = now();
 
   // Get all active schedules that are due to run
-  const dueSchedules = (await storageQuery(
+  const rows = (await storageQuery<ScheduleRow[]>(
     env,
     `SELECT * FROM schedules WHERE is_active = 1 AND (next_run_at IS NULL OR next_run_at <= ?)
      ORDER BY next_run_at ASC`,
     [ts]
-  )) as ScheduleRow[] | { results?: ScheduleRow[] };
-
-  const rows = Array.isArray(dueSchedules) ? dueSchedules : (dueSchedules?.results ?? []);
+  )) ?? [];
 
   const results: Array<{ schedule_id: string; schedule_name: string; products_created: number; status: string }> = [];
+  let skipped = 0;
 
   for (const schedule of rows) {
     try {
+      // Concurrency guard: skip if this schedule already has a running execution
+      const runningRuns = (await storageQuery<Array<{ id: string }>>(
+        env,
+        `SELECT id FROM schedule_runs WHERE schedule_id = ? AND status = 'running' LIMIT 1`,
+        [schedule.id]
+      )) ?? [];
+
+      if (runningRuns.length > 0) {
+        console.log(`[SCHEDULER] Skipping schedule ${schedule.id} — already running (run: ${runningRuns[0].id})`);
+        skipped++;
+        results.push({
+          schedule_id: schedule.id,
+          schedule_name: schedule.name,
+          products_created: 0,
+          status: "skipped: already running",
+        });
+        continue;
+      }
+
       const runResult = await executeSchedule(schedule, env);
       results.push({
         schedule_id: schedule.id,
@@ -227,7 +252,7 @@ export async function executeDueSchedules(env: RouterEnv): Promise<{
     }
   }
 
-  return { executed: results.length, results };
+  return { executed: results.length - skipped, skipped, results };
 }
 
 // --- Execute Single Schedule ---
@@ -255,13 +280,12 @@ async function executeSchedule(
     // Resolve category: if no category specified, pick a random one from the domain
     let categoryId = schedule.category_id;
     if (!categoryId) {
-      const categories = (await storageQuery(
+      const catRows = (await storageQuery<Array<{ id: string }>>(
         env,
         "SELECT id FROM categories WHERE domain_id = ? AND is_active = 1 ORDER BY RANDOM() LIMIT 1",
         [schedule.domain_id]
-      )) as Array<{ id: string }> | { results?: Array<{ id: string }> };
+      )) ?? [];
 
-      const catRows = Array.isArray(categories) ? categories : (categories?.results ?? []);
       if (catRows.length > 0) {
         categoryId = catRows[0].id;
       }

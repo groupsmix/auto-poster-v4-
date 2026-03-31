@@ -61,39 +61,76 @@ async function storeTokens(env: RouterEnv, tokens: EtsyTokens): Promise<void> {
   );
 }
 
+/** Maximum number of retry attempts for token refresh */
+const TOKEN_REFRESH_MAX_RETRIES = 3;
+/** Base delay for exponential backoff (ms) */
+const TOKEN_REFRESH_BASE_DELAY_MS = 500;
+
 async function refreshAccessToken(env: RouterEnv, refreshToken: string): Promise<EtsyTokens> {
   const clientId = (env as Record<string, unknown>).ETSY_API_KEY as string | undefined;
   if (!clientId) throw new Error("ETSY_API_KEY not configured");
 
-  const resp = await fetch("https://api.etsy.com/v3/public/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      client_id: clientId,
-      refresh_token: refreshToken,
-    }),
-  });
+  let lastError: Error | null = null;
 
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`Etsy token refresh failed: ${resp.status} ${text}`);
+  for (let attempt = 0; attempt < TOKEN_REFRESH_MAX_RETRIES; attempt++) {
+    try {
+      if (attempt > 0) {
+        // Exponential backoff: 500ms, 1000ms, 2000ms, ...
+        const delay = TOKEN_REFRESH_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        console.log(`[ETSY] Token refresh attempt ${attempt + 1}/${TOKEN_REFRESH_MAX_RETRIES} after ${delay}ms backoff`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+
+      const resp = await fetch("https://api.etsy.com/v3/public/oauth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          client_id: clientId,
+          refresh_token: refreshToken,
+        }),
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        const status = resp.status;
+
+        // Don't retry on 4xx client errors (except 429 rate limit)
+        if (status >= 400 && status < 500 && status !== 429) {
+          throw new Error(`Etsy token refresh failed: ${status} ${text}`);
+        }
+
+        // Retryable error (5xx or 429)
+        lastError = new Error(`Etsy token refresh failed: ${status} ${text}`);
+        continue;
+      }
+
+      const data = (await resp.json()) as {
+        access_token: string;
+        refresh_token: string;
+        expires_in: number;
+      };
+
+      const tokens: EtsyTokens = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_at: Date.now() + data.expires_in * 1000,
+      };
+
+      await storeTokens(env, tokens);
+      return tokens;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+
+      // If this is a non-retryable error (thrown above), re-throw immediately
+      if (lastError.message.includes("not configured") ||
+          (lastError.message.includes("failed:") && /4\d{2}/.test(lastError.message) && !lastError.message.includes("429"))) {
+        throw lastError;
+      }
+    }
   }
 
-  const data = (await resp.json()) as {
-    access_token: string;
-    refresh_token: string;
-    expires_in: number;
-  };
-
-  const tokens: EtsyTokens = {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-    expires_at: Date.now() + data.expires_in * 1000,
-  };
-
-  await storeTokens(env, tokens);
-  return tokens;
+  throw lastError ?? new Error("Etsy token refresh failed after retries");
 }
 
 async function getValidToken(env: RouterEnv): Promise<string> {

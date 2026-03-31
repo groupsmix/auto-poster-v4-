@@ -57,7 +57,26 @@ export interface RouterEnv extends Env {
   CUSTOM_DOMAIN_ORIGIN?: string;
 }
 
-/** Forward a fetch to nexus-storage for D1 queries */
+/**
+ * Internal response shape from nexus-storage D1 endpoints.
+ * nexus-storage may wrap rows in `{ results: [...] }` or return them directly.
+ */
+interface StorageD1Response {
+  success: boolean;
+  error?: string;
+  data?: { results?: unknown[] } | unknown[] | unknown;
+}
+
+/**
+ * Forward a fetch to nexus-storage for D1 queries.
+ *
+ * Returns a **consistent** shape to callers:
+ *  - SELECT queries → always returns `T[]` (an array of rows).
+ *  - INSERT/UPDATE/DELETE → returns the raw data (usually `{ meta: ... }`).
+ *
+ * This normalizes the inconsistency where nexus-storage sometimes wraps rows
+ * inside `{ results: [...] }` and sometimes returns the array directly.
+ */
 export async function storageQuery<T = unknown>(
   env: RouterEnv,
   sql: string,
@@ -71,11 +90,26 @@ export async function storageQuery<T = unknown>(
     headers,
     body: JSON.stringify({ sql, params }),
   });
-  const json = (await resp.json()) as ApiResponse;
+  const json = (await resp.json()) as StorageD1Response;
   if (!json.success) {
     throw new Error(json.error ?? "Storage query failed");
   }
-  return json.data as T;
+
+  const data = json.data;
+
+  // Normalize: if data is `{ results: [...] }`, unwrap to the array.
+  // This ensures callers always receive rows as a plain array for SELECT queries.
+  if (
+    data !== null &&
+    data !== undefined &&
+    typeof data === "object" &&
+    !Array.isArray(data) &&
+    "results" in (data as Record<string, unknown>)
+  ) {
+    return (data as { results: unknown[] }).results as T;
+  }
+
+  return data as T;
 }
 
 /** Forward a fetch to nexus-storage for synced cleanup */

@@ -22,6 +22,7 @@ import { runChatbot, gatherDashboardContext } from "./chatbot";
 import type { ChatHistoryMessage } from "./chatbot";
 import { generateDailyBriefing } from "./briefing";
 import type { BriefingGenerateInput } from "./briefing";
+import { getNeuronReport } from "./neuron-tracker";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -313,6 +314,18 @@ app.post("/ai/briefing/generate", async (c) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[BRIEFING] Generation failed: ${message}`);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
+});
+
+// ── GET /ai/neurons — Workers AI neuron usage report ───────
+
+app.get("/ai/neurons", async (c) => {
+  try {
+    const report = await getNeuronReport(c.env);
+    return c.json<ApiResponse>({ success: true, data: report });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
     return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });

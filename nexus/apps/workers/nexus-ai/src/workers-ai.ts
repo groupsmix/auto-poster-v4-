@@ -4,6 +4,9 @@
 // These NEVER fail (included in $5/month Workers plan)
 // ============================================================
 
+import type { Env } from "@nexus/shared";
+import { trackNeuronUsage } from "./neuron-tracker";
+
 /** Env binding for Workers AI */
 interface WorkersAIEnv {
   AI: {
@@ -34,6 +37,7 @@ export async function runTextGeneration(
   prompt: string,
   options?: { maxTokens?: number; temperature?: number; systemPrompt?: string }
 ): Promise<{ text: string; tokens?: number }> {
+  const modelName = "@cf/meta/llama-3.1-8b-instruct";
   const messages: Array<{ role: string; content: string }> = [];
 
   if (options?.systemPrompt) {
@@ -41,15 +45,22 @@ export async function runTextGeneration(
   }
   messages.push({ role: "user", content: prompt });
 
-  const result = (await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+  const result = (await env.AI.run(modelName, {
     messages,
     max_tokens: options?.maxTokens ?? 4096,
     temperature: options?.temperature ?? 0.7,
   })) as TextGenResult;
 
-  return {
-    text: result.response ?? "",
-  };
+  const text = result.response ?? "";
+  // Estimate tokens from response length (rough: 1 token ≈ 4 chars)
+  const estimatedTokens = Math.ceil((prompt.length + text.length) / 4);
+
+  // Track neuron usage for Workers AI calls
+  await trackNeuronUsage(modelName, estimatedTokens, env as unknown as Env).catch(() => {
+    // Non-critical — don't block the response
+  });
+
+  return { text, tokens: estimatedTokens };
 }
 
 // ============================================================
