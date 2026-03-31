@@ -67,7 +67,58 @@ export const DEFAULT_SETTINGS = {
   batch_max_products: "10",
   cache_enabled: "true",
   ai_gateway_enabled: "true",
+  auto_approve_threshold: "9",
+  auto_revise_min_score: "7",
+  max_auto_revisions: "2",
 } as const;
+
+/** Supported revenue tracker platforms */
+export const REVENUE_PLATFORMS = ["etsy", "gumroad", "shopify"] as const;
+
+/** Default scheduler interval in hours */
+export const DEFAULT_SCHEDULER_INTERVAL_HOURS = 24;
+
+/** Maximum products per scheduler run */
+export const MAX_SCHEDULER_PRODUCTS_PER_RUN = 50;
+
+/** Campaign statuses */
+export const CAMPAIGN_STATUSES = [
+  "active",
+  "paused",
+  "completed",
+  "cancelled",
+] as const;
+
+/** ROI cost types */
+export const ROI_COST_TYPES = ["ai_api", "time", "platform_fee", "other"] as const;
+
+/** ROI report periods */
+export const ROI_REPORT_PERIODS = ["weekly", "monthly"] as const;
+
+/** Recycler variation strategies */
+export const RECYCLER_STRATEGIES = ["angle", "bundle", "seasonal", "regional", "all"] as const;
+
+/** Recycler job statuses */
+export const RECYCLER_JOB_STATUSES = ["pending", "running", "completed", "failed"] as const;
+
+/** Supported localization languages */
+export const LOCALIZATION_LANGUAGES = [
+  { code: "es", name: "Spanish", locale: "es-ES" },
+  { code: "fr", name: "French", locale: "fr-FR" },
+  { code: "de", name: "German", locale: "de-DE" },
+  { code: "ar", name: "Arabic", locale: "ar-SA" },
+  { code: "pt", name: "Portuguese", locale: "pt-BR" },
+  { code: "it", name: "Italian", locale: "it-IT" },
+  { code: "ja", name: "Japanese", locale: "ja-JP" },
+  { code: "ko", name: "Korean", locale: "ko-KR" },
+  { code: "zh", name: "Chinese", locale: "zh-CN" },
+  { code: "hi", name: "Hindi", locale: "hi-IN" },
+  { code: "ru", name: "Russian", locale: "ru-RU" },
+  { code: "tr", name: "Turkish", locale: "tr-TR" },
+] as const;
+
+/** Localization job statuses */
+export const LOCALIZATION_JOB_STATUSES = ["pending", "running", "completed", "failed"] as const;
 
 // --- Product Statuses ---
 

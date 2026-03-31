@@ -13,6 +13,18 @@ import type {
   WorkflowStep,
   Platform,
   SocialChannel,
+  Schedule,
+  Campaign,
+  PlatformConnection,
+  RevenueDashboard,
+  ROIDashboard,
+  ROIReport,
+  ROISnapshot,
+  NicheCost,
+  RecyclerJob,
+  RecyclerVariation,
+  LocalizationJob,
+  LocalizedProduct,
   ChatMessage,
   ChatConversation,
   ChatAction,
@@ -306,6 +318,142 @@ export const api = {
       request<void>(`/api-keys/${keyName}`, { method: "POST", body: { api_key: apiKey } }),
     remove: (keyName: string) =>
       request<void>(`/api-keys/${keyName}`, { method: "DELETE" }),
+  },
+
+  // Scheduler endpoints (Phase 1.1)
+  schedules: {
+    list: () => request<Schedule[]>("/schedules"),
+    get: (id: string) => request<Schedule>(`/schedules/${id}`),
+    create: (data: Partial<Schedule>) =>
+      request<Schedule>("/schedules", { method: "POST", body: data }),
+    update: (id: string, data: Partial<Schedule>) =>
+      request<Schedule>(`/schedules/${id}`, { method: "PUT", body: data }),
+    delete: (id: string) =>
+      request<void>(`/schedules/${id}`, { method: "DELETE" }),
+    toggle: (id: string) =>
+      request<Schedule>(`/schedules/${id}/toggle`, { method: "POST", body: {} }),
+    runs: (id: string) =>
+      request<ScheduleRunEntry[]>(`/schedules/${id}/runs`),
+    tick: () =>
+      request<ScheduleTickResult>("/schedules/tick", { method: "POST", body: {} }),
+  },
+
+  // Campaign endpoints (Phase 1.3)
+  campaigns: {
+    list: () => request<Campaign[]>("/campaigns"),
+    get: (id: string) => request<Campaign>(`/campaigns/${id}`),
+    create: (data: Partial<Campaign>) =>
+      request<Campaign>("/campaigns", { method: "POST", body: data }),
+    update: (id: string, data: Partial<Campaign>) =>
+      request<Campaign>(`/campaigns/${id}`, { method: "PUT", body: data }),
+    delete: (id: string) =>
+      request<void>(`/campaigns/${id}`, { method: "DELETE" }),
+    progress: (id: string) =>
+      request<CampaignProgress>(`/campaigns/${id}/progress`),
+  },
+
+  // Revenue endpoints (Phase 2)
+  revenue: {
+    connections: {
+      list: () => request<PlatformConnection[]>("/revenue/connections"),
+      get: (id: string) => request<PlatformConnection>(`/revenue/connections/${id}`),
+      create: (data: Partial<PlatformConnection>) =>
+        request<PlatformConnection>("/revenue/connections", { method: "POST", body: data }),
+      update: (id: string, data: Partial<PlatformConnection>) =>
+        request<PlatformConnection>(`/revenue/connections/${id}`, { method: "PUT", body: data }),
+      delete: (id: string) =>
+        request<void>(`/revenue/connections/${id}`, { method: "DELETE" }),
+      sync: (id: string) =>
+        request<{ matched: number }>(`/revenue/connections/${id}/sync`, { method: "POST", body: {} }),
+    },
+    dashboard: (params?: RevenueDashboardParams) => {
+      const query = params
+        ? "?" + new URLSearchParams(params as Record<string, string>).toString()
+        : "";
+      return request<RevenueDashboard>(`/revenue/dashboard${query}`);
+    },
+    byProduct: (productId: string) =>
+      request<ProductRevenueDetail>(`/revenue/products/${productId}`),
+  },
+
+  // ROI Optimizer / Niche Killer endpoints (Phase 2.5)
+  roi: {
+    costs: {
+      list: (params?: { domain_id?: string; niche?: string }) => {
+        const query = params
+          ? "?" + new URLSearchParams(params as Record<string, string>).toString()
+          : "";
+        return request<NicheCost[]>(`/roi/costs${query}`);
+      },
+      add: (data: { domain_id: string; category_id?: string; niche?: string; cost_type?: string; amount: number; currency?: string; description?: string; product_id?: string }) =>
+        request<{ id: string }>("/roi/costs", { method: "POST", body: data }),
+      delete: (id: string) =>
+        request<void>(`/roi/costs/${id}`, { method: "DELETE" }),
+    },
+    snapshots: {
+      generate: (data: { domain_id: string; category_id?: string; niche?: string; period?: string; period_start: string; period_end: string }) =>
+        request<{ id: string }>("/roi/snapshots", { method: "POST", body: data }),
+    },
+    reports: {
+      list: () => request<ROIReport[]>("/roi/reports"),
+      generate: (data: { period_start: string; period_end: string; report_type?: string }) =>
+        request<{ id: string }>("/roi/reports", { method: "POST", body: data }),
+    },
+    dashboard: (params?: { period?: string; domain_id?: string }) => {
+      const query = params
+        ? "?" + new URLSearchParams(params as Record<string, string>).toString()
+        : "";
+      return request<ROIDashboard>(`/roi/dashboard${query}`);
+    },
+  },
+
+  // Smart Product Recycler endpoints (Phase 3)
+  recycler: {
+    topSellers: (limit?: number) =>
+      request<TopSellerProduct[]>(`/recycler/top-sellers${limit ? `?limit=${limit}` : ""}`),
+    analyze: (productId: string) =>
+      request<ProductAnalysisResult>(`/recycler/analyze/${productId}`),
+    jobs: {
+      list: (params?: { status?: string }) => {
+        const query = params
+          ? "?" + new URLSearchParams(params as Record<string, string>).toString()
+          : "";
+        return request<RecyclerJob[]>(`/recycler/jobs${query}`);
+      },
+      get: (id: string) => request<RecyclerJob>(`/recycler/jobs/${id}`),
+      create: (data: { source_product_id: string; strategy?: string; variations_requested?: number }) =>
+        request<{ id: string }>("/recycler/jobs", { method: "POST", body: data }),
+      delete: (id: string) =>
+        request<void>(`/recycler/jobs/${id}`, { method: "DELETE" }),
+      generate: (id: string) =>
+        request<{ variations: Array<{ id: string; type: string; label: string }> }>(`/recycler/jobs/${id}/generate`, { method: "POST", body: {} }),
+      variations: (id: string) =>
+        request<RecyclerVariation[]>(`/recycler/jobs/${id}/variations`),
+    },
+  },
+
+  // Multi-Language Printer endpoints (Phase 3)
+  localization: {
+    languages: () => request<LanguageOption[]>("/localization/languages"),
+    candidates: (limit?: number) =>
+      request<LocalizationCandidate[]>(`/localization/candidates${limit ? `?limit=${limit}` : ""}`),
+    jobs: {
+      list: (params?: { status?: string }) => {
+        const query = params
+          ? "?" + new URLSearchParams(params as Record<string, string>).toString()
+          : "";
+        return request<LocalizationJob[]>(`/localization/jobs${query}`);
+      },
+      get: (id: string) => request<LocalizationJob>(`/localization/jobs/${id}`),
+      create: (data: { source_product_id: string; languages: string[] }) =>
+        request<{ id: string }>("/localization/jobs", { method: "POST", body: data }),
+      delete: (id: string) =>
+        request<void>(`/localization/jobs/${id}`, { method: "DELETE" }),
+      execute: (id: string) =>
+        request<{ completed: string[]; failed: string[] }>(`/localization/jobs/${id}/execute`, { method: "POST", body: {} }),
+      products: (id: string) =>
+        request<LocalizedProduct[]>(`/localization/jobs/${id}/products`),
+    },
   },
 
   // Chatbot endpoints
@@ -631,6 +779,101 @@ interface CEOConfigSummary {
   updated_at: string;
 }
 
+// Scheduler types
+interface ScheduleRunEntry {
+  id: string;
+  schedule_id: string;
+  products_created: number;
+  products_approved: number;
+  products_flagged: number;
+  status: string;
+  started_at: string;
+  completed_at?: string;
+}
+
+interface ScheduleTickResult {
+  executed: number;
+  results: Array<{ schedule_id: string; schedule_name: string; products_created: number; status: string }>;
+}
+
+// Campaign types
+interface CampaignProgress {
+  campaign: Campaign;
+  daily_target: number;
+  days_remaining: number;
+  completion_percentage: number;
+  on_track: boolean;
+  products_per_day_needed: number;
+}
+
+// Revenue types
+interface RevenueDashboardParams {
+  platform?: string;
+  domain_id?: string;
+  category_id?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+interface ProductRevenueDetail {
+  product_id: string;
+  total_revenue: number;
+  total_orders: number;
+  total_quantity: number;
+  by_platform: Array<{ platform: string; revenue: number; orders: number; quantity: number }>;
+}
+
+// ROI Optimizer types
+interface TopSellerProduct {
+  id: string;
+  name: string;
+  niche: string;
+  domain_id: string;
+  category_id: string;
+  domain_name: string;
+  category_name: string;
+  total_revenue: number;
+  total_orders: number;
+  total_quantity: number;
+}
+
+interface ProductAnalysisResult {
+  product_name: string;
+  domain: string;
+  category: string;
+  niche: string;
+  revenue: number;
+  orders: number;
+  why_it_sells: string[];
+  keywords: string[];
+  positioning: string;
+  price_point: string;
+  target_audience: string;
+  strengths: string[];
+}
+
+// Localization types
+interface LanguageOption {
+  code: string;
+  name: string;
+  locale: string;
+  currency: string;
+  marketplace_note: string;
+}
+
+interface LocalizationCandidate {
+  id: string;
+  name: string;
+  niche: string;
+  language: string;
+  domain_id: string;
+  category_id: string;
+  domain_name: string;
+  category_name: string;
+  total_revenue: number;
+  total_orders: number;
+}
+
 export type {
   Domain,
   Category,
@@ -670,6 +913,27 @@ export type {
   CEOSetupResponse,
   CEOConfigResponse,
   CEOConfigSummary,
+  Schedule,
+  Campaign,
+  PlatformConnection,
+  RevenueDashboard,
+  ScheduleRunEntry,
+  ScheduleTickResult,
+  CampaignProgress,
+  RevenueDashboardParams,
+  ProductRevenueDetail,
+  ROIDashboard,
+  ROIReport,
+  ROISnapshot,
+  NicheCost,
+  RecyclerJob,
+  RecyclerVariation,
+  LocalizationJob,
+  LocalizedProduct,
+  TopSellerProduct,
+  ProductAnalysisResult,
+  LanguageOption,
+  LocalizationCandidate,
   ChatMessage,
   ChatConversation,
   ChatAction,
