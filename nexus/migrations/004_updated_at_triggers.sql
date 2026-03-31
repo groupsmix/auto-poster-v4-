@@ -1,6 +1,16 @@
 -- Migration 004: Add updated_at triggers
 -- Ensures updated_at is automatically set on every UPDATE,
 -- removing the need for application code to remember it.
+--
+-- ⚠️  D1 COMPATIBILITY NOTE (2025):
+-- Cloudflare D1 does NOT support SQLite triggers. These CREATE TRIGGER
+-- statements are kept here for documentation and local SQLite testing,
+-- but they will be silently ignored by D1.
+--
+-- The application ensures updated_at is set correctly via:
+--   1. All UPDATE queries in route handlers include: updated_at = datetime('now')
+--   2. The buildUpdate() helper in d1/base.ts has an autoUpdatedAt option
+--      that automatically appends updated_at to every UPDATE statement.
 
 CREATE TRIGGER IF NOT EXISTS trg_domains_updated_at
 AFTER UPDATE ON domains

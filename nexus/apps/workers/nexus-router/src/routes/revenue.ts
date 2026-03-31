@@ -133,6 +133,20 @@ revenue.post("/records", async (c) => {
       );
     }
 
+    if (typeof body.revenue !== "number" || body.revenue < 0) {
+      return c.json<ApiResponse>(
+        { success: false, error: "revenue must be a non-negative number" },
+        400
+      );
+    }
+
+    if (body.fees !== undefined && (typeof body.fees !== "number" || body.fees < 0)) {
+      return c.json<ApiResponse>(
+        { success: false, error: "fees must be a non-negative number" },
+        400
+      );
+    }
+
     const result = await addRevenueRecord(body, c.env);
     return c.json<ApiResponse>({ success: true, data: result }, 201);
   } catch (err) {

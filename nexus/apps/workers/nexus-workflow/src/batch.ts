@@ -46,8 +46,10 @@ export interface BatchProgress {
   batch_id: string;
   total: number;
   completed: number;
+  failed: number;
   current_index: number;
   products: BatchProduct[];
+  failed_items: Array<{ productId: string; nicheAngle: string; error?: string }>;
 }
 
 // storageQuery is imported from ./engine (single source of truth)
@@ -410,12 +412,26 @@ export class BatchOrchestrator {
       }
     }
 
+    // Collect failed items with details
+    const failedItems = batchProducts
+      .filter(
+        (p) =>
+          p.status === WorkflowRunStatus.FAILED ||
+          p.status === "failed"
+      )
+      .map((p) => ({
+        productId: p.productId,
+        nicheAngle: p.nicheAngle,
+      }));
+
     return {
       batch_id: batchId,
       total: products.length,
       completed: completedCount,
+      failed: failedItems.length,
       current_index: currentIndex,
       products: batchProducts,
+      failed_items: failedItems,
     };
   }
 

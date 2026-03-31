@@ -79,6 +79,29 @@ campaigns.post("/", async (c) => {
       );
     }
 
+    if (body.target_count < 1) {
+      return c.json<ApiResponse>(
+        { success: false, error: "target_count must be a positive integer" },
+        400
+      );
+    }
+
+    if (body.deadline) {
+      const deadlineDate = new Date(body.deadline);
+      if (isNaN(deadlineDate.getTime())) {
+        return c.json<ApiResponse>(
+          { success: false, error: "deadline must be a valid date string" },
+          400
+        );
+      }
+      if (deadlineDate.getTime() < Date.now()) {
+        return c.json<ApiResponse>(
+          { success: false, error: "deadline must be a future date" },
+          400
+        );
+      }
+    }
+
     const result = await createCampaign(body, c.env);
     return c.json<ApiResponse>({ success: true, data: result }, 201);
   } catch (err) {

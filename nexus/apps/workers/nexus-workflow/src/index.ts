@@ -503,6 +503,185 @@ app.post("/workflow/retry-from-step/:runId", async (c) => {
 });
 
 // ============================================================
+// POST /workflow/batch/:batchId/retry-failed — Retry all failed
+// items in a batch workflow
+// ============================================================
+
+app.post("/workflow/batch/:batchId/retry-failed", async (c) => {
+  try {
+    const batchId = c.req.param("batchId");
+
+    if (!batchId) {
+      return c.json<ApiResponse>(
+        { success: false, error: "Missing batchId parameter" },
+        400
+      );
+    }
+
+    const orchestrator = new BatchOrchestrator(c.env);
+    const progress = await orchestrator.getBatchProgress(batchId);
+
+    if (!progress) {
+      return c.json<ApiResponse>(
+        { success: false, error: `Batch ${batchId} not found` },
+        404
+      );
+    }
+
+    if (progress.failed_items.length === 0) {
+      return c.json<ApiResponse>(
+        { success: false, error: "No failed items to retry" },
+        400
+      );
+    }
+
+    // Resume each failed product's workflow
+    const engine = new WorkflowEngine(c.env, getExecutionCtx(c));
+    const retryResults: Array<{ productId: string; runId: string | null; status: string }> = [];
+
+    for (const failed of progress.failed_items) {
+      // Find the run ID for this product
+      const product = progress.products.find((p) => p.productId === failed.productId);
+      if (!product?.runId) {
+        retryResults.push({ productId: failed.productId, runId: null, status: "no_run_found" });
+        continue;
+      }
+
+      try {
+        const status = await engine.getWorkflowStatus(product.runId);
+        if (!status) {
+          retryResults.push({ productId: failed.productId, runId: product.runId, status: "run_not_found" });
+          continue;
+        }
+
+        // Find failed steps and resume
+        const allSteps = status.steps.map((s) => s.step_name as StepName);
+        const completedSteps = status.steps
+          .filter((s) => s.status === "completed")
+          .map((s) => s.step_name as StepName);
+
+        const lastCompletedIndex = completedSteps.length > 0
+          ? allSteps.indexOf(completedSteps[completedSteps.length - 1])
+          : -1;
+        const stepsToResume = allSteps.slice(lastCompletedIndex + 1);
+
+        if (stepsToResume.length > 0) {
+          await engine.reviseWorkflow(
+            product.runId,
+            `Batch retry: resuming from step ${stepsToResume[0]}`,
+            stepsToResume
+          );
+          retryResults.push({ productId: failed.productId, runId: product.runId, status: "retrying" });
+        } else {
+          retryResults.push({ productId: failed.productId, runId: product.runId, status: "all_steps_completed" });
+        }
+      } catch (retryErr) {
+        const msg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+        retryResults.push({ productId: failed.productId, runId: product.runId, status: `error: ${msg}` });
+      }
+    }
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: {
+        batch_id: batchId,
+        retried: retryResults.filter((r) => r.status === "retrying").length,
+        total_failed: progress.failed_items.length,
+        results: retryResults,
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[WORKFLOW] Batch retry-failed error:", message);
+    return c.json<ApiResponse>(
+      { success: false, error: message },
+      500
+    );
+  }
+});
+
+// ============================================================
+// POST /workflow/resume/:runId — Resume a failed workflow from
+// the last completed step (saves AI credits)
+// ============================================================
+
+app.post("/workflow/resume/:runId", async (c) => {
+  try {
+    const runId = c.req.param("runId");
+
+    if (!runId) {
+      return c.json<ApiResponse>(
+        { success: false, error: "Missing runId parameter" },
+        400
+      );
+    }
+
+    const engine = new WorkflowEngine(c.env, getExecutionCtx(c));
+
+    // Get current workflow status
+    const status = await engine.getWorkflowStatus(runId);
+    if (!status) {
+      return c.json<ApiResponse>(
+        { success: false, error: `Workflow run ${runId} not found` },
+        404
+      );
+    }
+
+    // Only allow resuming failed workflows
+    if (status.run.status !== "failed") {
+      return c.json<ApiResponse>(
+        { success: false, error: `Can only resume failed workflows. Current status: ${status.run.status}` },
+        400
+      );
+    }
+
+    // Find the last completed step and determine which steps need to re-run
+    const allSteps = status.steps.map((s) => s.step_name as StepName);
+    const completedSteps = status.steps
+      .filter((s) => s.status === "completed")
+      .map((s) => s.step_name as StepName);
+
+    // Steps to resume: everything after the last completed step
+    const lastCompletedIndex = completedSteps.length > 0
+      ? allSteps.indexOf(completedSteps[completedSteps.length - 1])
+      : -1;
+    const stepsToResume = allSteps.slice(lastCompletedIndex + 1);
+
+    if (stepsToResume.length === 0) {
+      return c.json<ApiResponse>(
+        { success: false, error: "All steps already completed — nothing to resume" },
+        400
+      );
+    }
+
+    // Use the existing revise mechanism to re-run from the failed step
+    const result = await engine.reviseWorkflow(
+      runId,
+      `Resuming from step: ${stepsToResume[0]}`,
+      stepsToResume
+    );
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: {
+        run_id: result.runId,
+        resumed_from: stepsToResume[0],
+        steps_to_run: stepsToResume,
+        completed_steps: completedSteps,
+        status: "in_revision",
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[WORKFLOW] Resume failed:", message);
+    return c.json<ApiResponse>(
+      { success: false, error: message },
+      500
+    );
+  }
+});
+
+// ============================================================
 // PROJECT BUILDER ROUTES
 // ============================================================
 

@@ -1,6 +1,6 @@
 name = "nexus-ai"
 main = "src/index.ts"
-compatibility_date = "2025-04-01"
+compatibility_date = "2026-03-31"
 
 # ── Workers AI binding (on-platform, no API key needed) ──
 [ai]

@@ -27,10 +27,13 @@ const healthStore: Map<string, ModelHealthData> = new Map();
 
 /** KV key prefix for persisted health data */
 const HEALTH_KV_PREFIX = "health:";
-/** TTL for persisted health data in KV (1 hour) */
-const HEALTH_KV_TTL = 3600;
-/** Only persist to KV every N calls to avoid excessive writes */
-const HEALTH_PERSIST_INTERVAL = 5;
+/** TTL for persisted health data in KV (24 hours — prevents stale data loss across restarts) */
+const HEALTH_KV_TTL = 86400;
+/**
+ * Persist to KV every N calls. Set to 1 to persist on every call
+ * (important for critical state changes like rate-limit transitions).
+ */
+const HEALTH_PERSIST_INTERVAL = 1;
 /** KV key for tracking last daily snapshot date per model */
 const HEALTH_SNAPSHOT_PREFIX = "health_snapshot:";
 

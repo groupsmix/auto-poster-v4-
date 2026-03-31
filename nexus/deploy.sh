@@ -320,13 +320,40 @@ case "$MODE" in
     step "Starting full deployment pipeline..."
     echo ""
 
+    # Pre-deploy safety checks (typecheck + lint)
+    if [ "$DRY_RUN" != true ]; then
+      step "Running pre-deploy checks..."
+      info "Running typecheck..."
+      if ! pnpm typecheck 2>/dev/null; then
+        err "Typecheck failed! Fix type errors before deploying."
+        exit 1
+      fi
+      log "Typecheck passed"
+
+      info "Running lint..."
+      if ! pnpm lint 2>/dev/null; then
+        warn "Lint has warnings/errors. Proceeding anyway."
+      fi
+
+      # Confirmation prompt
+      echo ""
+      warn "About to deploy ALL workers + frontend to production."
+      echo -n "Continue? [y/N] "
+      read -r confirm
+      if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        info "Deployment cancelled."
+        exit 0
+      fi
+      echo ""
+    fi
+
     # 1. Migrations
     run_migrations
 
     # 2. Seed data
     run_seed
 
-    # 3. Deploy workers
+    # 3. Deploy workers (stop on failure — dependency order matters)
     deploy_all_workers
 
     # 4. Deploy frontend

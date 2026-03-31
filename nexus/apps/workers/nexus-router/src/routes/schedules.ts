@@ -65,6 +65,27 @@ schedules.post("/", async (c) => {
       );
     }
 
+    if (body.interval_hours !== undefined && (body.interval_hours < 1 || !Number.isFinite(body.interval_hours))) {
+      return c.json<ApiResponse>(
+        { success: false, error: "interval_hours must be a positive number (>= 1)" },
+        400
+      );
+    }
+
+    if (body.products_per_run !== undefined && (body.products_per_run < 1 || !Number.isInteger(body.products_per_run))) {
+      return c.json<ApiResponse>(
+        { success: false, error: "products_per_run must be a positive integer" },
+        400
+      );
+    }
+
+    if (body.auto_approve_threshold !== undefined && (body.auto_approve_threshold < 0 || body.auto_approve_threshold > 100)) {
+      return c.json<ApiResponse>(
+        { success: false, error: "auto_approve_threshold must be between 0 and 100" },
+        400
+      );
+    }
+
     const result = await createSchedule(body, c.env);
     return c.json<ApiResponse>({ success: true, data: result }, 201);
   } catch (err) {
