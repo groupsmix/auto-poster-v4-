@@ -74,7 +74,7 @@ app.use("*", async (c, next) => {
     },
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization", "X-Request-ID"],
-    exposeHeaders: ["X-Request-ID"],
+    exposeHeaders: ["X-Request-ID", "Retry-After"],
     maxAge: 86400,
   })(c, next);
 });
@@ -100,7 +100,7 @@ app.use("/api/*", async (c, next) => {
 });
 
 // Rate limiting middleware (7.3)
-// 200 requests per minute per IP using in-memory counter
+// 500 requests per minute per IP using in-memory counter
 // Resets on worker restart — acceptable for personal use (1 user)
 // High limit needed because dashboard loads many components in parallel,
 // each with retry logic that amplifies request count on page load.
@@ -112,7 +112,10 @@ app.use("/api/*", async (c, next) => {
   const entry = rateLimitMap.get(ip);
 
   if (entry && now < entry.resetAt) {
-    if (entry.count >= 200) {
+    if (entry.count >= 500) {
+      // Calculate seconds remaining in the current window
+      const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+      c.header("Retry-After", String(retryAfter));
       return c.json<ApiResponse>(
         { success: false, error: "Rate limit exceeded. Try again in a minute." },
         429
