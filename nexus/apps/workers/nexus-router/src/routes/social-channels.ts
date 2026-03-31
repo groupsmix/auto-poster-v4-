@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
 import { generateId, slugify } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
-import { storageQuery, errorResponse } from "../helpers";
+import { storageQuery, errorResponse, sanitizeInput } from "../helpers";
 
 const socialChannels = new Hono<{ Bindings: RouterEnv }>();
 
@@ -37,6 +37,10 @@ socialChannels.post("/", async (c) => {
         400
       );
     }
+
+    body.name = sanitizeInput(body.name);
+    if (body.tone) body.tone = sanitizeInput(body.tone);
+    if (body.format) body.format = sanitizeInput(body.format);
 
     const id = generateId();
     const slug = slugify(body.name);
@@ -85,6 +89,7 @@ socialChannels.put("/:id", async (c) => {
     const params: unknown[] = [];
 
     if (body.name !== undefined) {
+      body.name = sanitizeInput(body.name);
       sets.push("name = ?", "slug = ?");
       params.push(body.name, slugify(body.name));
     }
@@ -97,10 +102,12 @@ socialChannels.put("/:id", async (c) => {
       params.push(body.hashtag_count);
     }
     if (body.tone !== undefined) {
+      body.tone = sanitizeInput(body.tone);
       sets.push("tone = ?");
       params.push(body.tone);
     }
     if (body.format !== undefined) {
+      body.format = sanitizeInput(body.format);
       sets.push("format = ?");
       params.push(body.format);
     }

@@ -5,7 +5,7 @@
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
-import { errorResponse } from "../helpers";
+import { errorResponse, sanitizeInput } from "../helpers";
 import {
   listCampaigns,
   getCampaign,
@@ -78,6 +78,8 @@ campaigns.post("/", async (c) => {
         400
       );
     }
+
+    body.name = sanitizeInput(body.name);
 
     if (body.target_count < 1) {
       return c.json<ApiResponse>(

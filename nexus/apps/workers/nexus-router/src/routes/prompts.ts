@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
 import { generateId, now } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
-import { storageQuery, errorResponse } from "../helpers";
+import { storageQuery, errorResponse, sanitizeInput } from "../helpers";
 
 const prompts = new Hono<{ Bindings: RouterEnv }>();
 
@@ -65,7 +65,7 @@ prompts.put("/:id", async (c) => {
 
     if (body.name !== undefined) {
       sets.push("name = ?");
-      params.push(body.name);
+      params.push(sanitizeInput(body.name));
     }
     if (body.prompt !== undefined) {
       // Save current prompt to prompt_versions before overwriting

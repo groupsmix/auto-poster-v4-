@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
 import { generateId, slugify } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
-import { storageQuery, storageCleanup, errorResponse } from "../helpers";
+import { storageQuery, storageCleanup, errorResponse, sanitizeInput } from "../helpers";
 
 const categories = new Hono<{ Bindings: RouterEnv }>();
 
@@ -25,6 +25,10 @@ categories.post("/", async (c) => {
         400
       );
     }
+
+    body.name = sanitizeInput(body.name);
+    if (body.description) body.description = sanitizeInput(body.description);
+    if (body.niche_hint) body.niche_hint = sanitizeInput(body.niche_hint);
 
     const id = generateId();
     const slug = slugify(body.name);
@@ -110,10 +114,12 @@ categories.put("/:id", async (c) => {
     const params: unknown[] = [];
 
     if (body.name !== undefined) {
+      body.name = sanitizeInput(body.name);
       sets.push("name = ?", "slug = ?");
       params.push(body.name, slugify(body.name));
     }
     if (body.description !== undefined) {
+      body.description = sanitizeInput(body.description);
       sets.push("description = ?");
       params.push(body.description);
     }

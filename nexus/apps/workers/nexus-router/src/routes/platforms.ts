@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
 import { generateId, slugify } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
-import { storageQuery, errorResponse } from "../helpers";
+import { storageQuery, errorResponse, sanitizeInput } from "../helpers";
 
 const platforms = new Hono<{ Bindings: RouterEnv }>();
 
@@ -41,6 +41,13 @@ platforms.post("/", async (c) => {
         400
       );
     }
+
+    body.name = sanitizeInput(body.name);
+    if (body.audience) body.audience = sanitizeInput(body.audience);
+    if (body.tone) body.tone = sanitizeInput(body.tone);
+    if (body.seo_style) body.seo_style = sanitizeInput(body.seo_style);
+    if (body.description_style) body.description_style = sanitizeInput(body.description_style);
+    if (body.cta_style) body.cta_style = sanitizeInput(body.cta_style);
 
     const id = generateId();
     const slug = slugify(body.name);
@@ -97,6 +104,7 @@ platforms.put("/:id", async (c) => {
     const params: unknown[] = [];
 
     if (body.name !== undefined) {
+      body.name = sanitizeInput(body.name);
       sets.push("name = ?", "slug = ?");
       params.push(body.name, slugify(body.name));
     }
@@ -113,22 +121,27 @@ platforms.put("/:id", async (c) => {
       params.push(body.tag_max_chars);
     }
     if (body.audience !== undefined) {
+      body.audience = sanitizeInput(body.audience);
       sets.push("audience = ?");
       params.push(body.audience);
     }
     if (body.tone !== undefined) {
+      body.tone = sanitizeInput(body.tone);
       sets.push("tone = ?");
       params.push(body.tone);
     }
     if (body.seo_style !== undefined) {
+      body.seo_style = sanitizeInput(body.seo_style);
       sets.push("seo_style = ?");
       params.push(body.seo_style);
     }
     if (body.description_style !== undefined) {
+      body.description_style = sanitizeInput(body.description_style);
       sets.push("description_style = ?");
       params.push(body.description_style);
     }
     if (body.cta_style !== undefined) {
+      body.cta_style = sanitizeInput(body.cta_style);
       sets.push("cta_style = ?");
       params.push(body.cta_style);
     }

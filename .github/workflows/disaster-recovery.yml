@@ -160,6 +160,39 @@ jobs:
             echo "✅ R2 bucket created"
           fi
 
+      - name: Create Pages project
+        run: |
+          echo "🔍 Checking for existing Pages project 'nexus-dashboard'..."
+          EXISTING=$(npx wrangler pages project list 2>/dev/null | grep -w "nexus-dashboard" || true)
+          if [ -n "$EXISTING" ]; then
+            echo "✅ Pages project already exists"
+          else
+            echo "📦 Creating Pages project 'nexus-dashboard'..."
+            npx wrangler pages project create nexus-dashboard --production-branch main 2>/dev/null || echo "⚠️ Pages project creation failed (may already exist)"
+            echo "✅ Pages project created"
+          fi
+
+      - name: Manual steps required
+        run: |
+          echo "============================================================"
+          echo "  ⚠️  MANUAL STEPS REQUIRED (cannot be automated via CLI)"
+          echo "============================================================"
+          echo ""
+          echo "  1. AI Gateway:"
+          echo "     → Go to https://dash.cloudflare.com → AI → AI Gateway"
+          echo "     → Create a new gateway named 'nexus-gateway'"
+          echo "     → Copy the Gateway ID and set it as AI_GATEWAY_ID secret"
+          echo ""
+          echo "  2. Cloudflare Images (if using image features):"
+          echo "     → Go to https://dash.cloudflare.com → Images"
+          echo "     → Enable Cloudflare Images on your account"
+          echo "     → Images are used for product mockups and assets"
+          echo ""
+          echo "  3. Set remaining secrets:"
+          echo "     → Use ./nexus/scripts/set-all-secrets.sh"
+          echo "     → Or set them in GitHub repo Settings → Secrets → Actions"
+          echo "============================================================"
+
   # ── Update Configs + Build ───────────────────────────────
   build:
     name: "\U0001F527 Update Configs & Build"
@@ -381,7 +414,7 @@ jobs:
       - name: Build frontend
         run: pnpm run build
         env:
-          NEXT_PUBLIC_API_URL: https://nexus-router.professional-inbox-simo.workers.dev/api
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXUS_API_URL }}
 
       - name: Deploy to CF Pages
         run: cd apps/web && npx wrangler pages deploy out --project-name=nexus-dashboard

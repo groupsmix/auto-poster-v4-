@@ -3,20 +3,22 @@
 // ============================================================
 
 import type { PlatformVariant, SocialVariant } from "@nexus/shared";
+import { DEFAULT_PAGE_SIZE } from "@nexus/shared";
 import { executeUpdate } from "./base";
 
 // --- PLATFORM VARIANTS ---
 
-export async function getPlatformVariants(db: D1Database, productId?: string): Promise<PlatformVariant[]> {
+export async function getPlatformVariants(db: D1Database, productId?: string, limit = DEFAULT_PAGE_SIZE, offset = 0): Promise<PlatformVariant[]> {
   if (productId) {
     const result = await db
-      .prepare("SELECT id, product_id, platform_id, title, description, tags, price, metadata, status, published_at FROM platform_variants WHERE product_id = ?")
-      .bind(productId)
+      .prepare("SELECT id, product_id, platform_id, title, description, tags, price, metadata, status, published_at FROM platform_variants WHERE product_id = ? LIMIT ? OFFSET ?")
+      .bind(productId, limit, offset)
       .all<PlatformVariant>();
     return result.results;
   }
   const result = await db
-    .prepare("SELECT id, product_id, platform_id, title, description, tags, price, metadata, status, published_at FROM platform_variants")
+    .prepare("SELECT id, product_id, platform_id, title, description, tags, price, metadata, status, published_at FROM platform_variants LIMIT ? OFFSET ?")
+    .bind(limit, offset)
     .all<PlatformVariant>();
   return result.results;
 }
@@ -76,16 +78,17 @@ export async function deletePlatformVariant(db: D1Database, id: string): Promise
 
 // --- SOCIAL VARIANTS ---
 
-export async function getSocialVariants(db: D1Database, productId?: string): Promise<SocialVariant[]> {
+export async function getSocialVariants(db: D1Database, productId?: string, limit = DEFAULT_PAGE_SIZE, offset = 0): Promise<SocialVariant[]> {
   if (productId) {
     const result = await db
-      .prepare("SELECT id, product_id, channel_id, content, status, scheduled_at, published_at FROM social_variants WHERE product_id = ?")
-      .bind(productId)
+      .prepare("SELECT id, product_id, channel_id, content, status, scheduled_at, published_at FROM social_variants WHERE product_id = ? LIMIT ? OFFSET ?")
+      .bind(productId, limit, offset)
       .all<SocialVariant>();
     return result.results;
   }
   const result = await db
-    .prepare("SELECT id, product_id, channel_id, content, status, scheduled_at, published_at FROM social_variants")
+    .prepare("SELECT id, product_id, channel_id, content, status, scheduled_at, published_at FROM social_variants LIMIT ? OFFSET ?")
+    .bind(limit, offset)
     .all<SocialVariant>();
   return result.results;
 }

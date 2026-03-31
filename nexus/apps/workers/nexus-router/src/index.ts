@@ -51,15 +51,19 @@ const app = new Hono<{ Bindings: RouterEnv; Variables: { requestId: string } }>(
 // MIDDLEWARE
 // ============================================================
 
-// CORS — restrict to known dashboard origins (supports custom domain via env)
+// CORS — restrict to exact known dashboard origins
+// Only allow your specific CF Pages/Workers subdomains, localhost for dev, and custom domain
 app.use("*", async (c, next) => {
   const customOrigin = c.env.CUSTOM_DOMAIN_ORIGIN;
   return cors({
     origin: (origin) => {
       if (!origin) return origin;
+      const allowed = [
+        "https://nexus-dashboard.pages.dev",
+        "https://nexus-router.professional-inbox-simo.workers.dev",
+      ];
       if (
-        origin.endsWith(".pages.dev") ||
-        origin.endsWith(".workers.dev") ||
+        allowed.includes(origin) ||
         origin.startsWith("http://localhost") ||
         (customOrigin && origin === customOrigin)
       ) {

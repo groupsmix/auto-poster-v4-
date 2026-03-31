@@ -2,6 +2,10 @@
 # ============================================================
 # NEXUS — One-Command Disaster Recovery / Bootstrap Script
 # ============================================================
+# Use this for FIRST-TIME SETUP or full disaster recovery from scratch.
+# For day-to-day deploys, use deploy.sh or push to main (deploy.yml).
+# For emergency rollback, use rollback.sh.
+#
 # Recreates ALL Cloudflare infrastructure from a fresh git clone.
 # Run this once to go from zero → fully deployed NEXUS.
 #

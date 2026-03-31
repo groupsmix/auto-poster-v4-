@@ -110,17 +110,17 @@ export class D1Queries {
   deleteSocialChannel(id: string): Promise<void> { return socialChannels.deleteSocialChannel(this.db, id); }
 
   // --- PRODUCTS ---
-  getProducts(): Promise<Product[]> { return products.getProducts(this.db); }
+  getProducts(limit?: number, offset?: number): Promise<Product[]> { return products.getProducts(this.db, limit, offset); }
   getProductById(id: string): Promise<Product | null> { return products.getProductById(this.db, id); }
-  getProductsByDomain(domainId: string): Promise<Product[]> { return products.getProductsByDomain(this.db, domainId); }
-  getProductsByCategory(categoryId: string): Promise<Product[]> { return products.getProductsByCategory(this.db, categoryId); }
+  getProductsByDomain(domainId: string, limit?: number, offset?: number): Promise<Product[]> { return products.getProductsByDomain(this.db, domainId, limit, offset); }
+  getProductsByCategory(categoryId: string, limit?: number, offset?: number): Promise<Product[]> { return products.getProductsByCategory(this.db, categoryId, limit, offset); }
   getProductsByBatch(batchId: string): Promise<Product[]> { return products.getProductsByBatch(this.db, batchId); }
   createProduct(product: Omit<Product, "created_at" | "updated_at">): Promise<Product> { return products.createProduct(this.db, product); }
   updateProduct(id: string, data: Partial<Omit<Product, "id" | "created_at">>): Promise<void> { return products.updateProduct(this.db, id, data); }
   deleteProduct(id: string): Promise<void> { return products.deleteProduct(this.db, id); }
 
   // --- WORKFLOW RUNS ---
-  getWorkflowRuns(productId?: string): Promise<WorkflowRun[]> { return workflowRuns.getWorkflowRuns(this.db, productId); }
+  getWorkflowRuns(productId?: string, limit?: number, offset?: number): Promise<WorkflowRun[]> { return workflowRuns.getWorkflowRuns(this.db, productId, limit, offset); }
   getWorkflowRunById(id: string): Promise<WorkflowRun | null> { return workflowRuns.getWorkflowRunById(this.db, id); }
   createWorkflowRun(run: Omit<WorkflowRun, "total_tokens" | "total_cost" | "cache_hits">): Promise<WorkflowRun> { return workflowRuns.createWorkflowRun(this.db, run); }
   updateWorkflowRun(id: string, data: Partial<Omit<WorkflowRun, "id">>): Promise<void> { return workflowRuns.updateWorkflowRun(this.db, id, data); }
@@ -144,14 +144,14 @@ export class D1Queries {
   deleteAsset(id: string): Promise<void> { return assets.deleteAsset(this.db, id); }
 
   // --- PLATFORM VARIANTS ---
-  getPlatformVariants(productId?: string): Promise<PlatformVariant[]> { return variants.getPlatformVariants(this.db, productId); }
+  getPlatformVariants(productId?: string, limit?: number, offset?: number): Promise<PlatformVariant[]> { return variants.getPlatformVariants(this.db, productId, limit, offset); }
   getPlatformVariantById(id: string): Promise<PlatformVariant | null> { return variants.getPlatformVariantById(this.db, id); }
   createPlatformVariant(variant: PlatformVariant): Promise<PlatformVariant> { return variants.createPlatformVariant(this.db, variant); }
   updatePlatformVariant(id: string, data: Partial<Omit<PlatformVariant, "id">>): Promise<void> { return variants.updatePlatformVariant(this.db, id, data); }
   deletePlatformVariant(id: string): Promise<void> { return variants.deletePlatformVariant(this.db, id); }
 
   // --- SOCIAL VARIANTS ---
-  getSocialVariants(productId?: string): Promise<SocialVariant[]> { return variants.getSocialVariants(this.db, productId); }
+  getSocialVariants(productId?: string, limit?: number, offset?: number): Promise<SocialVariant[]> { return variants.getSocialVariants(this.db, productId, limit, offset); }
   getSocialVariantById(id: string): Promise<SocialVariant | null> { return variants.getSocialVariantById(this.db, id); }
   createSocialVariant(variant: SocialVariant): Promise<SocialVariant> { return variants.createSocialVariant(this.db, variant); }
   updateSocialVariant(id: string, data: Partial<Omit<SocialVariant, "id">>): Promise<void> { return variants.updateSocialVariant(this.db, id, data); }
