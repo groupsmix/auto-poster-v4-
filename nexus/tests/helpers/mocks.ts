@@ -246,3 +246,60 @@ export function aiSuccessResponse(
     data: { result, model, cached: false, tokens: 100 },
   });
 }
+
+// --- [7.4] Mock fetcher variants for rate limit (429) and quota exceeded (402) ---
+
+/** Create a mock fetcher that returns HTTP 429 (Rate Limited) */
+export function createRateLimitedFetcher(): Fetcher {
+  return {
+    fetch: vi.fn(async () => {
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded", code: "RATE_LIMITED" }),
+        { status: 429, headers: { "Content-Type": "application/json", "Retry-After": "3600" } }
+      );
+    }),
+    connect: vi.fn(),
+  } as unknown as Fetcher;
+}
+
+/** Create a mock fetcher that returns HTTP 402 (Quota Exceeded) */
+export function createQuotaExceededFetcher(): Fetcher {
+  return {
+    fetch: vi.fn(async () => {
+      return new Response(
+        JSON.stringify({ error: "Quota exceeded", code: "QUOTA_EXCEEDED" }),
+        { status: 402, headers: { "Content-Type": "application/json" } }
+      );
+    }),
+    connect: vi.fn(),
+  } as unknown as Fetcher;
+}
+
+/** Create a mock fetcher that fails N times then succeeds */
+export function createFailThenSucceedFetcher(
+  failCount: number,
+  failStatus: 429 | 402 = 429,
+  successResult: string = "Recovered AI result"
+): Fetcher {
+  let callCount = 0;
+  return {
+    fetch: vi.fn(async () => {
+      callCount++;
+      if (callCount <= failCount) {
+        const code = failStatus === 429 ? "RATE_LIMITED" : "QUOTA_EXCEEDED";
+        return new Response(
+          JSON.stringify({ error: `Error ${failStatus}`, code }),
+          { status: failStatus, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: { result: successResult, model: "fallback-model", cached: false, tokens: 50 },
+        }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+    }),
+    connect: vi.fn(),
+  } as unknown as Fetcher;
+}

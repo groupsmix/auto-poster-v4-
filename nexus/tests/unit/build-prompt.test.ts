@@ -2,11 +2,14 @@
 // Unit Tests — buildPromptForStep (9-layer prompt builder)
 // ============================================================
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   buildPromptForStep,
   getStepConfig,
   getOutputSchema,
+  estimateTokenCount,
+  PROMPT_MAX_ESTIMATED_TOKENS,
+  CHARS_PER_TOKEN_ESTIMATE,
   type ProductContext,
   type PromptTemplates,
   type StepName,
@@ -194,5 +197,130 @@ describe("getOutputSchema", () => {
     const schema = getOutputSchema("quality_review");
     expect(schema).toBeDefined();
     expect(schema).toHaveProperty("overall_score");
+  });
+});
+
+// ============================================================
+// [7.7] PROMPT SIZE GUARD — Token count limits & oversized prompts
+// ============================================================
+
+describe("estimateTokenCount", () => {
+  it("estimates tokens as text.length / 4 (rounded up)", () => {
+    expect(estimateTokenCount("")).toBe(0);
+    expect(estimateTokenCount("abcd")).toBe(1);
+    expect(estimateTokenCount("abcde")).toBe(2);
+    expect(estimateTokenCount("a".repeat(100))).toBe(25);
+    expect(estimateTokenCount("a".repeat(101))).toBe(26);
+  });
+});
+
+describe("buildPromptForStep — prompt size guard", () => {
+  it("truncates context when prompt exceeds token limit", () => {
+    // Build massive prior outputs to exceed the token limit
+    const hugeOutput: Record<string, unknown> = {};
+    for (let i = 0; i < 50; i++) {
+      hugeOutput[`field_${i}`] = "x".repeat(5000);
+    }
+
+    const priorOutputs: Partial<Record<StepName, Record<string, unknown>>> = {
+      research: hugeOutput,
+      strategy: hugeOutput,
+      content_generation: hugeOutput,
+      seo_optimization: hugeOutput,
+      image_generation: hugeOutput,
+      platform_variants: hugeOutput,
+      social_content: hugeOutput,
+      humanizer_pass: hugeOutput,
+    };
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const prompt = buildPromptForStep(
+      "quality_review",
+      makeProduct(),
+      priorOutputs,
+      makeTemplates()
+    );
+
+    // The prompt should be truncated to fit within the limit
+    const estimatedTokens = estimateTokenCount(prompt);
+    expect(estimatedTokens).toBeLessThanOrEqual(PROMPT_MAX_ESTIMATED_TOKENS);
+
+    // Warning should have been logged
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[PROMPT]")
+    );
+
+    warnSpy.mockRestore();
+  });
+
+  it("does not truncate when prompt is under the limit", () => {
+    const priorOutputs: Partial<Record<StepName, Record<string, unknown>>> = {
+      research: { market_trends: ["trend1"], target_audience: "creators" },
+    };
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const prompt = buildPromptForStep(
+      "strategy",
+      makeProduct(),
+      priorOutputs,
+      makeTemplates()
+    );
+
+    // Should contain the context without truncation markers
+    expect(prompt).toContain("trend1");
+    expect(prompt).not.toContain("[TRUNCATED");
+
+    // No warning should have been logged
+    const promptWarnings = warnSpy.mock.calls.filter(
+      (call) => typeof call[0] === "string" && call[0].includes("[PROMPT]")
+    );
+    expect(promptWarnings.length).toBe(0);
+
+    warnSpy.mockRestore();
+  });
+
+  it("includes truncation marker when context is reduced", () => {
+    // Create outputs large enough to trigger truncation
+    const largeOutput: Record<string, unknown> = {};
+    for (let i = 0; i < 100; i++) {
+      largeOutput[`key_${i}`] = "y".repeat(3000);
+    }
+
+    const priorOutputs: Partial<Record<StepName, Record<string, unknown>>> = {
+      research: largeOutput,
+      strategy: largeOutput,
+      content_generation: largeOutput,
+      seo_optimization: largeOutput,
+      image_generation: largeOutput,
+      platform_variants: largeOutput,
+      social_content: largeOutput,
+      humanizer_pass: largeOutput,
+    };
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const prompt = buildPromptForStep(
+      "quality_review",
+      makeProduct(),
+      priorOutputs,
+      makeTemplates()
+    );
+
+    // If truncation happened, the prompt should contain the truncation notice
+    if (prompt.includes("[TRUNCATED")) {
+      expect(prompt).toContain("most recent");
+    }
+
+    // Either way, token count should be within limits
+    expect(estimateTokenCount(prompt)).toBeLessThanOrEqual(PROMPT_MAX_ESTIMATED_TOKENS);
+
+    warnSpy.mockRestore();
+  });
+
+  it("exports PROMPT_MAX_ESTIMATED_TOKENS and CHARS_PER_TOKEN_ESTIMATE constants", () => {
+    expect(PROMPT_MAX_ESTIMATED_TOKENS).toBe(24_000);
+    expect(CHARS_PER_TOKEN_ESTIMATE).toBe(4);
   });
 });

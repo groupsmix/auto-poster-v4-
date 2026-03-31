@@ -684,6 +684,19 @@ export interface ProductContext {
  * Layer H: Output schema (expected JSON structure)
  * Layer I: Context injection (prior step outputs)
  */
+/**
+ * Maximum estimated token count for a prompt before context truncation kicks in.
+ * Rough estimation: 1 token ≈ 4 characters.
+ * 24K tokens (≈96K chars) leaves headroom for model response within 32K context windows.
+ */
+export const PROMPT_MAX_ESTIMATED_TOKENS = 24_000;
+export const CHARS_PER_TOKEN_ESTIMATE = 4;
+
+/** Estimate token count from text length (rough: text.length / 4) */
+export function estimateTokenCount(text: string): number {
+  return Math.ceil(text.length / CHARS_PER_TOKEN_ESTIMATE);
+}
+
 export function buildPromptForStep(
   stepName: StepName,
   product: ProductContext,
@@ -789,5 +802,38 @@ export function buildPromptForStep(
     );
   }
 
-  return layers.join("\n\n");
+  // --- Prompt size guard: truncate context if estimated tokens exceed threshold ---
+  let assembled = layers.join("\n\n");
+  const estimatedTokens = estimateTokenCount(assembled);
+
+  if (estimatedTokens > PROMPT_MAX_ESTIMATED_TOKENS) {
+    console.warn(
+      `[PROMPT] Step "${stepName}" prompt exceeds token limit: ~${estimatedTokens} estimated tokens (max ${PROMPT_MAX_ESTIMATED_TOKENS}). Truncating context.`
+    );
+
+    // Remove the full context layer and rebuild with only the most recent N steps
+    const contextLayerIdx = layers.findIndex((l) => l.startsWith("=== CONTEXT FROM PRIOR STEPS ==="));
+    if (contextLayerIdx !== -1) {
+      // Progressively drop oldest context entries until we fit
+      let truncatedParts = [...contextParts];
+      while (truncatedParts.length > 1) {
+        truncatedParts = truncatedParts.slice(1); // drop oldest
+        const truncatedContext = `=== CONTEXT FROM PRIOR STEPS ===\n[TRUNCATED: keeping ${truncatedParts.length} most recent entries]\n${truncatedParts.join("\n\n")}`;
+        layers[contextLayerIdx] = truncatedContext;
+        assembled = layers.join("\n\n");
+        if (estimateTokenCount(assembled) <= PROMPT_MAX_ESTIMATED_TOKENS) break;
+      }
+
+      // If still too large after keeping only 1 context entry, truncate the text itself
+      if (estimateTokenCount(assembled) > PROMPT_MAX_ESTIMATED_TOKENS) {
+        const maxChars = PROMPT_MAX_ESTIMATED_TOKENS * CHARS_PER_TOKEN_ESTIMATE;
+        assembled = assembled.slice(0, maxChars);
+        console.warn(
+          `[PROMPT] Step "${stepName}" still exceeds limit after context truncation. Hard-truncated to ${maxChars} chars.`
+        );
+      }
+    }
+  }
+
+  return assembled;
 }

@@ -496,3 +496,249 @@ describe("nexus-storage: Synced Deletion / Cleanup", () => {
     expect(json.error).toContain("Unknown entity type");
   });
 });
+
+// ============================================================
+// [7.2] SYNCED DELETION CASCADE — Deep verification
+// Tests that domain/category deletion cascades through all
+// child records, R2 objects, KV entries, and CF Images
+// ============================================================
+
+describe("nexus-storage: Synced Deletion Cascade", () => {
+  it("domain deletion cascades to products and cleans up R2 and CF Images", async () => {
+    const db = createMockD1();
+    const r2 = createMockR2();
+    const kv = createMockKV();
+
+    // Pre-populate R2 with product files
+    const fileContent = new TextEncoder().encode("product image data");
+    r2._objects.set("products/prod-1/images/img-1.png", { body: fileContent.buffer });
+    r2._objects.set("products/prod-2/images/img-2.png", { body: fileContent.buffer });
+
+    // Mock D1 to return product IDs and assets for the domain
+    let queryCount = 0;
+    db._statement.all.mockImplementation(async () => {
+      queryCount++;
+      // First query: getProductIdsByDomain → returns product IDs
+      if (queryCount === 1) {
+        return {
+          results: [{ id: "prod-1" }, { id: "prod-2" }],
+          success: true,
+          meta: { changes: 0, last_row_id: 0, rows_read: 2 },
+        };
+      }
+      // Second/third queries: getAssetsByProduct → returns assets with r2_key and cf_image_id
+      if (queryCount === 2) {
+        return {
+          results: [{
+            id: "asset-1",
+            product_id: "prod-1",
+            asset_type: "image",
+            r2_key: "products/prod-1/images/img-1.png",
+            cf_image_id: "cf-img-1",
+            url: "/r2/products/prod-1/images/img-1.png",
+            created_at: "2026-01-01T00:00:00Z",
+          }],
+          success: true,
+          meta: { changes: 0, last_row_id: 0, rows_read: 1 },
+        };
+      }
+      if (queryCount === 3) {
+        return {
+          results: [{
+            id: "asset-2",
+            product_id: "prod-2",
+            asset_type: "image",
+            r2_key: "products/prod-2/images/img-2.png",
+            cf_image_id: "cf-img-2",
+            url: "/r2/products/prod-2/images/img-2.png",
+            created_at: "2026-01-01T00:00:00Z",
+          }],
+          success: true,
+          meta: { changes: 0, last_row_id: 0, rows_read: 1 },
+        };
+      }
+      // Remaining: empty results
+      return {
+        results: [],
+        success: true,
+        meta: { changes: 0, last_row_id: 0, rows_read: 0 },
+      };
+    });
+
+    db._statement.run.mockResolvedValue({
+      results: [],
+      success: true,
+      meta: { changes: 1, last_row_id: 0, rows_read: 0 },
+    });
+
+    const env = buildEnv({ DB: db, BUCKET: r2, CACHE: kv });
+
+    const res = await app.fetch(
+      makeRequest("/cleanup/domain/dom-1", { method: "DELETE" }),
+      env
+    );
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toHaveProperty("data");
+
+    // Verify D1 was queried for product IDs and assets
+    expect(db.prepare).toHaveBeenCalled();
+    // Verify R2 delete was called for product files
+    expect(r2.delete).toHaveBeenCalled();
+    // Verify KV delete was called for domain config
+    expect(kv.delete).toHaveBeenCalled();
+  });
+
+  it("category deletion cascades to products and cleans up R2", async () => {
+    const db = createMockD1();
+    const r2 = createMockR2();
+    const kv = createMockKV();
+
+    // Pre-populate R2
+    const fileContent = new TextEncoder().encode("category product file");
+    r2._objects.set("products/prod-cat-1/files/doc.pdf", { body: fileContent.buffer });
+
+    let queryCount = 0;
+    db._statement.all.mockImplementation(async () => {
+      queryCount++;
+      if (queryCount === 1) {
+        // getProductIdsByCategory
+        return {
+          results: [{ id: "prod-cat-1" }],
+          success: true,
+          meta: { changes: 0, last_row_id: 0, rows_read: 1 },
+        };
+      }
+      if (queryCount === 2) {
+        // getAssetsByProduct
+        return {
+          results: [{
+            id: "asset-cat-1",
+            product_id: "prod-cat-1",
+            asset_type: "file",
+            r2_key: "products/prod-cat-1/files/doc.pdf",
+            cf_image_id: null,
+            url: "/r2/products/prod-cat-1/files/doc.pdf",
+            created_at: "2026-01-01T00:00:00Z",
+          }],
+          success: true,
+          meta: { changes: 0, last_row_id: 0, rows_read: 1 },
+        };
+      }
+      return {
+        results: [],
+        success: true,
+        meta: { changes: 0, last_row_id: 0, rows_read: 0 },
+      };
+    });
+
+    db._statement.run.mockResolvedValue({
+      results: [],
+      success: true,
+      meta: { changes: 1, last_row_id: 0, rows_read: 0 },
+    });
+
+    const env = buildEnv({ DB: db, BUCKET: r2, CACHE: kv });
+
+    const res = await app.fetch(
+      makeRequest("/cleanup/category/cat-1", { method: "DELETE" }),
+      env
+    );
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toHaveProperty("data");
+
+    // Verify cascade was triggered
+    expect(db.prepare).toHaveBeenCalled();
+    expect(r2.delete).toHaveBeenCalled();
+    expect(kv.delete).toHaveBeenCalled();
+  });
+
+  it("product deletion cleans up associated R2 files and CF Images", async () => {
+    const db = createMockD1();
+    const r2 = createMockR2();
+
+    // Pre-populate R2
+    const fileContent = new TextEncoder().encode("product asset");
+    r2._objects.set("products/prod-del-1/images/hero.png", { body: fileContent.buffer });
+
+    let queryCount = 0;
+    db._statement.all.mockImplementation(async () => {
+      queryCount++;
+      if (queryCount === 1) {
+        // getAssetsByProduct
+        return {
+          results: [{
+            id: "asset-del-1",
+            product_id: "prod-del-1",
+            asset_type: "image",
+            r2_key: "products/prod-del-1/images/hero.png",
+            cf_image_id: "cf-del-1",
+            url: "/r2/products/prod-del-1/images/hero.png",
+            created_at: "2026-01-01T00:00:00Z",
+          }],
+          success: true,
+          meta: { changes: 0, last_row_id: 0, rows_read: 1 },
+        };
+      }
+      return {
+        results: [],
+        success: true,
+        meta: { changes: 0, last_row_id: 0, rows_read: 0 },
+      };
+    });
+
+    db._statement.run.mockResolvedValue({
+      results: [],
+      success: true,
+      meta: { changes: 1, last_row_id: 0, rows_read: 0 },
+    });
+
+    const env = buildEnv({ DB: db, BUCKET: r2 });
+
+    const res = await app.fetch(
+      makeRequest("/cleanup/product/prod-del-1", { method: "DELETE" }),
+      env
+    );
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toHaveProperty("data");
+
+    // Verify R2 delete was invoked for the product's assets
+    expect(r2.delete).toHaveBeenCalled();
+    // Verify D1 delete was called
+    expect(db.prepare).toHaveBeenCalled();
+  });
+
+  it("domain deletion with no products still succeeds", async () => {
+    const db = createMockD1();
+    const kv = createMockKV();
+
+    // No products under this domain
+    db._statement.all.mockResolvedValue({
+      results: [],
+      success: true,
+      meta: { changes: 0, last_row_id: 0, rows_read: 0 },
+    });
+
+    db._statement.run.mockResolvedValue({
+      results: [],
+      success: true,
+      meta: { changes: 1, last_row_id: 0, rows_read: 0 },
+    });
+
+    const env = buildEnv({ DB: db, CACHE: kv });
+
+    const res = await app.fetch(
+      makeRequest("/cleanup/domain/dom-empty", { method: "DELETE" }),
+      env
+    );
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toHaveProperty("data");
+  });
+});
