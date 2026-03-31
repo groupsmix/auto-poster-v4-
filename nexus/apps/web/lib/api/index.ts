@@ -43,6 +43,10 @@ export type {
   ProductAnalysisResult,
   LanguageOption,
   LocalizationCandidate,
+  BriefingSectionItem,
+  BriefingSectionData,
+  BriefingResponse,
+  BriefingSettingsData,
 } from "./types";
 
 // Re-export shared types that were re-exported from the old api.ts

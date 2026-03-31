@@ -371,3 +371,47 @@ export interface LocalizationCandidate {
   total_revenue: number;
   total_orders: number;
 }
+
+// --- Daily Briefings ---
+
+export interface BriefingSectionItem {
+  headline: string;
+  detail: string;
+  confidence?: "high" | "medium" | "low";
+  domain?: string;
+  tags?: string[];
+}
+
+export interface BriefingSectionData {
+  type: "trends" | "predictions" | "opportunities" | "action_items" | "niche_hacks";
+  title: string;
+  items: BriefingSectionItem[];
+}
+
+export interface BriefingResponse {
+  id: string;
+  briefing_date: string;
+  title: string;
+  summary: string;
+  sections: BriefingSectionData[];
+  domains_analyzed?: string[];
+  focus_keywords?: string[];
+  ai_model_used?: string;
+  tokens_used: number;
+  status: "generating" | "completed" | "failed";
+  generated_at: string;
+  created_at: string;
+}
+
+export interface BriefingSettingsData {
+  id: string;
+  user_timezone: string;
+  briefing_hour: number;
+  briefing_enabled: boolean;
+  focus_domains?: string[];
+  focus_keywords?: string[];
+  briefing_types: string[];
+  last_generated_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}
