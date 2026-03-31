@@ -260,6 +260,16 @@ export interface PromptTemplate {
   updated_at: string;
 }
 
+export interface PromptVersion {
+  id: string;
+  prompt_id: string;
+  version: number;
+  prompt: string;
+  name?: string;
+  layer?: string;
+  changed_at: string;
+}
+
 // --- AI Models ---
 
 export interface AIModel {

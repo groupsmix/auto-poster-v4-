@@ -5,6 +5,7 @@ import type {
   Domain,
   Category,
   PromptTemplate,
+  PromptVersion,
   AIModel,
   Product,
   ProductStatus,
@@ -172,9 +173,13 @@ export const api = {
     get: (id: string) => request<PromptTemplate>(`/prompts/${id}`),
     update: (id: string, data: { prompt: string }) =>
       request<PromptTemplate>(`/prompts/${id}`, { method: "PUT", body: data }),
-    // NOTE: history() and revert() removed — no prompt_versions table exists
-    // in the D1 schema, so these endpoints have no backing storage.
-    // Add a prompt_versions table if version history is needed in the future.
+    history: (id: string) =>
+      request<PromptVersion[]>(`/prompts/${id}/history`),
+    revert: (id: string, versionId: string) =>
+      request<{ id: string; reverted_to_version: number }>(`/prompts/${id}/revert/${versionId}`, {
+        method: "POST",
+        body: {},
+      }),
     test: (id: string) =>
       request<{ assembled: string }>(`/prompts/${id}/test`, {
         method: "POST",
@@ -548,14 +553,6 @@ export const api = {
 };
 
 // --- Frontend-specific types (not in @nexus/shared) ---
-
-interface PromptVersion {
-  id: string;
-  prompt_id: string;
-  version: number;
-  prompt: string;
-  updated_at: string;
-}
 
 interface ReviewItem {
   id: string;
