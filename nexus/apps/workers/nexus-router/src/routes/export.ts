@@ -19,8 +19,8 @@ exportRoutes.get("/full", async (c) => {
       "workflow_steps",
       "reviews",
       "settings",
-      "prompts",
-      "ai_analytics",
+      "prompt_templates",
+      "analytics",
     ];
 
     const results: Record<string, unknown> = {};

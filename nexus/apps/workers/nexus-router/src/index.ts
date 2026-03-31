@@ -31,6 +31,7 @@ import analytics from "./routes/analytics";
 import history from "./routes/history";
 import settings from "./routes/settings";
 import exportRoutes from "./routes/export";
+import apiKeys from "./routes/api-keys";
 
 const app = new Hono<{ Bindings: RouterEnv; Variables: { requestId: string } }>();
 
@@ -38,17 +39,17 @@ const app = new Hono<{ Bindings: RouterEnv; Variables: { requestId: string } }>(
 // MIDDLEWARE
 // ============================================================
 
-// CORS — restrict to known dashboard origins
-app.use(
-  "*",
-  cors({
+// CORS — restrict to known dashboard origins (supports custom domain via env)
+app.use("*", async (c, next) => {
+  const customOrigin = c.env.CUSTOM_DOMAIN_ORIGIN;
+  return cors({
     origin: (origin) => {
-      // Allow CF Pages domains and localhost for development
       if (!origin) return origin;
       if (
         origin.endsWith(".pages.dev") ||
         origin.endsWith(".workers.dev") ||
-        origin.startsWith("http://localhost")
+        origin.startsWith("http://localhost") ||
+        (customOrigin && origin === customOrigin)
       ) {
         return origin;
       }
@@ -58,8 +59,8 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization", "X-Request-ID"],
     exposeHeaders: ["X-Request-ID"],
     maxAge: 86400,
-  })
-);
+  })(c, next);
+});
 
 // Request ID tracing middleware — generate or propagate X-Request-ID
 app.use("/api/*", async (c, next) => {
@@ -140,7 +141,15 @@ app.use("/api/*", async (c, next) => {
   }
 
   const token = authHeader.replace(/^Bearer\s+/i, "");
-  if (token !== secret) {
+
+  // Use constant-time comparison to prevent timing attacks
+  const encoder = new TextEncoder();
+  const tokenBytes = encoder.encode(token);
+  const secretBytes = encoder.encode(secret);
+  if (
+    tokenBytes.byteLength !== secretBytes.byteLength ||
+    !crypto.subtle.timingSafeEqual(tokenBytes, secretBytes)
+  ) {
     return c.json<ApiResponse>(
       { success: false, error: "Invalid authentication token" },
       401
@@ -274,6 +283,7 @@ app.route("/api/analytics", analytics);
 app.route("/api/history", history);
 app.route("/api/settings", settings);
 app.route("/api/export", exportRoutes);
+app.route("/api/api-keys", apiKeys);
 
 // ============================================================
 // 404 catch-all

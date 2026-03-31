@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
-import { forwardToService, errorResponse } from "../helpers";
+import { forwardToService, storageQuery, errorResponse } from "../helpers";
 
 const ai = new Hono<{ Bindings: RouterEnv }>();
 
@@ -10,6 +10,77 @@ ai.get("/models", async (c) => {
   try {
     const result = await forwardToService(c.env.NEXUS_AI, "/ai/registry");
     return c.json<ApiResponse>(result);
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// GET /api/ai/models/:id — get single AI model
+ai.get("/models/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const data = await storageQuery(
+      c.env,
+      "SELECT * FROM ai_models WHERE id = ? LIMIT 1",
+      [id]
+    );
+    const results = data as Record<string, unknown>[];
+    if (!results || results.length === 0) {
+      return c.json<ApiResponse>(
+        { success: false, error: "AI model not found" },
+        404
+      );
+    }
+    return c.json<ApiResponse>({ success: true, data: results[0] });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// POST /api/ai/models/:id/key — add/update API key for an AI model
+ai.post("/models/:id/key", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const body = await c.req.json<{ api_key?: string }>();
+
+    if (!body.api_key) {
+      return c.json<ApiResponse>(
+        { success: false, error: "api_key is required" },
+        400
+      );
+    }
+
+    // Store the key name as a secret reference on the model
+    await storageQuery(
+      c.env,
+      "UPDATE ai_models SET api_key_secret_name = ?, status = 'active' WHERE id = ?",
+      [body.api_key, id]
+    );
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { id, status: "active" },
+    });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// DELETE /api/ai/models/:id/key — remove API key from an AI model
+ai.delete("/models/:id/key", async (c) => {
+  try {
+    const id = c.req.param("id");
+
+    await storageQuery(
+      c.env,
+      "UPDATE ai_models SET api_key_secret_name = NULL, status = 'sleeping' WHERE id = ?",
+      [id]
+    );
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { id, status: "sleeping" },
+    });
   } catch (err) {
     return errorResponse(c, err);
   }
