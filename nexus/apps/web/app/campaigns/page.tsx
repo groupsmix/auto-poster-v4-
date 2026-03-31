@@ -64,7 +64,7 @@ export default function CampaignsPage() {
       await api.campaigns.create({
         name: formName,
         domain_id: formDomain,
-        target_product_count: formTarget,
+        target_count: formTarget,
         deadline: formDeadline || undefined,
         status: "active",
       });
@@ -150,14 +150,14 @@ export default function CampaignsPage() {
 
               <ProgressBar
                 current={c.products_created}
-                target={c.target_product_count}
+                target={c.target_count}
               />
 
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mt-4 text-sm">
                 <div>
                   <span className="text-muted">Target</span>
                   <p className="font-medium text-foreground">
-                    {c.target_product_count} products
+                    {c.target_count} products
                   </p>
                 </div>
                 <div>
