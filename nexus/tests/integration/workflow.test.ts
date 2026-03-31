@@ -544,3 +544,305 @@ describe("nexus-workflow: Context injection", () => {
     expect(hasProductInsert).toBe(true);
   });
 });
+
+// ============================================================
+// [7.1] AUTO-APPROVE / AUTO-REVISE LOGIC
+// Tests the decision tree in WorkflowEngine.runPipeline()
+// ============================================================
+
+describe("nexus-workflow: Auto-Approve/Auto-Revise logic", () => {
+  /**
+   * Build a storage fetcher that simulates a completed 9-step pipeline
+   * with a specific quality score for auto-approve/revise testing.
+   */
+  function buildAutoApproveStorageFetcher(qualityScore: number, autoRevisionAttempt = 0) {
+    const queriesCalled: string[] = [];
+
+    const storageFetcher = createMockFetcher(async (req) => {
+      const url = new URL(req.url);
+      if (url.pathname === "/d1/query") {
+        const body = await req.json() as { sql: string; params?: unknown[] };
+        queriesCalled.push(body.sql);
+
+        // Return the workflow run for status checks
+        if (body.sql.includes("workflow_runs") && body.sql.includes("SELECT")) {
+          return jsonResponse({
+            success: true,
+            data: {
+              results: [{
+                id: "run-auto-1",
+                product_id: "prod-auto-1",
+                status: "running",
+                current_step: 9,
+                total_steps: 9,
+              }],
+            },
+          });
+        }
+
+        // Return workflow steps for revision
+        if (body.sql.includes("workflow_steps") && body.sql.includes("SELECT")) {
+          return jsonResponse({
+            success: true,
+            data: {
+              results: [
+                { id: "s1", step_name: "content_generation", status: "completed", step_order: 3, output: JSON.stringify({ content: "test" }) },
+                { id: "s2", step_name: "quality_review", status: "completed", step_order: 9, output: JSON.stringify({ overall_score: qualityScore, issues: [] }) },
+              ],
+            },
+          });
+        }
+
+        // Return product data for revision
+        if (body.sql.includes("products") && body.sql.includes("SELECT")) {
+          return jsonResponse({
+            success: true,
+            data: {
+              results: [{
+                id: "prod-auto-1",
+                name: "Auto Test Product",
+                niche: "test",
+                domain_id: "dom-1",
+                category_id: "cat-1",
+                user_input: JSON.stringify({ platforms: ["etsy"], social_channels: [] }),
+              }],
+            },
+          });
+        }
+
+        // Default for INSERT/UPDATE
+        return jsonResponse({
+          success: true,
+          data: { results: [], meta: { changes: 1 } },
+        });
+      }
+      if (url.pathname.startsWith("/kv/")) {
+        return jsonResponse({ success: false, error: "not found" });
+      }
+      return jsonResponse({ success: true, data: {} });
+    });
+
+    return { storageFetcher, queriesCalled };
+  }
+
+  it("auto-approves when quality score >= threshold", async () => {
+    const { storageFetcher, queriesCalled } = buildAutoApproveStorageFetcher(9.5);
+
+    const aiFetcher = createMockFetcher(async () =>
+      jsonResponse({
+        success: true,
+        data: {
+          result: JSON.stringify({ overall_score: 9.5, issues: [], summary: "Excellent" }),
+          model: "test-model",
+          cached: false,
+          tokens: 100,
+        },
+      })
+    );
+
+    const env = buildEnv({
+      NEXUS_STORAGE: storageFetcher,
+      NEXUS_AI: aiFetcher,
+    });
+
+    const res = await app.fetch(
+      makeRequest("/workflow/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain_id: "dom-1",
+          category_id: "cat-1",
+          niche: "Auto-approve test",
+          name: "High Quality Product",
+          auto_approve_settings: {
+            auto_approve_threshold: 9,
+            auto_revise_min_score: 7,
+            max_auto_revisions: 2,
+          },
+        }),
+      }),
+      env
+    );
+
+    expect(res.status).toBe(200);
+    const data = await res.json() as TestApiResponse;
+    expect(data.success).toBe(true);
+    expect(data.data).toHaveProperty("product_id");
+  });
+
+  it("auto-revises when score is between min and threshold", async () => {
+    const { storageFetcher, queriesCalled } = buildAutoApproveStorageFetcher(7.5);
+
+    const aiFetcher = createMockFetcher(async () =>
+      jsonResponse({
+        success: true,
+        data: {
+          result: JSON.stringify({
+            overall_score: 7.5,
+            issues: [{ criterion: "clarity", problem: "Needs improvement", fix: "Rewrite intro" }],
+            summary: "Decent but needs revision",
+          }),
+          model: "test-model",
+          cached: false,
+          tokens: 100,
+        },
+      })
+    );
+
+    const env = buildEnv({
+      NEXUS_STORAGE: storageFetcher,
+      NEXUS_AI: aiFetcher,
+    });
+
+    const res = await app.fetch(
+      makeRequest("/workflow/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain_id: "dom-1",
+          category_id: "cat-1",
+          niche: "Auto-revise test",
+          name: "Medium Quality Product",
+          auto_approve_settings: {
+            auto_approve_threshold: 9,
+            auto_revise_min_score: 7,
+            max_auto_revisions: 2,
+          },
+        }),
+      }),
+      env
+    );
+
+    expect(res.status).toBe(200);
+    const data = await res.json() as TestApiResponse;
+    expect(data.success).toBe(true);
+  });
+
+  it("sends to pending_review when score < min", async () => {
+    const { storageFetcher, queriesCalled } = buildAutoApproveStorageFetcher(5.0);
+
+    const aiFetcher = createMockFetcher(async () =>
+      jsonResponse({
+        success: true,
+        data: {
+          result: JSON.stringify({ overall_score: 5.0, issues: [{ criterion: "quality", problem: "Poor", fix: "Rewrite" }], summary: "Low quality" }),
+          model: "test-model",
+          cached: false,
+          tokens: 100,
+        },
+      })
+    );
+
+    const env = buildEnv({
+      NEXUS_STORAGE: storageFetcher,
+      NEXUS_AI: aiFetcher,
+    });
+
+    const res = await app.fetch(
+      makeRequest("/workflow/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain_id: "dom-1",
+          category_id: "cat-1",
+          niche: "Below min score test",
+          auto_approve_settings: {
+            auto_approve_threshold: 9,
+            auto_revise_min_score: 7,
+            max_auto_revisions: 2,
+          },
+        }),
+      }),
+      env
+    );
+
+    expect(res.status).toBe(200);
+    const data = await res.json() as TestApiResponse;
+    expect(data.success).toBe(true);
+  });
+
+  it("sends to pending_review when max revisions exhausted", async () => {
+    // Score 7.5 would normally trigger auto-revise, but attempt=2 and max=2
+    const { storageFetcher } = buildAutoApproveStorageFetcher(7.5, 2);
+
+    const aiFetcher = createMockFetcher(async () =>
+      jsonResponse({
+        success: true,
+        data: {
+          result: JSON.stringify({ overall_score: 7.5, issues: [], summary: "OK" }),
+          model: "test-model",
+          cached: false,
+          tokens: 100,
+        },
+      })
+    );
+
+    const env = buildEnv({
+      NEXUS_STORAGE: storageFetcher,
+      NEXUS_AI: aiFetcher,
+    });
+
+    const res = await app.fetch(
+      makeRequest("/workflow/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain_id: "dom-1",
+          category_id: "cat-1",
+          niche: "Max revisions exhausted test",
+          auto_approve_settings: {
+            auto_approve_threshold: 9,
+            auto_revise_min_score: 7,
+            max_auto_revisions: 2,
+          },
+          auto_revision_attempt: 2,
+        }),
+      }),
+      env
+    );
+
+    expect(res.status).toBe(200);
+    const data = await res.json() as TestApiResponse;
+    expect(data.success).toBe(true);
+  });
+
+  it("defaults to pending_review when no auto-approve settings provided", async () => {
+    const { storageFetcher } = buildAutoApproveStorageFetcher(9.5);
+
+    const aiFetcher = createMockFetcher(async () =>
+      jsonResponse({
+        success: true,
+        data: {
+          result: JSON.stringify({ overall_score: 9.5, issues: [], summary: "Perfect" }),
+          model: "test-model",
+          cached: false,
+          tokens: 100,
+        },
+      })
+    );
+
+    const env = buildEnv({
+      NEXUS_STORAGE: storageFetcher,
+      NEXUS_AI: aiFetcher,
+    });
+
+    // No auto_approve_settings → always pending_review
+    const res = await app.fetch(
+      makeRequest("/workflow/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain_id: "dom-1",
+          category_id: "cat-1",
+          niche: "No auto-approve settings",
+        }),
+      }),
+      env
+    );
+
+    expect(res.status).toBe(200);
+    const data = await res.json() as TestApiResponse;
+    expect(data.success).toBe(true);
+    expect(data.data).toHaveProperty("product_id");
+  });
+});

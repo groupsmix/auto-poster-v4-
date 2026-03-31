@@ -357,6 +357,188 @@ describe("nexus-ai: Health Scoring", () => {
 });
 
 // ============================================================
+// [7.4] RATE LIMIT (429) & QUOTA EXCEEDED (402) FAILOVER
+// Tests that the failover engine correctly handles rate-limited
+// and quota-exhausted models by falling through to next model
+// ============================================================
+
+describe("nexus-ai: Rate Limit & Quota Failover", () => {
+  it("falls through to Workers AI when all external models return 429", async () => {
+    const db = createMockD1();
+    db._statement.run.mockResolvedValue({
+      results: [],
+      success: true,
+      meta: { changes: 0 },
+    });
+
+    const kv = createMockKV();
+    kv.get = vi.fn().mockResolvedValue(null) as MockKVNamespace["get"];
+
+    const ai = {
+      run: vi.fn().mockResolvedValue({
+        response: "Workers AI recovered after 429s",
+      }),
+    };
+
+    // Provide API keys so external models are attempted (and fail with 429)
+    const env = buildEnv({
+      DB: db,
+      KV: kv,
+      AI: ai,
+      DEEPSEEK_API_KEY: "test-key",
+      SILICONFLOW_API_KEY: "test-key",
+    });
+
+    // Mock global fetch to return 429 for all external calls
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockImplementation(async () => {
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded" }),
+        { status: 429, headers: { "Content-Type": "application/json" } }
+      );
+    });
+
+    try {
+      const res = await app.fetch(
+        makeRequest("/ai/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskType: "writing",
+            prompt: "test rate limit failover",
+          }),
+        }),
+        env
+      );
+
+      expect(res.status).toBe(200);
+      const data = await res.json() as TestApiResponse;
+      expect(data.success).toBe(true);
+      // Workers AI should have been called as fallback
+      expect(ai.run).toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("falls through to Workers AI when external models return 402 quota exceeded", async () => {
+    const db = createMockD1();
+    db._statement.run.mockResolvedValue({
+      results: [],
+      success: true,
+      meta: { changes: 0 },
+    });
+
+    const kv = createMockKV();
+    kv.get = vi.fn().mockResolvedValue(null) as MockKVNamespace["get"];
+
+    const ai = {
+      run: vi.fn().mockResolvedValue({
+        response: "Workers AI recovered after quota exceeded",
+      }),
+    };
+
+    const env = buildEnv({
+      DB: db,
+      KV: kv,
+      AI: ai,
+      DEEPSEEK_API_KEY: "test-key",
+      SILICONFLOW_API_KEY: "test-key",
+    });
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockImplementation(async () => {
+      return new Response(
+        JSON.stringify({ error: "QUOTA_EXCEEDED" }),
+        { status: 402, headers: { "Content-Type": "application/json" } }
+      );
+    });
+
+    try {
+      const res = await app.fetch(
+        makeRequest("/ai/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskType: "writing",
+            prompt: "test quota exceeded failover",
+          }),
+        }),
+        env
+      );
+
+      expect(res.status).toBe(200);
+      const data = await res.json() as TestApiResponse;
+      expect(data.success).toBe(true);
+      expect(ai.run).toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("model state is persisted to KV after rate limit", async () => {
+    const db = createMockD1();
+    db._statement.run.mockResolvedValue({
+      results: [],
+      success: true,
+      meta: { changes: 0 },
+    });
+
+    const kv = createMockKV();
+    kv.get = vi.fn().mockResolvedValue(null) as MockKVNamespace["get"];
+
+    const ai = {
+      run: vi.fn().mockResolvedValue({
+        response: "Workers AI fallback after state persist",
+      }),
+    };
+
+    // Use a less-tested task type ("seo") so models are fresh (not already rate-limited in memory)
+    const env = buildEnv({
+      DB: db,
+      KV: kv,
+      AI: ai,
+      DATAFORSEO_KEY: "test-key",
+      SERPAPI_KEY: "test-key",
+      SILICONFLOW_API_KEY: "test-key",
+    });
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockImplementation(async () => {
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded" }),
+        { status: 429, headers: { "Content-Type": "application/json" } }
+      );
+    });
+
+    try {
+      await app.fetch(
+        makeRequest("/ai/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskType: "seo",
+            prompt: "test state persistence for seo task",
+          }),
+        }),
+        env
+      );
+
+      // KV.put should have been called to persist model state
+      expect(kv.put).toHaveBeenCalled();
+      // Verify a model_state: key was persisted
+      const putCalls = (kv.put as ReturnType<typeof vi.fn>).mock.calls;
+      const stateKeys = putCalls.filter(
+        (call: unknown[]) => typeof call[0] === "string" && call[0].startsWith("model_state:")
+      );
+      expect(stateKeys.length).toBeGreaterThan(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+// ============================================================
 // WORKERS AI — always last fallback, never fails
 // ============================================================
 
