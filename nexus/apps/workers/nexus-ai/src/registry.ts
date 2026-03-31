@@ -96,6 +96,16 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
     { id: "qwen-max-review", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
     WORKERS_AI_TEXT,
   ],
+
+  // ----------------------------------------------------------
+  // REASONING TASKS (used by AI CEO for deep niche analysis)
+  // ----------------------------------------------------------
+  reasoning: [
+    { id: "deepseek-r1-reason", name: "DeepSeek-R1", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-reasoner" },
+    { id: "deepseek-v3-reason", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
+    { id: "qwen-max-reason", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
+    WORKERS_AI_TEXT,
+  ],
 };
 
 // --- Aliases: workflow steps use short TaskType names that must resolve here ---
