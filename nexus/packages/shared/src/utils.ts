@@ -91,3 +91,73 @@ export function now(): string {
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Parse an AI response string as JSON.
+ * Tries three strategies in order:
+ *   1. Direct JSON.parse
+ *   2. Extract from markdown ```json ... ``` code blocks
+ *   3. Find balanced JSON object using bracket counting
+ *
+ * This is the single source of truth — all workers should use this
+ * instead of maintaining their own copy.
+ */
+export function parseAIJSON(raw: string): Record<string, unknown> {
+  // Strategy 1: Direct JSON.parse
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    // continue to next strategy
+  }
+
+  // Strategy 2: Extract from markdown code blocks
+  const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (jsonMatch?.[1]) {
+    try {
+      return JSON.parse(jsonMatch[1].trim()) as Record<string, unknown>;
+    } catch {
+      // continue to next strategy
+    }
+  }
+
+  // Strategy 3: Find balanced JSON object using bracket counting
+  const startIdx = raw.indexOf("{");
+  if (startIdx !== -1) {
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    for (let i = startIdx; i < raw.length; i++) {
+      const ch = raw[i];
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escape = true;
+        continue;
+      }
+      if (ch === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (inString) continue;
+      if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) {
+          try {
+            return JSON.parse(raw.slice(startIdx, i + 1)) as Record<string, unknown>;
+          } catch {
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // All strategies failed
+  const preview = raw.length > 200 ? raw.slice(0, 200) + "..." : raw;
+  throw new Error(
+    `Failed to parse AI response as JSON. Raw response preview: ${preview}`
+  );
+}

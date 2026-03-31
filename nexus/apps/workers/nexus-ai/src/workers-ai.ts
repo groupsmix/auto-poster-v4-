@@ -43,7 +43,7 @@ export async function runTextGeneration(
 
   const result = (await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
     messages,
-    max_tokens: options?.maxTokens ?? 2048,
+    max_tokens: options?.maxTokens ?? 4096,
     temperature: options?.temperature ?? 0.7,
   })) as TextGenResult;
 

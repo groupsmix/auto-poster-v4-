@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { Env, WorkflowStatus, ApiResponse, AutoApproveSettings } from "@nexus/shared";
-import { WORKFLOW_STEPS, generateId, now } from "@nexus/shared";
+import { WORKFLOW_STEPS, generateId, now, parseAIJSON } from "@nexus/shared";
 import {
   type StepName,
   getStepConfig,
@@ -205,65 +205,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
-function parseAIResponse(raw: string): Record<string, unknown> {
-  // Strategy 1: Direct JSON.parse
-  try {
-    return JSON.parse(raw) as Record<string, unknown>;
-  } catch {
-    // continue to next strategy
-  }
-
-  // Strategy 2: Extract from markdown code blocks
-  const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch?.[1]) {
-    try {
-      return JSON.parse(jsonMatch[1].trim()) as Record<string, unknown>;
-    } catch {
-      // continue to next strategy
-    }
-  }
-
-  // Strategy 3: Find balanced JSON object using bracket counting
-  const startIdx = raw.indexOf("{");
-  if (startIdx !== -1) {
-    let depth = 0;
-    let inString = false;
-    let escape = false;
-    for (let i = startIdx; i < raw.length; i++) {
-      const ch = raw[i];
-      if (escape) {
-        escape = false;
-        continue;
-      }
-      if (ch === "\\") {
-        escape = true;
-        continue;
-      }
-      if (ch === '"') {
-        inString = !inString;
-        continue;
-      }
-      if (inString) continue;
-      if (ch === "{") depth++;
-      else if (ch === "}") {
-        depth--;
-        if (depth === 0) {
-          try {
-            return JSON.parse(raw.slice(startIdx, i + 1)) as Record<string, unknown>;
-          } catch {
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  // All strategies failed — wrap error with raw response for debugging
-  const preview = raw.length > 200 ? raw.slice(0, 200) + "..." : raw;
-  throw new Error(
-    `Failed to parse AI response as JSON. Raw response preview: ${preview}`
-  );
-}
+// parseAIResponse delegates to the shared parseAIJSON (single source of truth)
+const parseAIResponse = parseAIJSON;
 
 // ============================================================
 // WorkflowEngine — manages CF Workflow instances

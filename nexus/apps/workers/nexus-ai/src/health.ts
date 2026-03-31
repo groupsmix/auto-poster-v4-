@@ -31,6 +31,8 @@ const HEALTH_KV_PREFIX = "health:";
 const HEALTH_KV_TTL = 3600;
 /** Only persist to KV every N calls to avoid excessive writes */
 const HEALTH_PERSIST_INTERVAL = 5;
+/** KV key for tracking last daily snapshot date per model */
+const HEALTH_SNAPSHOT_PREFIX = "health_snapshot:";
 
 // ============================================================
 // UPDATE HEALTH SCORE — called after every AI call
@@ -142,6 +144,9 @@ export async function updateHealthScore(
     } catch {
       console.log(`[HEALTH] Could not write analytics for ${modelId}`);
     }
+
+    // Save daily health snapshot (one per model per day)
+    await saveDailySnapshot(modelId, modelName, health, env);
   }
 }
 
@@ -167,6 +172,109 @@ export async function getHealthReport(env: Env): Promise<ModelHealthData[]> {
 }
 
 // ============================================================
+// DAILY HEALTH SNAPSHOTS — persist to D1 for 7-day window
+// ============================================================
+
+/** Get today's date as YYYY-MM-DD */
+function todayDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Save a daily health snapshot for a model.
+ * Uses KV to track whether today's snapshot has already been written,
+ * then upserts into D1 ai_health_daily table.
+ */
+async function saveDailySnapshot(
+  modelId: string,
+  modelName: string,
+  health: ModelHealthData,
+  env: Env
+): Promise<void> {
+  const today = todayDate();
+  const kvKey = `${HEALTH_SNAPSHOT_PREFIX}${modelId}:${today}`;
+
+  try {
+    // Check if we already saved a snapshot for this model today
+    const existing = await env.KV.get(kvKey).catch(() => null);
+    if (existing) return; // Already saved today
+
+    // Upsert daily snapshot into D1
+    await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sql: `INSERT INTO ai_health_daily (id, model_id, model_name, date, total_calls, total_failures, avg_latency_ms, health_score, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(model_id, date) DO UPDATE SET
+                total_calls = excluded.total_calls,
+                total_failures = excluded.total_failures,
+                avg_latency_ms = excluded.avg_latency_ms,
+                health_score = excluded.health_score`,
+        params: [
+          generateId(),
+          modelId,
+          modelName,
+          today,
+          health.totalCalls,
+          health.totalFailures,
+          Math.round(health.avgLatencyMs),
+          health.healthScore,
+          now(),
+        ],
+      }),
+    });
+
+    // Mark today as saved in KV (expires at end of day + buffer)
+    await env.KV.put(kvKey, "1", { expirationTtl: 86400 });
+  } catch {
+    console.log(`[HEALTH] Could not save daily snapshot for ${modelId}`);
+  }
+}
+
+/**
+ * Get the average health score for a model over the last 7 days from D1.
+ * Returns null if no snapshot data is available.
+ */
+async function get7DayAvgHealth(
+  modelId: string,
+  env: Env
+): Promise<number | null> {
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+
+    const resp = await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sql: `SELECT AVG(health_score) as avg_score, COUNT(*) as days
+              FROM ai_health_daily
+              WHERE model_id = ? AND date >= ?`,
+        params: [modelId, sevenDaysAgo],
+      }),
+    });
+
+    const json = (await resp.json()) as {
+      success: boolean;
+      data?: { results?: Array<{ avg_score: number | null; days: number }> };
+    };
+
+    if (
+      json.success &&
+      json.data?.results?.[0] &&
+      json.data.results[0].days > 0
+    ) {
+      return json.data.results[0].avg_score;
+    }
+  } catch {
+    console.log(`[HEALTH] Could not query 7-day history for ${modelId}`);
+  }
+  return null;
+}
+
+// ============================================================
 // SHOULD SUGGEST REORDER — if model #2 has higher health
 // than model #1 for 7+ days, suggest reordering
 // ============================================================
@@ -180,10 +288,11 @@ export interface ReorderSuggestion {
   reason: string;
 }
 
-export function shouldSuggestReorder(
+export async function shouldSuggestReorder(
   taskType: string,
-  modelIds: string[]
-): ReorderSuggestion | null {
+  modelIds: string[],
+  env: Env
+): Promise<ReorderSuggestion | null> {
   if (modelIds.length < 2) return null;
 
   const first = healthStore.get(modelIds[0]);
@@ -194,18 +303,27 @@ export function shouldSuggestReorder(
   // Both models need at least 10 calls to make a meaningful comparison
   if (first.totalCalls < 10 || second.totalCalls < 10) return null;
 
-  // Check if second model has meaningfully higher health
+  // Check if second model has meaningfully higher health (current)
   if (second.healthScore > first.healthScore + 5) {
-    // Check if first model has been consistently lower
-    // (simplified: we just check current state — full 7-day tracking
-    // would require time-series data in D1 which can be added later)
+    // Validate against 7-day rolling window from D1 snapshots
+    const firstAvg = await get7DayAvgHealth(first.modelId, env);
+    const secondAvg = await get7DayAvgHealth(second.modelId, env);
+
+    // If we have historical data, require the trend to be consistent
+    if (firstAvg !== null && secondAvg !== null) {
+      if (secondAvg <= firstAvg + 3) {
+        // Historical data doesn't support the reorder — short-term blip
+        return null;
+      }
+    }
+
     return {
       taskType,
       currentFirst: first.modelName,
       suggestedFirst: second.modelName,
       currentFirstHealth: first.healthScore,
       suggestedFirstHealth: second.healthScore,
-      reason: `${second.modelName} (health: ${second.healthScore}%) is more reliable than ${first.modelName} (health: ${first.healthScore}%). Consider reordering.`,
+      reason: `${second.modelName} (health: ${second.healthScore}%) has been consistently more reliable than ${first.modelName} (health: ${first.healthScore}%) over the past 7 days. Consider reordering.`,
     };
   }
 

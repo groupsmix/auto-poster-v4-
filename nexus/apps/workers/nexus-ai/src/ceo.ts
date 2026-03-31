@@ -9,6 +9,7 @@
 // ============================================================
 
 import type { Env } from "@nexus/shared";
+import { parseAIJSON } from "@nexus/shared";
 import { runWithFailover } from "./failover";
 
 // --- Types ---
@@ -313,57 +314,9 @@ export async function getCEOConfig(
 // ============================================================
 
 function parseAnalysisResponse(raw: string): CEOAnalysis {
-  // Try direct parse
-  try {
-    const parsed = JSON.parse(raw) as CEOAnalysis;
-    validateAnalysis(parsed);
-    return parsed;
-  } catch {
-    // continue
-  }
-
-  // Extract from markdown code blocks
-  const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch?.[1]) {
-    try {
-      const parsed = JSON.parse(jsonMatch[1].trim()) as CEOAnalysis;
-      validateAnalysis(parsed);
-      return parsed;
-    } catch {
-      // continue
-    }
-  }
-
-  // Find balanced JSON
-  const startIdx = raw.indexOf("{");
-  if (startIdx !== -1) {
-    let depth = 0;
-    let inStr = false;
-    let esc = false;
-    for (let i = startIdx; i < raw.length; i++) {
-      const ch = raw[i];
-      if (esc) { esc = false; continue; }
-      if (ch === "\\") { esc = true; continue; }
-      if (ch === '"') { inStr = !inStr; continue; }
-      if (inStr) continue;
-      if (ch === "{") depth++;
-      else if (ch === "}") {
-        depth--;
-        if (depth === 0) {
-          try {
-            const parsed = JSON.parse(raw.slice(startIdx, i + 1)) as CEOAnalysis;
-            validateAnalysis(parsed);
-            return parsed;
-          } catch {
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  const preview = raw.length > 300 ? raw.slice(0, 300) + "..." : raw;
-  throw new Error(`Failed to parse CEO analysis response: ${preview}`);
+  const parsed = parseAIJSON(raw) as unknown as CEOAnalysis;
+  validateAnalysis(parsed);
+  return parsed;
 }
 
 function validateAnalysis(obj: CEOAnalysis): void {
@@ -383,51 +336,9 @@ interface RefinedPrompts {
 }
 
 function parseRefinedPrompts(raw: string): RefinedPrompts {
-  // Try direct parse
-  try {
-    const parsed = JSON.parse(raw) as RefinedPrompts;
-    if (parsed.domain_prompt && parsed.category_prompt) return parsed;
-  } catch {
-    // continue
+  const parsed = parseAIJSON(raw) as unknown as RefinedPrompts;
+  if (!parsed.domain_prompt || !parsed.category_prompt) {
+    throw new Error("Failed to parse refined prompts response: missing required fields");
   }
-
-  // Extract from markdown code blocks
-  const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch?.[1]) {
-    try {
-      const parsed = JSON.parse(jsonMatch[1].trim()) as RefinedPrompts;
-      if (parsed.domain_prompt && parsed.category_prompt) return parsed;
-    } catch {
-      // continue
-    }
-  }
-
-  // Find balanced JSON
-  const startIdx = raw.indexOf("{");
-  if (startIdx !== -1) {
-    let depth = 0;
-    let inStr = false;
-    let esc = false;
-    for (let i = startIdx; i < raw.length; i++) {
-      const ch = raw[i];
-      if (esc) { esc = false; continue; }
-      if (ch === "\\") { esc = true; continue; }
-      if (ch === '"') { inStr = !inStr; continue; }
-      if (inStr) continue;
-      if (ch === "{") depth++;
-      else if (ch === "}") {
-        depth--;
-        if (depth === 0) {
-          try {
-            const parsed = JSON.parse(raw.slice(startIdx, i + 1)) as RefinedPrompts;
-            if (parsed.domain_prompt && parsed.category_prompt) return parsed;
-          } catch {
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  throw new Error("Failed to parse refined prompts response");
+  return parsed;
 }
