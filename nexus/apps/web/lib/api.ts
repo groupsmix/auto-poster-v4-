@@ -133,12 +133,14 @@ export const api = {
       request<Category[]>(`/domains/${domainId}/categories`),
     get: (domainId: string, slug: string) =>
       request<Category>(`/domains/${domainId}/categories/${slug}`),
-    create: (data: { domain_id: string; name: string; description?: string; auto_setup?: boolean; niche_hint?: string; language?: string }) =>
-      request<Category & { ceo_setup?: string; ceo_data?: CEOSetupResponse; ceo_error?: string }>("/categories", { method: "POST", body: data }),
-    update: (id: string, data: Partial<Category>) =>
+    create: (domainId: string, data: { name: string; description?: string; auto_setup?: boolean; niche_hint?: string; language?: string }) =>
+      request<Category & { ceo_setup?: string; ceo_data?: CEOSetupResponse; ceo_error?: string }>("/categories", { method: "POST", body: { domain_id: domainId, ...data } }),
+    update: (domainId: string, id: string, data: Partial<Category>) =>
       request<Category>(`/categories/${id}`, { method: "PUT", body: data }),
-    delete: (id: string) =>
+    delete: (domainId: string, id: string) =>
       request<void>(`/categories/${id}`, { method: "DELETE" }),
+    reorder: (domainId: string, ids: string[]) =>
+      request<void>(`/domains/${domainId}/categories/reorder`, { method: "POST", body: { ids } }),
   },
 
   // Prompt template endpoints
