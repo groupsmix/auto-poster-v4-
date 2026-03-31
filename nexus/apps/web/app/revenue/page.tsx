@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
+import { handleApiError } from "@/lib/handleApiError";
 import type { RevenueDashboard } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
+import ErrorState from "@/components/ErrorState";
 import Modal from "@/components/Modal";
 
 function formatCurrency(amount: number): string {
@@ -57,11 +59,11 @@ const emptyDashboard: RevenueDashboard = {
 };
 
 export default function RevenuePage() {
-  const { data: connections, loading: loadingConn, refetch: refetchConn } = useApiQuery(
+  const { data: connections, loading: loadingConn, error: errorConn, refetch: refetchConn } = useApiQuery(
     () => api.revenue.connections.list(),
     [],
   );
-  const { data: dashboard, loading: loadingDash } = useApiQuery(
+  const { data: dashboard, loading: loadingDash, error: errorDash, refetch: refetchDash } = useApiQuery(
     () => api.revenue.dashboard(),
     emptyDashboard,
   );
@@ -88,6 +90,8 @@ export default function RevenuePage() {
       setFormShopName("");
       setFormApiKey("");
       refetchConn();
+    } catch (err) {
+      handleApiError(err, "Failed to connect platform");
     } finally {
       setCreating(false);
     }
@@ -98,6 +102,8 @@ export default function RevenuePage() {
     try {
       await api.revenue.connections.sync(id);
       refetchConn();
+    } catch (err) {
+      handleApiError(err, "Failed to sync revenue data");
     } finally {
       setSyncing(null);
     }
@@ -105,8 +111,12 @@ export default function RevenuePage() {
 
   async function handleDisconnect(id: string) {
     if (!confirm("Disconnect this platform?")) return;
-    await api.revenue.connections.delete(id);
-    refetchConn();
+    try {
+      await api.revenue.connections.delete(id);
+      refetchConn();
+    } catch (err) {
+      handleApiError(err, "Failed to disconnect platform");
+    }
   }
 
   return (
@@ -127,7 +137,9 @@ export default function RevenuePage() {
       </div>
 
       {/* Revenue Summary Cards */}
-      {loadingDash ? (
+      {errorDash ? (
+        <ErrorState message={errorDash} onRetry={refetchDash} />
+      ) : loadingDash ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           {Array.from({ length: 3 }).map((_, i) => (
             <div
@@ -278,7 +290,9 @@ export default function RevenuePage() {
         <h2 className="text-lg font-semibold text-foreground mb-3">
           Connected Platforms
         </h2>
-        {loadingConn ? (
+        {errorConn ? (
+          <ErrorState message={errorConn} onRetry={refetchConn} />
+        ) : loadingConn ? (
           <div className="space-y-3">
             {Array.from({ length: 2 }).map((_, i) => (
               <div

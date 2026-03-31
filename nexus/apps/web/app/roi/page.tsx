@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
+import { handleApiError } from "@/lib/handleApiError";
 import type { ROIDashboard } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
+import ErrorState from "@/components/ErrorState";
 import Modal from "@/components/Modal";
 
 function formatCurrency(amount: number): string {
@@ -39,7 +41,7 @@ const emptyDashboard: ROIDashboard = {
 };
 
 export default function ROIPage() {
-  const { data: dashboard, loading } = useApiQuery(
+  const { data: dashboard, loading, error, refetch } = useApiQuery(
     () => api.roi.dashboard(),
     emptyDashboard,
   );
@@ -69,6 +71,9 @@ export default function ROIPage() {
       setFormNiche("");
       setFormAmount("");
       setFormDescription("");
+      refetch();
+    } catch (err) {
+      handleApiError(err, "Failed to add cost");
     } finally {
       setAdding(false);
     }
@@ -92,7 +97,9 @@ export default function ROIPage() {
       </div>
 
       {/* Summary Cards */}
-      {loading ? (
+      {error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="rounded-xl border border-card-border bg-card-bg p-5 animate-pulse">

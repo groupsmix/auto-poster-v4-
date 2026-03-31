@@ -44,12 +44,25 @@ function DocumentTitleUpdater() {
   return null;
 }
 
+/** Register service worker for PWA offline support & installability */
+function ServiceWorkerRegistrar() {
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch((err) => {
+        console.warn("[NEXUS] SW registration failed:", err);
+      });
+    }
+  }, []);
+  return null;
+}
+
 export default function ClientProviders({ children }: { children: ReactNode }) {
   return (
     <LoginGate>
       <ReviewCountProvider>
         <KeyboardShortcutsInit />
         <DocumentTitleUpdater />
+        <ServiceWorkerRegistrar />
         <CommandPalette />
         <ApiStatusBanner />
         {children}

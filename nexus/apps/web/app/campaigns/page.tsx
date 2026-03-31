@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
+import { handleApiError } from "@/lib/handleApiError";
 import type { Domain } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
+import ErrorState from "@/components/ErrorState";
 import Modal from "@/components/Modal";
 
 function CampaignStatusBadge({ status }: { status: string }) {
@@ -43,7 +45,7 @@ function ProgressBar({ current, target }: { current: number; target: number }) {
 }
 
 export default function CampaignsPage() {
-  const { data: campaigns, loading, refetch } = useApiQuery(
+  const { data: campaigns, loading, error, refetch } = useApiQuery(
     () => api.campaigns.list(),
     [],
   );
@@ -74,6 +76,8 @@ export default function CampaignsPage() {
       setFormTarget(100);
       setFormDeadline("");
       refetch();
+    } catch (err) {
+      handleApiError(err, "Failed to create campaign");
     } finally {
       setCreating(false);
     }
@@ -81,8 +85,12 @@ export default function CampaignsPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this campaign?")) return;
-    await api.campaigns.delete(id);
-    refetch();
+    try {
+      await api.campaigns.delete(id);
+      refetch();
+    } catch (err) {
+      handleApiError(err, "Failed to delete campaign");
+    }
   }
 
   function daysRemaining(deadline?: string): string {
@@ -110,7 +118,9 @@ export default function CampaignsPage() {
         </button>
       </div>
 
-      {loading ? (
+      {error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div

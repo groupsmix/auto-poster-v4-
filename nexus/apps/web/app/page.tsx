@@ -7,6 +7,7 @@ import LoadingState from "@/components/LoadingState";
 import AddDomainModal from "@/components/AddDomainModal";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
+import { handleApiError } from "@/lib/handleApiError";
 import { DEFAULT_CATEGORIES } from "@/lib/domains";
 import type { DomainData } from "@/lib/domains";
 import type { Domain } from "@nexus/shared";
@@ -71,7 +72,8 @@ export default function HomePage() {
       setLocalDomains(updated);
       setHasLocalOverride(true);
 
-      api.domains.create({ name: data.name, icon: data.icon }).catch(() => {
+      api.domains.create({ name: data.name, icon: data.icon }).catch((err) => {
+        handleApiError(err, "Failed to create domain");
         setLocalDomains((prev) => prev.filter((d) => d.slug !== slug));
         refetch();
       });

@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
+import { handleApiError } from "@/lib/handleApiError";
 import type { LocalizationJob, LanguageOption, LocalizationCandidate } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
+import ErrorState from "@/components/ErrorState";
 import Modal from "@/components/Modal";
 
 function formatCurrency(amount: number): string {
@@ -30,15 +32,15 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function LocalizationPage() {
-  const { data: jobs, loading: loadingJobs, refetch: refetchJobs } = useApiQuery(
+  const { data: jobs, loading: loadingJobs, error: errorJobs, refetch: refetchJobs } = useApiQuery(
     () => api.localization.jobs.list(),
     [],
   );
-  const { data: languages, loading: loadingLang } = useApiQuery(
+  const { data: languages, loading: loadingLang, error: errorLang, refetch: refetchLang } = useApiQuery(
     () => api.localization.languages(),
     [],
   );
-  const { data: candidates, loading: loadingCandidates } = useApiQuery(
+  const { data: candidates, loading: loadingCandidates, error: errorCandidates, refetch: refetchCandidates } = useApiQuery(
     () => api.localization.candidates(10),
     [],
   );
@@ -84,11 +86,15 @@ export default function LocalizationPage() {
         setExecuting(result.data.id);
         try {
           await api.localization.jobs.execute(result.data.id);
+        } catch (err) {
+          handleApiError(err, "Failed to execute localization");
         } finally {
           setExecuting(null);
           refetchJobs();
         }
       }
+    } catch (err) {
+      handleApiError(err, "Failed to create localization job");
     } finally {
       setCreating(false);
     }
@@ -99,6 +105,8 @@ export default function LocalizationPage() {
     try {
       await api.localization.jobs.execute(jobId);
       refetchJobs();
+    } catch (err) {
+      handleApiError(err, "Failed to execute localization");
     } finally {
       setExecuting(null);
     }
@@ -106,8 +114,12 @@ export default function LocalizationPage() {
 
   async function handleDelete(jobId: string) {
     if (!confirm("Delete this localization job?")) return;
-    await api.localization.jobs.delete(jobId);
-    refetchJobs();
+    try {
+      await api.localization.jobs.delete(jobId);
+      refetchJobs();
+    } catch (err) {
+      handleApiError(err, "Failed to delete localization job");
+    }
   }
 
   return (
@@ -130,7 +142,9 @@ export default function LocalizationPage() {
       {/* Supported Languages */}
       <div className="rounded-xl border border-card-border bg-card-bg p-5 mb-6">
         <h3 className="text-sm font-semibold text-foreground mb-3">Supported Languages</h3>
-        {loadingLang ? (
+        {errorLang ? (
+          <ErrorState message={errorLang} onRetry={refetchLang} />
+        ) : loadingLang ? (
           <div className="h-8 w-full bg-card-border rounded animate-pulse" />
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -150,7 +164,9 @@ export default function LocalizationPage() {
       {/* Localization Candidates */}
       <div className="rounded-xl border border-card-border bg-card-bg p-5 mb-6">
         <h3 className="text-sm font-semibold text-foreground mb-4">Top English Products (Localization Candidates)</h3>
-        {loadingCandidates ? (
+        {errorCandidates ? (
+          <ErrorState message={errorCandidates} onRetry={refetchCandidates} />
+        ) : loadingCandidates ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-12 bg-card-border rounded animate-pulse" />
@@ -190,7 +206,9 @@ export default function LocalizationPage() {
       {/* Localization Jobs */}
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-foreground mb-3">Localization Jobs</h2>
-        {loadingJobs ? (
+        {errorJobs ? (
+          <ErrorState message={errorJobs} onRetry={refetchJobs} />
+        ) : loadingJobs ? (
           <div className="space-y-3">
             {Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className="rounded-xl border border-card-border bg-card-bg p-5 animate-pulse">
