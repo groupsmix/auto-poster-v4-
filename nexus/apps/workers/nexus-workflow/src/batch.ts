@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { Env, ApiResponse } from "@nexus/shared";
-import { generateId, slugify, now, MAX_BATCH_SIZE, RECOMMENDED_BATCH_SIZE, WORKFLOW_TIMEOUT_MS, BATCH_POLL_INTERVAL_MS, PRODUCT_STATUS, WorkflowRunStatus } from "@nexus/shared";
+import { generateId, slugify, now, MAX_BATCH_SIZE, RECOMMENDED_BATCH_SIZE, WORKFLOW_TIMEOUT_MS, BATCH_POLL_INTERVAL_MS, PRODUCT_STATUS, WorkflowRunStatus, StepStatus } from "@nexus/shared";
 import { WorkflowEngine, type WorkflowInput, storageQuery } from "./engine";
 import type { ProductContext, PromptTemplates } from "./steps";
 
@@ -321,10 +321,10 @@ export class BatchOrchestrator {
       const status = result?.results?.[0]?.status;
 
       if (
-        status === "completed" ||
-        status === "pending_review" ||
-        status === "failed" ||
-        status === "cancelled"
+        status === WorkflowRunStatus.COMPLETED ||
+        status === WorkflowRunStatus.PENDING_REVIEW ||
+        status === WorkflowRunStatus.FAILED ||
+        status === WorkflowRunStatus.CANCELLED
       ) {
         return;
       }
@@ -382,15 +382,15 @@ export class BatchOrchestrator {
       });
 
       if (
-        status === "completed" ||
-        status === "pending_review" ||
-        status === "approved" ||
-        status === "published"
+        status === WorkflowRunStatus.COMPLETED ||
+        status === WorkflowRunStatus.PENDING_REVIEW ||
+        status === WorkflowRunStatus.APPROVED ||
+        status === WorkflowRunStatus.PUBLISHED
       ) {
         completedCount++;
       }
 
-      if (status === "running") {
+      if (status === WorkflowRunStatus.RUNNING) {
         currentIndex = i;
       }
     }
@@ -398,12 +398,12 @@ export class BatchOrchestrator {
     // If no product is running, current is the first non-completed
     if (currentIndex === 0 && completedCount < products.length) {
       for (let i = 0; i < batchProducts.length; i++) {
-        if (
-          batchProducts[i].status !== "completed" &&
-          batchProducts[i].status !== "pending_review" &&
-          batchProducts[i].status !== "approved" &&
-          batchProducts[i].status !== "published"
-        ) {
+          if (
+            batchProducts[i].status !== WorkflowRunStatus.COMPLETED &&
+            batchProducts[i].status !== WorkflowRunStatus.PENDING_REVIEW &&
+            batchProducts[i].status !== WorkflowRunStatus.APPROVED &&
+            batchProducts[i].status !== WorkflowRunStatus.PUBLISHED
+          ) {
           currentIndex = i;
           break;
         }

@@ -59,6 +59,23 @@ export type AIModelStatus =
   | "rate_limited"
   | "no_key";
 
+export type StepStatusType =
+  | "waiting"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export type VariantStatus =
+  | "draft"
+  | "ready"
+  | "published";
+
+export type ScheduleRunStatus =
+  | "running"
+  | "completed"
+  | "failed";
+
 export type AssetType = "image" | "pdf" | "audio" | "mockup";
 
 export type ReviewDecision = "approved" | "rejected";
@@ -169,7 +186,7 @@ export interface WorkflowStep {
   run_id: string;
   step_name: string;
   step_order: number;
-  status: string;
+  status: StepStatusType;
   ai_used?: string;
   ai_tried?: string[];
   input?: Record<string, unknown>;
@@ -207,7 +224,7 @@ export interface PlatformVariant {
   tags?: string[];
   price?: number;
   metadata?: Record<string, unknown>;
-  status: string;
+  status: VariantStatus;
   published_at?: string;
 }
 
@@ -216,7 +233,7 @@ export interface SocialVariant {
   product_id: string;
   channel_id: string;
   content: Record<string, unknown>;
-  status: string;
+  status: VariantStatus;
   scheduled_at?: string;
   published_at?: string;
 }
@@ -336,7 +353,7 @@ export interface Schedule {
 export interface ScheduleRun {
   id: string;
   schedule_id: string;
-  status: string;
+  status: ScheduleRunStatus;
   products_created: number;
   products_approved: number;
   products_failed: number;
@@ -810,7 +827,7 @@ export interface RecyclerVariation {
   new_product_id?: string;
   variation_type: string;
   variation_label?: string;
-  status: string;
+  status: RecyclerJobStatus;
   metadata?: Record<string, unknown>;
   created_at: string;
 }
@@ -840,7 +857,7 @@ export interface LocalizedProduct {
   new_product_id?: string;
   target_language: string;
   target_locale?: string;
-  status: string;
+  status: LocalizationJobStatus;
   localization_notes?: LocalizationNotes;
   metadata?: Record<string, unknown>;
   created_at: string;
@@ -1018,7 +1035,7 @@ export interface ProjectBuildStep {
   phase: ProjectBuildPhase;
   agent_role: BuildAgentRole;
   step_order: number;
-  status: string;
+  status: StepStatusType;
   cycle: number;
   output?: Record<string, unknown>;
   ai_model?: string;
@@ -1055,29 +1072,29 @@ export interface ProjectBuildProgress {
   quality_score?: number;
   phases: {
     plan: {
-      status: string;
+      status: StepStatusType;
       steps: Array<{
         agent_role: BuildAgentRole;
-        status: string;
+        status: StepStatusType;
         ai_model?: string;
         latency_ms?: number;
       }>;
     };
     build: {
-      status: string;
+      status: StepStatusType;
       layers: Array<{
         agents: Array<{
           agent_role: BuildAgentRole;
-          status: string;
+          status: StepStatusType;
           files_generated?: number;
         }>;
       }>;
     };
     validate: {
-      status: string;
+      status: StepStatusType;
       steps: Array<{
         agent_role: BuildAgentRole;
-        status: string;
+        status: StepStatusType;
         score?: number;
         issues_found?: number;
       }>;

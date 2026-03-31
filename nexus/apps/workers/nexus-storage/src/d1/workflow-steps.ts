@@ -2,8 +2,8 @@
 // D1 Queries — WORKFLOW STEPS
 // ============================================================
 
-import type { WorkflowStep } from "@nexus/shared";
-import { now } from "@nexus/shared";
+import type { WorkflowStep, StepStatusType } from "@nexus/shared";
+import { now, StepStatus } from "@nexus/shared";
 import { executeUpdate } from "./base";
 
 export async function getWorkflowSteps(db: D1Database, runId: string): Promise<WorkflowStep[]> {
@@ -74,11 +74,11 @@ export async function updateWorkflowStep(
 export async function updateStepStatus(
   db: D1Database,
   stepId: string,
-  status: string,
+  status: StepStatusType,
   output?: Record<string, unknown>
 ): Promise<void> {
   if (output) {
-    const completed_at = status === "completed" || status === "failed" ? now() : null;
+    const completed_at = status === StepStatus.COMPLETED || status === StepStatus.FAILED ? now() : null;
     await db
       .prepare(
         "UPDATE workflow_steps SET status = ?, output = ?, completed_at = ? WHERE id = ?"

@@ -17,6 +17,7 @@ import type {
   ValidationReport,
   BuildAgentRole,
   ProjectBuildPhase,
+  StepStatusType,
 } from "@nexus/shared";
 import {
   generateId,
@@ -26,6 +27,7 @@ import {
   PLAN_PHASE_STEPS,
   BUILD_PHASE_LAYERS,
   VALIDATE_PHASE_STEPS,
+  StepStatus,
 } from "@nexus/shared";
 
 import {
@@ -168,7 +170,7 @@ export class ProjectBuilderEngine {
               const step = buildSteps.find((s) => s.agent_role === role);
               return {
                 agent_role: role,
-                status: step?.status ?? "waiting",
+                status: step?.status ?? StepStatus.WAITING,
                 files_generated: undefined, // Could count per agent
               };
             }),
@@ -747,11 +749,11 @@ export class ProjectBuilderEngine {
     }
   }
 
-  private getPhaseStatus(steps: ProjectBuildStep[]): string {
-    if (steps.length === 0) return "waiting";
-    if (steps.every((s) => s.status === "completed")) return "completed";
-    if (steps.some((s) => s.status === "failed")) return "failed";
-    if (steps.some((s) => s.status === "running")) return "running";
-    return "waiting";
+  private getPhaseStatus(steps: ProjectBuildStep[]): StepStatusType {
+    if (steps.length === 0) return StepStatus.WAITING;
+    if (steps.every((s) => s.status === StepStatus.COMPLETED)) return StepStatus.COMPLETED;
+    if (steps.some((s) => s.status === StepStatus.FAILED)) return StepStatus.FAILED;
+    if (steps.some((s) => s.status === StepStatus.RUNNING)) return StepStatus.RUNNING;
+    return StepStatus.WAITING;
   }
 }

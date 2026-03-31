@@ -5,7 +5,7 @@
 // ============================================================
 
 import type { Env, ApiResponse } from "@nexus/shared";
-import { generateId, now, parseAIJSON } from "@nexus/shared";
+import { generateId, now, parseAIJSON, AI_COST_PER_1K_TOKENS } from "@nexus/shared";
 
 // --- Helper: generate actual images via Workers AI and store in R2 ---
 
@@ -237,19 +237,13 @@ export const STEP_MAX_RETRIES = 1;
 /**
  * Estimate token cost for quota tracking.
  * Even free-tier models have implicit costs (rate limits, quota usage).
+ * Cost rates are defined in @nexus/shared AI_COST_PER_1K_TOKENS — update there
+ * when provider pricing changes.
  */
 export function estimateTokenCost(model: string | undefined, tokens: number): number {
   if (!model || tokens === 0) return 0;
-  // Approximate costs per 1K tokens for common providers
-  const costPer1K: Record<string, number> = {
-    deepseek: 0.0001,
-    qwen: 0.0,
-    groq: 0.0,
-    fireworks: 0.0002,
-    moonshot: 0.0001,
-  };
   const provider = model.split("/")[0] ?? model;
-  const rate = costPer1K[provider] ?? 0;
+  const rate = AI_COST_PER_1K_TOKENS[provider] ?? 0;
   return (tokens / 1000) * rate;
 }
 
