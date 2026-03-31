@@ -72,8 +72,20 @@ export function useApiQuery<T>(
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
 
+  // Track whether we've completed at least one fetch
+  const hasLoadedRef = useRef(false);
+  // Prevent overlapping fetches from piling up requests
+  const isFetchingRef = useRef(false);
+
   const doFetch = useCallback(async () => {
-    setLoading(true);
+    // Skip if a fetch is already in-flight to prevent request pile-up
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
+    // Only show loading spinner on the initial fetch, not on background refetches
+    if (!hasLoadedRef.current) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -83,18 +95,25 @@ export function useApiQuery<T>(
         setIsUsingMock(false);
         setError(null);
       } else {
-        // API returned an unsuccessful response — keep fallback, set error
-        setData(fallback);
+        // API returned an unsuccessful response — keep existing data if we have it,
+        // otherwise use fallback
+        if (!hasLoadedRef.current) {
+          setData(fallback);
+        }
         setError(response.error || "Failed to load data");
         setIsUsingMock(true);
       }
     } catch (e) {
-      // Network / parse error — keep fallback, set error
-      setData(fallback);
+      // Network / parse error — keep existing data if we have it
+      if (!hasLoadedRef.current) {
+        setData(fallback);
+      }
       setError(e instanceof Error ? e.message : "Network error");
       setIsUsingMock(true);
     } finally {
       setLoading(false);
+      hasLoadedRef.current = true;
+      isFetchingRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fallback, ...deps]);
