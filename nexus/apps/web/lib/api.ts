@@ -13,6 +13,10 @@ import type {
   WorkflowStep,
   Platform,
   SocialChannel,
+  Schedule,
+  Campaign,
+  PlatformConnection,
+  RevenueDashboard,
 } from "@nexus/shared";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
@@ -301,6 +305,62 @@ export const api = {
       request<void>(`/api-keys/${keyName}`, { method: "POST", body: { api_key: apiKey } }),
     remove: (keyName: string) =>
       request<void>(`/api-keys/${keyName}`, { method: "DELETE" }),
+  },
+
+  // Scheduler endpoints (Phase 1.1)
+  schedules: {
+    list: () => request<Schedule[]>("/schedules"),
+    get: (id: string) => request<Schedule>(`/schedules/${id}`),
+    create: (data: Partial<Schedule>) =>
+      request<Schedule>("/schedules", { method: "POST", body: data }),
+    update: (id: string, data: Partial<Schedule>) =>
+      request<Schedule>(`/schedules/${id}`, { method: "PUT", body: data }),
+    delete: (id: string) =>
+      request<void>(`/schedules/${id}`, { method: "DELETE" }),
+    toggle: (id: string) =>
+      request<Schedule>(`/schedules/${id}/toggle`, { method: "POST", body: {} }),
+    runs: (id: string) =>
+      request<ScheduleRunEntry[]>(`/schedules/${id}/runs`),
+    tick: () =>
+      request<ScheduleTickResult>("/schedules/tick", { method: "POST", body: {} }),
+  },
+
+  // Campaign endpoints (Phase 1.3)
+  campaigns: {
+    list: () => request<Campaign[]>("/campaigns"),
+    get: (id: string) => request<Campaign>(`/campaigns/${id}`),
+    create: (data: Partial<Campaign>) =>
+      request<Campaign>("/campaigns", { method: "POST", body: data }),
+    update: (id: string, data: Partial<Campaign>) =>
+      request<Campaign>(`/campaigns/${id}`, { method: "PUT", body: data }),
+    delete: (id: string) =>
+      request<void>(`/campaigns/${id}`, { method: "DELETE" }),
+    progress: (id: string) =>
+      request<CampaignProgress>(`/campaigns/${id}/progress`),
+  },
+
+  // Revenue endpoints (Phase 2)
+  revenue: {
+    connections: {
+      list: () => request<PlatformConnection[]>("/revenue/connections"),
+      get: (id: string) => request<PlatformConnection>(`/revenue/connections/${id}`),
+      create: (data: Partial<PlatformConnection>) =>
+        request<PlatformConnection>("/revenue/connections", { method: "POST", body: data }),
+      update: (id: string, data: Partial<PlatformConnection>) =>
+        request<PlatformConnection>(`/revenue/connections/${id}`, { method: "PUT", body: data }),
+      delete: (id: string) =>
+        request<void>(`/revenue/connections/${id}`, { method: "DELETE" }),
+      sync: (id: string) =>
+        request<{ matched: number }>(`/revenue/connections/${id}/sync`, { method: "POST", body: {} }),
+    },
+    dashboard: (params?: RevenueDashboardParams) => {
+      const query = params
+        ? "?" + new URLSearchParams(params as Record<string, string>).toString()
+        : "";
+      return request<RevenueDashboard>(`/revenue/dashboard${query}`);
+    },
+    byProduct: (productId: string) =>
+      request<ProductRevenueDetail>(`/revenue/products/${productId}`),
   },
 
   // AI CEO / Auto-Orchestrator endpoints
@@ -593,6 +653,50 @@ interface CEOConfigSummary {
   updated_at: string;
 }
 
+// Scheduler types
+interface ScheduleRunEntry {
+  id: string;
+  schedule_id: string;
+  products_created: number;
+  products_approved: number;
+  products_flagged: number;
+  status: string;
+  started_at: string;
+  completed_at?: string;
+}
+
+interface ScheduleTickResult {
+  executed: number;
+  results: Array<{ schedule_id: string; schedule_name: string; products_created: number; status: string }>;
+}
+
+// Campaign types
+interface CampaignProgress {
+  campaign: Campaign;
+  daily_target: number;
+  days_remaining: number;
+  completion_percentage: number;
+  on_track: boolean;
+  products_per_day_needed: number;
+}
+
+// Revenue types
+interface RevenueDashboardParams {
+  platform?: string;
+  domain_id?: string;
+  category_id?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+interface ProductRevenueDetail {
+  product_id: string;
+  total_revenue: number;
+  total_orders: number;
+  total_quantity: number;
+  by_platform: Array<{ platform: string; revenue: number; orders: number; quantity: number }>;
+}
+
 export type {
   Domain,
   Category,
@@ -632,4 +736,13 @@ export type {
   CEOSetupResponse,
   CEOConfigResponse,
   CEOConfigSummary,
+  Schedule,
+  Campaign,
+  PlatformConnection,
+  RevenueDashboard,
+  ScheduleRunEntry,
+  ScheduleTickResult,
+  CampaignProgress,
+  RevenueDashboardParams,
+  ProductRevenueDetail,
 };

@@ -33,6 +33,9 @@ import settings from "./routes/settings";
 import exportRoutes from "./routes/export";
 import apiKeys from "./routes/api-keys";
 import aiCeo from "./routes/ai-ceo";
+import schedulesRoutes from "./routes/schedules";
+import campaignsRoutes from "./routes/campaigns";
+import revenueRoutes from "./routes/revenue";
 
 const app = new Hono<{ Bindings: RouterEnv; Variables: { requestId: string } }>();
 
@@ -294,6 +297,9 @@ app.route("/api/settings", settings);
 app.route("/api/export", exportRoutes);
 app.route("/api/api-keys", apiKeys);
 app.route("/api/ai-ceo", aiCeo);
+app.route("/api/schedules", schedulesRoutes);
+app.route("/api/campaigns", campaignsRoutes);
+app.route("/api/revenue", revenueRoutes);
 
 // ============================================================
 // 404 catch-all

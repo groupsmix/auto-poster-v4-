@@ -67,7 +67,27 @@ export const DEFAULT_SETTINGS = {
   batch_max_products: "10",
   cache_enabled: "true",
   ai_gateway_enabled: "true",
+  auto_approve_threshold: "9",
+  auto_revise_min_score: "7",
+  max_auto_revisions: "2",
 } as const;
+
+/** Supported revenue tracker platforms */
+export const REVENUE_PLATFORMS = ["etsy", "gumroad", "shopify"] as const;
+
+/** Default scheduler interval in hours */
+export const DEFAULT_SCHEDULER_INTERVAL_HOURS = 24;
+
+/** Maximum products per scheduler run */
+export const MAX_SCHEDULER_PRODUCTS_PER_RUN = 50;
+
+/** Campaign statuses */
+export const CAMPAIGN_STATUSES = [
+  "active",
+  "paused",
+  "completed",
+  "cancelled",
+] as const;
 
 // --- Product Statuses ---
 

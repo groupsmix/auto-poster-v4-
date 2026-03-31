@@ -297,6 +297,171 @@ export interface AnalyticsEvent {
   created_at: string;
 }
 
+// --- Schedules ---
+
+export type ScheduleStatus = "active" | "paused" | "completed";
+
+export interface Schedule {
+  id: string;
+  name: string;
+  domain_id: string;
+  category_id?: string;
+  niche_keywords?: string[];
+  products_per_run: number;
+  interval_hours: number;
+  platforms?: string[];
+  social_channels?: string[];
+  language: string;
+  auto_approve_threshold: number;
+  auto_revise_min_score: number;
+  max_auto_revisions: number;
+  is_active: boolean;
+  last_run_at?: string;
+  next_run_at?: string;
+  total_products_created: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScheduleRun {
+  id: string;
+  schedule_id: string;
+  status: string;
+  products_created: number;
+  products_approved: number;
+  products_failed: number;
+  error?: string;
+  started_at: string;
+  completed_at?: string;
+}
+
+// --- Campaigns ---
+
+export type CampaignStatus = "active" | "paused" | "completed" | "cancelled";
+
+export interface Campaign {
+  id: string;
+  name: string;
+  domain_id: string;
+  category_id?: string;
+  target_count: number;
+  daily_target: number;
+  deadline?: string;
+  niche_keywords?: string[];
+  platforms?: string[];
+  social_channels?: string[];
+  language: string;
+  auto_approve_threshold: number;
+  status: CampaignStatus;
+  products_created: number;
+  products_approved: number;
+  products_published: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// --- Revenue Tracker ---
+
+export type PlatformConnectionAuthType = "api_key" | "oauth";
+export type SyncStatus = "idle" | "syncing" | "error";
+
+export interface PlatformConnection {
+  id: string;
+  platform: string;
+  store_name?: string;
+  auth_type: PlatformConnectionAuthType;
+  api_key?: string;
+  api_secret?: string;
+  access_token?: string;
+  refresh_token?: string;
+  token_expires_at?: string;
+  shop_domain?: string;
+  is_active: boolean;
+  last_sync_at?: string;
+  sync_status: SyncStatus;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RevenueRecord {
+  id: string;
+  connection_id: string;
+  platform: string;
+  product_id?: string;
+  external_order_id?: string;
+  external_product_id?: string;
+  external_product_title?: string;
+  sku?: string;
+  quantity: number;
+  revenue: number;
+  currency: string;
+  fees: number;
+  net_revenue: number;
+  order_date: string;
+  synced_at: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface RevenueDailySummary {
+  id: string;
+  connection_id: string;
+  platform: string;
+  domain_id?: string;
+  category_id?: string;
+  date: string;
+  orders_count: number;
+  units_sold: number;
+  gross_revenue: number;
+  fees: number;
+  net_revenue: number;
+  views: number;
+  favorites: number;
+  conversion_rate: number;
+  currency: string;
+}
+
+export interface RevenueDashboard {
+  total_revenue: number;
+  total_orders: number;
+  total_products_sold: number;
+  by_platform: Array<{
+    platform: string;
+    revenue: number;
+    orders: number;
+    products: number;
+  }>;
+  by_domain: Array<{
+    domain_id: string;
+    domain_name: string;
+    revenue: number;
+    orders: number;
+    products: number;
+    avg_per_product: number;
+  }>;
+  by_category: Array<{
+    category_id: string;
+    category_name: string;
+    domain_id: string;
+    revenue: number;
+    orders: number;
+    products: number;
+    avg_per_product: number;
+  }>;
+  top_products: Array<{
+    product_id: string;
+    product_name: string;
+    platform: string;
+    revenue: number;
+    orders: number;
+  }>;
+  daily_trend: Array<{
+    date: string;
+    revenue: number;
+    orders: number;
+  }>;
+}
+
 // --- Settings ---
 
 export interface Setting {
@@ -445,4 +610,12 @@ export interface PaginatedResponse<T = unknown> extends ApiResponse<T[]> {
   total: number;
   page: number;
   pageSize: number;
+}
+
+// --- Auto-Approve Settings ---
+
+export interface AutoApproveSettings {
+  auto_approve_threshold: number;
+  auto_revise_min_score: number;
+  max_auto_revisions: number;
 }

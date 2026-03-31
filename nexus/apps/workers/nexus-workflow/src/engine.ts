@@ -5,7 +5,7 @@
 // Steps sleep between execution (zero cost while sleeping)
 // ============================================================
 
-import type { Env, WorkflowStatus, ApiResponse } from "@nexus/shared";
+import type { Env, WorkflowStatus, ApiResponse, AutoApproveSettings } from "@nexus/shared";
 import { WORKFLOW_STEPS, generateId, now } from "@nexus/shared";
 import {
   type StepName,
@@ -24,6 +24,10 @@ export interface WorkflowInput {
   revisionFeedback?: string;
   /** Steps to re-run on revision (only failed/rejected steps) */
   revisionSteps?: StepName[];
+  /** Auto-approve settings (from scheduler/campaign or global settings) */
+  autoApproveSettings?: AutoApproveSettings;
+  /** Track auto-revision attempts to prevent infinite loops */
+  autoRevisionAttempt?: number;
 }
 
 export interface StepResult {
@@ -436,7 +440,39 @@ export class WorkflowEngine {
       }
     }
 
-    // All steps completed — set status to pending_review
+    // All steps completed — check auto-approve settings
+    const qualityOutput = priorOutputs["quality_review"];
+    const qualityScore = qualityOutput
+      ? (qualityOutput.overall_score as number | undefined) ?? (qualityOutput.score as number | undefined)
+      : undefined;
+
+    const autoSettings = input.autoApproveSettings;
+    const autoRevisionAttempt = input.autoRevisionAttempt ?? 0;
+
+    if (autoSettings && qualityScore !== undefined) {
+      // Auto-approve: score >= threshold
+      if (qualityScore >= autoSettings.auto_approve_threshold) {
+        await this.handleAutoApprove(runId, input, totalTokens, totalCost, cacheHits, qualityScore);
+        return;
+      }
+
+      // Auto-revise: score >= min but below threshold, and under max revision attempts
+      if (
+        qualityScore >= autoSettings.auto_revise_min_score &&
+        qualityScore < autoSettings.auto_approve_threshold &&
+        autoRevisionAttempt < autoSettings.max_auto_revisions
+      ) {
+        await this.handleAutoRevise(runId, input, totalTokens, totalCost, cacheHits, qualityScore, qualityOutput, autoRevisionAttempt);
+        return;
+      }
+
+      // Below min score or max revisions exhausted — flag for manual review
+      console.log(
+        `[WORKFLOW] Run ${runId} flagged for manual review. Score: ${qualityScore}, Attempt: ${autoRevisionAttempt}`
+      );
+    }
+
+    // Default: pending_review (manual review needed)
     await updateWorkflowRun(this.env, runId, {
       status: "pending_review",
       completed_at: now(),
@@ -445,7 +481,6 @@ export class WorkflowEngine {
       cache_hits: cacheHits,
     });
 
-    // Update product status
     await storageQuery(
       this.env,
       `UPDATE products SET status = 'pending_review', updated_at = ? WHERE id = ?`,
@@ -745,6 +780,134 @@ export class WorkflowEngine {
     }
 
     return { runId };
+  }
+
+  // --- Auto-Approve Handlers ---
+
+  /**
+   * Handle auto-approval: score >= threshold.
+   * Updates status to approved, records the review, triggers variation generation.
+   */
+  private async handleAutoApprove(
+    runId: string,
+    input: WorkflowInput,
+    totalTokens: number,
+    totalCost: number,
+    cacheHits: number,
+    qualityScore: number
+  ): Promise<void> {
+    const ts = now();
+
+    // Mark workflow as approved
+    await updateWorkflowRun(this.env, runId, {
+      status: "approved",
+      completed_at: ts,
+      total_tokens: totalTokens,
+      total_cost: totalCost,
+      cache_hits: cacheHits,
+    });
+
+    // Mark product as approved
+    await storageQuery(
+      this.env,
+      `UPDATE products SET status = 'approved', updated_at = ? WHERE id = ?`,
+      [ts, input.productId]
+    );
+
+    // Record auto-review decision
+    const reviewId = generateId();
+    await storageQuery(
+      this.env,
+      `INSERT INTO reviews (id, product_id, run_id, version, ai_score, decision, feedback, reviewed_at)
+       VALUES (?, ?, ?,
+               (SELECT COALESCE(MAX(version), 0) + 1 FROM reviews WHERE product_id = ?),
+               ?, 'approved', 'Auto-approved: quality score meets threshold', ?)`,
+      [reviewId, input.productId, runId, input.productId, qualityScore, ts]
+    );
+
+    console.log(
+      `[WORKFLOW] Run ${runId} AUTO-APPROVED. Score: ${qualityScore}. Tokens: ${totalTokens}, Cost: $${totalCost.toFixed(4)}`
+    );
+  }
+
+  /**
+   * Handle auto-revision: score between min and threshold.
+   * Triggers re-run of revisable steps with quality review feedback.
+   */
+  private async handleAutoRevise(
+    runId: string,
+    input: WorkflowInput,
+    totalTokens: number,
+    totalCost: number,
+    cacheHits: number,
+    qualityScore: number,
+    qualityOutput: Record<string, unknown>,
+    currentAttempt: number
+  ): Promise<void> {
+    const ts = now();
+
+    console.log(
+      `[WORKFLOW] Run ${runId} AUTO-REVISING. Score: ${qualityScore}, Attempt: ${currentAttempt + 1}/${input.autoApproveSettings?.max_auto_revisions ?? 2}`
+    );
+
+    // Build revision feedback from quality review output
+    const issues = qualityOutput.issues as Array<{ criterion: string; problem: string; fix: string }> | undefined;
+    const feedbackParts: string[] = [
+      `Auto-revision (attempt ${currentAttempt + 1}): Quality score ${qualityScore}/10.`,
+    ];
+
+    if (issues && Array.isArray(issues)) {
+      for (const issue of issues) {
+        feedbackParts.push(`- ${issue.criterion}: ${issue.problem}. Fix: ${issue.fix}`);
+      }
+    }
+
+    const feedback = feedbackParts.join("\n");
+
+    // Record the auto-revision review
+    const reviewId = generateId();
+    await storageQuery(
+      this.env,
+      `INSERT INTO reviews (id, product_id, run_id, version, ai_score, decision, feedback, reviewed_at)
+       VALUES (?, ?, ?,
+               (SELECT COALESCE(MAX(version), 0) + 1 FROM reviews WHERE product_id = ?),
+               ?, 'rejected', ?, ?)`,
+      [reviewId, input.productId, runId, input.productId, qualityScore, feedback, ts]
+    );
+
+    // Determine which steps to revise (content-generating steps that are revisable)
+    const revisableSteps: StepName[] = [
+      "content_generation",
+      "seo_optimization",
+      "humanizer_pass",
+      "quality_review",
+    ];
+
+    // Trigger revision with incremented attempt counter
+    try {
+      await this.reviseWorkflow(runId, feedback, revisableSteps);
+
+      // After revision completes, the pipeline will re-check auto-approve
+      // because the input carries the autoApproveSettings and incremented attempt
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[WORKFLOW] Auto-revision failed for run ${runId}: ${message}`);
+
+      // Fall back to pending_review on revision failure
+      await updateWorkflowRun(this.env, runId, {
+        status: "pending_review",
+        completed_at: now(),
+        total_tokens: totalTokens,
+        total_cost: totalCost,
+        cache_hits: cacheHits,
+      });
+
+      await storageQuery(
+        this.env,
+        `UPDATE products SET status = 'pending_review', updated_at = ? WHERE id = ?`,
+        [now(), input.productId]
+      );
+    }
   }
 
   // --- Private helpers ---
