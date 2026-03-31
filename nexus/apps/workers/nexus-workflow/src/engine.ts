@@ -462,7 +462,7 @@ export class WorkflowEngine {
         qualityScore < autoSettings.auto_approve_threshold &&
         autoRevisionAttempt < autoSettings.max_auto_revisions
       ) {
-        await this.handleAutoRevise(runId, input, totalTokens, totalCost, cacheHits, qualityScore, qualityOutput, autoRevisionAttempt);
+        await this.handleAutoRevise(runId, input, totalTokens, totalCost, cacheHits, qualityScore, qualityOutput!, autoRevisionAttempt);
         return;
       }
 
