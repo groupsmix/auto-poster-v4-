@@ -554,14 +554,6 @@ export const api = {
 
 // --- Frontend-specific types (not in @nexus/shared) ---
 
-interface PromptVersion {
-  id: string;
-  prompt_id: string;
-  version: number;
-  prompt: string;
-  updated_at: string;
-}
-
 interface ReviewItem {
   id: string;
   product_id: string;
