@@ -65,6 +65,8 @@ import type {
   ProductAnalysisResult,
   LanguageOption,
   LocalizationCandidate,
+  BriefingResponse,
+  BriefingSettingsData,
 } from "./types";
 
 export const api = {
@@ -473,6 +475,26 @@ export const api = {
     /** Delete a build */
     delete: (buildId: string) =>
       request<{ deleted: boolean }>(`/project-builder/${buildId}`, { method: "DELETE" }),
+  },
+
+  // Daily Briefings endpoints
+  briefings: {
+    list: (limit?: number, offset?: number) => {
+      const params = new URLSearchParams();
+      if (limit) params.set("limit", String(limit));
+      if (offset) params.set("offset", String(offset));
+      const query = params.toString() ? `?${params.toString()}` : "";
+      return request<BriefingResponse[]>(`/briefings${query}`);
+    },
+    latest: () => request<BriefingResponse>("/briefings/latest"),
+    get: (id: string) => request<BriefingResponse>(`/briefings/${id}`),
+    delete: (id: string) => request<void>(`/briefings/${id}`, { method: "DELETE" }),
+    generate: () => request<BriefingResponse>("/briefings/generate", { method: "POST", body: {} }),
+    settings: {
+      get: () => request<BriefingSettingsData>("/briefings/settings"),
+      update: (data: Partial<BriefingSettingsData>) =>
+        request<{ updated: boolean }>("/briefings/settings", { method: "PUT", body: data }),
+    },
   },
 
   // AI CEO / Auto-Orchestrator endpoints

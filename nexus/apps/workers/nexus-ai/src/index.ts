@@ -20,6 +20,8 @@ import { runCEOSetup, getCEOConfig } from "./ceo";
 import type { CEOSetupInput } from "./ceo";
 import { runChatbot, gatherDashboardContext } from "./chatbot";
 import type { ChatHistoryMessage } from "./chatbot";
+import { generateDailyBriefing } from "./briefing";
+import type { BriefingGenerateInput } from "./briefing";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -296,6 +298,21 @@ app.post("/ai/chatbot/chat", async (c) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[CHATBOT] Chat failed: ${message}`);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
+});
+
+// ── POST /ai/briefing/generate — generate daily intelligence briefing ──
+
+app.post("/ai/briefing/generate", async (c) => {
+  const body = await c.req.json<BriefingGenerateInput>();
+
+  try {
+    const result = await generateDailyBriefing(body, c.env);
+    return c.json<ApiResponse>({ success: true, data: result });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[BRIEFING] Generation failed: ${message}`);
     return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });

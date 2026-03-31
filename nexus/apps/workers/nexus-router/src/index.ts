@@ -41,6 +41,7 @@ import recyclerRoutes from "./routes/recycler";
 import localizationRoutes from "./routes/localization";
 import chatbot from "./routes/chatbot";
 import projectBuilder from "./routes/project-builder";
+import briefingsRoutes from "./routes/briefings";
 import { executeCampaignBatch } from "./services/campaign-service";
 
 const app = new Hono<{ Bindings: RouterEnv; Variables: { requestId: string } }>();
@@ -315,6 +316,7 @@ app.route("/api/recycler", recyclerRoutes);
 app.route("/api/localization", localizationRoutes);
 app.route("/api/chatbot", chatbot);
 app.route("/api/project-builder", projectBuilder);
+app.route("/api/briefings", briefingsRoutes);
 
 // ============================================================
 // 404 catch-all
@@ -437,6 +439,143 @@ export default {
           })()
         );
       }
+
+      // --- Daily Briefing: timezone-aware generation ---
+      ctx.waitUntil(
+        (async () => {
+          try {
+            // Check if briefing is enabled and if it's the right time
+            const settingsResp = await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/query", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sql: `SELECT * FROM briefing_settings WHERE id = 'default' AND briefing_enabled = 1 LIMIT 1`,
+                params: [],
+              }),
+            });
+            const settingsJson = (await settingsResp.json()) as ApiResponse;
+            if (!settingsJson.success || !settingsJson.data) return;
+
+            const settingsRows = ((settingsJson.data as { results?: unknown[] })?.results ?? []) as Array<{
+              user_timezone: string;
+              briefing_hour: number;
+              briefing_enabled: number;
+              focus_domains?: string;
+              focus_keywords?: string;
+              briefing_types?: string;
+              last_generated_at?: string;
+            }>;
+
+            if (settingsRows.length === 0) return;
+            const settings = settingsRows[0];
+            if (!settings.briefing_enabled) return;
+
+            // Check if current UTC time matches the user's configured hour in their timezone
+            const nowDate = new Date();
+            const currentUTCHour = nowDate.getUTCHours();
+            const currentUTCMinute = nowDate.getUTCMinutes();
+
+            // Calculate the user's local hour from their timezone offset
+            // We use a simple approach: check if the current 15-min window contains the target hour
+            let targetUTCHour: number;
+            try {
+              // Use Intl to get the user's current hour
+              const formatter = new Intl.DateTimeFormat("en-US", {
+                timeZone: settings.user_timezone,
+                hour: "numeric",
+                hour12: false,
+              });
+              const userHour = parseInt(formatter.format(nowDate), 10);
+              // Only trigger in the first 15-minute window of the target hour
+              if (userHour !== settings.briefing_hour) return;
+              targetUTCHour = currentUTCHour;
+            } catch {
+              // If timezone parsing fails, fall back to UTC comparison
+              if (currentUTCHour !== settings.briefing_hour) return;
+              targetUTCHour = currentUTCHour;
+            }
+
+            // Only trigger in the first 15-minute window (0-14 minutes)
+            if (currentUTCMinute >= 15) return;
+
+            // Check if we already generated a briefing today
+            const today = nowDate.toISOString().split("T")[0];
+            if (settings.last_generated_at) {
+              const lastDate = settings.last_generated_at.split("T")[0];
+              if (lastDate === today) {
+                console.log("[CRON] Briefing already generated today, skipping");
+                return;
+              }
+            }
+
+            console.log(`[CRON] Generating daily briefing (hour=${settings.briefing_hour}, tz=${settings.user_timezone})`);
+
+            // Trigger briefing generation via nexus-ai
+            const focusDomains = settings.focus_domains ? JSON.parse(settings.focus_domains) as string[] : [];
+            const focusKeywords = settings.focus_keywords ? JSON.parse(settings.focus_keywords) as string[] : [];
+            const briefingTypes = settings.briefing_types ? JSON.parse(settings.briefing_types) as string[] : [];
+
+            const aiResp = await env.NEXUS_AI.fetch("http://nexus-ai/ai/briefing/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                focus_domains: focusDomains,
+                focus_keywords: focusKeywords,
+                briefing_types: briefingTypes,
+              }),
+            });
+            const aiJson = (await aiResp.json()) as ApiResponse;
+
+            if (!aiJson.success || !aiJson.data) {
+              console.error("[CRON] Briefing generation failed:", aiJson.error);
+              return;
+            }
+
+            const briefingData = aiJson.data as {
+              title: string;
+              summary: string;
+              sections: unknown[];
+              domains_analyzed: string[];
+              ai_model_used: string;
+              tokens_used: number;
+            };
+
+            // Store briefing in D1
+            const briefingId = crypto.randomUUID();
+            const ts = new Date().toISOString();
+
+            await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/query", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sql: `INSERT INTO daily_briefings (id, briefing_date, title, summary, sections, domains_analyzed, focus_keywords, ai_model_used, tokens_used, status, generated_at, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?)`,
+                params: [
+                  briefingId, today, briefingData.title, briefingData.summary,
+                  JSON.stringify(briefingData.sections), JSON.stringify(briefingData.domains_analyzed),
+                  JSON.stringify(focusKeywords), briefingData.ai_model_used,
+                  briefingData.tokens_used, ts, ts,
+                ],
+              }),
+            });
+
+            // Update last_generated_at
+            await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/query", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sql: `UPDATE briefing_settings SET last_generated_at = ?, updated_at = ? WHERE id = 'default'`,
+                params: [ts, ts],
+              }),
+            });
+
+            console.log(`[CRON] Daily briefing generated: ${briefingData.title}`);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`[CRON] Briefing generation error: ${msg}`);
+          }
+        })()
+      );
 
       // --- Campaign execution: run active campaigns' daily batches ---
       ctx.waitUntil(
