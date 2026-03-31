@@ -20,6 +20,7 @@ import type {
   AnalyticsEvent,
   Setting,
   WorkflowStatus,
+  StepStatusType,
 } from "@nexus/shared";
 
 import * as domains from "./domains";
@@ -109,7 +110,7 @@ export class D1Queries {
   getWorkflowStepById(id: string): Promise<WorkflowStep | null> { return workflowSteps.getWorkflowStepById(this.db, id); }
   createWorkflowStep(step: WorkflowStep): Promise<WorkflowStep> { return workflowSteps.createWorkflowStep(this.db, step); }
   updateWorkflowStep(id: string, data: Partial<Omit<WorkflowStep, "id">>): Promise<void> { return workflowSteps.updateWorkflowStep(this.db, id, data); }
-  updateStepStatus(stepId: string, status: string, output?: Record<string, unknown>): Promise<void> { return workflowSteps.updateStepStatus(this.db, stepId, status, output); }
+  updateStepStatus(stepId: string, status: StepStatusType, output?: Record<string, unknown>): Promise<void> { return workflowSteps.updateStepStatus(this.db, stepId, status, output); }
   deleteWorkflowStep(id: string): Promise<void> { return workflowSteps.deleteWorkflowStep(this.db, id); }
 
   // --- ASSETS ---

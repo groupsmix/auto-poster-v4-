@@ -2,7 +2,7 @@
 // NEXUS Shared Constants
 // ============================================================
 
-import type { TaskType } from "./types";
+import type { TaskType, VariantStatus as VariantStatusType, ScheduleRunStatus as ScheduleRunStatusType } from "./types";
 
 // --- Workflow Steps ---
 
@@ -252,6 +252,40 @@ export const ModelStatus = {
   SLEEPING: "sleeping",
   SUPERSEDED: "superseded",
 } as const;
+
+/** Named variant status constants (platform & social variants) */
+export const VariantStatusConst: Record<string, VariantStatusType> = {
+  DRAFT: "draft",
+  READY: "ready",
+  PUBLISHED: "published",
+} as const;
+
+/** Named schedule run status constants */
+export const ScheduleRunStatusConst: Record<string, ScheduleRunStatusType> = {
+  RUNNING: "running",
+  COMPLETED: "completed",
+  FAILED: "failed",
+} as const;
+
+// --- AI Cost Estimates ---
+
+/**
+ * Approximate costs per 1K tokens for common AI providers.
+ * Used for quota tracking and cost estimation.
+ * Update these values when provider pricing changes to keep cost estimates accurate.
+ * Models not listed here default to $0 (free tier).
+ */
+export const AI_COST_PER_1K_TOKENS: Record<string, number> = {
+  deepseek: 0.0001,
+  qwen: 0.0,
+  groq: 0.0,
+  fireworks: 0.0002,
+  moonshot: 0.0001,
+  mistral: 0.0002,
+  google: 0.0,
+  // Workers AI is included free in the $5 plan
+  "@cf": 0.0,
+};
 
 // --- Workers AI Models ---
 

@@ -94,7 +94,7 @@ export class WorkflowEngine {
       try {
         const message = err instanceof Error ? err.message : String(err);
         await updateWorkflowRun(this.env, runId, {
-          status: "failed",
+          status: WorkflowRunStatus.FAILED,
           completed_at: now(),
           error: `Unhandled pipeline error: ${message}`,
         });
@@ -204,13 +204,13 @@ export class WorkflowEngine {
 
         // Mark step as failed
         await this.updateStepByName(runId, stepName, {
-          status: "failed",
+          status: StepStatus.FAILED,
           completed_at: now(),
         });
 
         // Mark workflow as failed
         await updateWorkflowRun(this.env, runId, {
-          status: "failed",
+          status: WorkflowRunStatus.FAILED,
           completed_at: now(),
           error: `Step ${stepName} failed: ${message}`,
           total_tokens: totalTokens,
@@ -263,7 +263,7 @@ export class WorkflowEngine {
 
     // Default: pending_review (manual review needed)
     await updateWorkflowRun(this.env, runId, {
-      status: "pending_review",
+      status: WorkflowRunStatus.PENDING_REVIEW,
       completed_at: now(),
       total_tokens: totalTokens,
       total_cost: totalCost,
@@ -297,14 +297,14 @@ export class WorkflowEngine {
 
     // Update step status to running
     await this.updateStepByName(runId, stepName, {
-      status: "running",
+      status: StepStatus.RUNNING,
       started_at: now(),
     });
 
     // Update workflow run current step
     await updateWorkflowRun(this.env, runId, {
       current_step: stepName,
-      status: "running",
+      status: WorkflowRunStatus.RUNNING,
     });
 
     // Build the layered prompt (A through I)
@@ -357,7 +357,7 @@ export class WorkflowEngine {
 
     // Update step with results
     await this.updateStepByName(runId, stepName, {
-      status: "completed",
+      status: StepStatus.COMPLETED,
       ai_used: aiResult.model,
       output: JSON.stringify(output),
       tokens_used: tokens,
@@ -387,7 +387,7 @@ export class WorkflowEngine {
    */
   async cancelWorkflow(runId: string): Promise<void> {
     await updateWorkflowRun(this.env, runId, {
-      status: "cancelled",
+      status: WorkflowRunStatus.CANCELLED,
       completed_at: now(),
     });
 
@@ -465,7 +465,7 @@ export class WorkflowEngine {
     const failedSteps = stepsToRevise ??
       (status.steps
         .filter(
-          (s) => s.status === "failed" || s.status === "rejected"
+          (s) => s.status === StepStatus.FAILED || s.status === "rejected"
         )
         .map((s) => s.step_name as StepName));
 
@@ -489,7 +489,7 @@ export class WorkflowEngine {
     // Reset failed steps to waiting
     for (const stepName of failedSteps) {
       await this.updateStepByName(runId, stepName, {
-        status: "waiting",
+        status: StepStatus.WAITING,
         output: null,
         ai_used: null,
         tokens_used: null,
@@ -503,7 +503,7 @@ export class WorkflowEngine {
 
     // Update workflow status to in_revision
     await updateWorkflowRun(this.env, runId, {
-      status: "in_revision",
+      status: "in_revision" as WorkflowStatus,
       completed_at: null,
       error: null,
     });
@@ -550,7 +550,7 @@ export class WorkflowEngine {
       try {
         const message = err instanceof Error ? err.message : String(err);
         await updateWorkflowRun(this.env, runId, {
-          status: "failed",
+          status: WorkflowRunStatus.FAILED,
           completed_at: now(),
           error: `Unhandled revision pipeline error: ${message}`,
         });
@@ -589,7 +589,7 @@ export class WorkflowEngine {
 
     // Mark workflow as approved
     await updateWorkflowRun(this.env, runId, {
-      status: "approved",
+      status: WorkflowRunStatus.APPROVED,
       completed_at: ts,
       total_tokens: totalTokens,
       total_cost: totalCost,
@@ -684,7 +684,7 @@ export class WorkflowEngine {
 
       // Fall back to pending_review on revision failure
       await updateWorkflowRun(this.env, runId, {
-        status: "pending_review",
+        status: WorkflowRunStatus.PENDING_REVIEW,
         completed_at: now(),
         total_tokens: totalTokens,
         total_cost: totalCost,
@@ -711,7 +711,7 @@ export class WorkflowEngine {
       [runId]
     )) as { results?: Array<{ status: WorkflowStatus }> };
 
-    return result?.results?.[0]?.status === "cancelled";
+    return result?.results?.[0]?.status === WorkflowRunStatus.CANCELLED;
   }
 
   private static readonly ALLOWED_STEP_COLUMNS = new Set([
