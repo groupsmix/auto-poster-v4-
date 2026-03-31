@@ -6,6 +6,7 @@
 // ============================================================
 
 import type { Env, ApiResponse } from "@nexus/shared";
+import { parseAIJSON } from "@nexus/shared";
 
 // --- Types ---
 
@@ -166,23 +167,8 @@ async function loadPlatformRules(
   };
 }
 
-// --- Helper: parse AI response as JSON ---
-
-function parseAIResponse(raw: string): Record<string, unknown> {
-  try {
-    return JSON.parse(raw) as Record<string, unknown>;
-  } catch {
-    const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch?.[1]) {
-      return JSON.parse(jsonMatch[1].trim()) as Record<string, unknown>;
-    }
-    const objectMatch = raw.match(/\{[\s\S]*\}/);
-    if (objectMatch) {
-      return JSON.parse(objectMatch[0]) as Record<string, unknown>;
-    }
-    throw new Error("Failed to parse AI response as JSON");
-  }
-}
+// parseAIResponse delegates to the shared parseAIJSON (single source of truth)
+const parseAIResponse = parseAIJSON;
 
 // --- Validation ---
 

@@ -4,6 +4,8 @@
 // Every text-based chain ends with Workers AI as ultimate fallback
 // ============================================================
 
+import type { Env } from "@nexus/shared";
+
 export interface AIModelConfig {
   id: string;
   name: string;
@@ -146,4 +148,74 @@ export function getAllModelIds(): string[] {
     }
   }
   return Array.from(ids);
+}
+
+// ============================================================
+// KV PERSISTENCE — Survive worker restarts
+// ============================================================
+
+/** KV key for persisted registry reorders */
+const REGISTRY_KV_KEY = "registry:reorders";
+
+/** Track which task types have been loaded from KV */
+let _kvLoaded = false;
+
+/**
+ * Persist a registry reorder to KV so it survives worker restarts.
+ * Stores only the ordered model IDs per task type (not the full config).
+ */
+export async function persistRegistryReorder(
+  taskType: string,
+  modelIds: string[],
+  env: Env
+): Promise<void> {
+  try {
+    const existing = await env.KV.get<Record<string, string[]>>(REGISTRY_KV_KEY, "json").catch(() => null);
+    const reorders = existing ?? {};
+    reorders[taskType] = modelIds;
+    await env.KV.put(REGISTRY_KV_KEY, JSON.stringify(reorders));
+    console.log(`[REGISTRY] Persisted reorder for ${taskType} to KV`);
+  } catch {
+    console.log(`[REGISTRY] Could not persist reorder for ${taskType}`);
+  }
+}
+
+/**
+ * Load persisted registry reorders from KV on startup.
+ * Falls back to hardcoded defaults if KV has no data.
+ * Only runs once per worker instance.
+ */
+export async function loadPersistedReorders(env: Env): Promise<void> {
+  if (_kvLoaded) return;
+  _kvLoaded = true;
+
+  try {
+    const reorders = await env.KV.get<Record<string, string[]>>(REGISTRY_KV_KEY, "json").catch(() => null);
+    if (!reorders) return;
+
+    for (const [taskType, modelIds] of Object.entries(reorders)) {
+      const currentModels = TASK_MODEL_REGISTRY[taskType];
+      if (!currentModels) continue;
+
+      // Rebuild the ordered list using persisted IDs, keeping full config objects
+      const reordered: AIModelConfig[] = [];
+      for (const id of modelIds) {
+        const model = currentModels.find((m) => m.id === id);
+        if (model) reordered.push(model);
+      }
+      // Append any new models that weren't in the persisted order
+      for (const model of currentModels) {
+        if (!modelIds.includes(model.id)) {
+          reordered.push(model);
+        }
+      }
+
+      if (reordered.length > 0) {
+        TASK_MODEL_REGISTRY[taskType] = reordered;
+        console.log(`[REGISTRY] Restored reorder for ${taskType} from KV`);
+      }
+    }
+  } catch {
+    console.log(`[REGISTRY] Could not load persisted reorders from KV`);
+  }
 }

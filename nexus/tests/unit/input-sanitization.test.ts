@@ -18,6 +18,14 @@ const INJECTION_PATTERNS = [
 function sanitizeInput(input: string): string {
   let sanitized = input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u200B-\u200F\uFEFF]/g, "");
   sanitized = sanitized.trim();
+  // Strip any detected prompt injection patterns from the input
+  for (const pattern of INJECTION_PATTERNS) {
+    if (pattern.test(sanitized)) {
+      sanitized = sanitized.replace(pattern, "");
+    }
+  }
+  // Clean up any leftover whitespace from stripped patterns
+  sanitized = sanitized.replace(/\s{2,}/g, " ").trim();
   return sanitized;
 }
 

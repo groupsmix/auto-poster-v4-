@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 007: AI Chatbot — conversation history storage
+-- Migration 008: AI Chatbot — conversation history storage
 -- ============================================================
 
 -- Chat conversations (one per session)

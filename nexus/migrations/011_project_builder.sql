@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 010: AI Project Builder tables
+-- Migration 011: AI Project Builder tables
 -- Multi-phase AI code generation pipeline
 -- ============================================================
 

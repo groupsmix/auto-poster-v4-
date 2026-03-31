@@ -13,6 +13,8 @@ import {
   TASK_MODEL_REGISTRY,
   getModelsForTask,
   getTaskTypes,
+  persistRegistryReorder,
+  loadPersistedReorders,
 } from "./registry";
 import { runCEOSetup, getCEOConfig } from "./ceo";
 import type { CEOSetupInput } from "./ceo";
@@ -38,6 +40,13 @@ app.get("/", (c) => {
       "GET  /ai/ceo/config/:categorySlug",
     ],
   });
+});
+
+// ── Middleware: load persisted registry reorders on first request ──
+
+app.use("*", async (c, next) => {
+  await loadPersistedReorders(c.env);
+  await next();
 });
 
 // ── POST /ai/run — main AI request endpoint ─────────────────
@@ -79,16 +88,16 @@ app.get("/ai/health", async (c) => {
   const report = await getHealthReport(c.env);
   const modelStates = await getModelStates(c.env);
 
-  // Check for reorder suggestions across all task types
-  const suggestions = getTaskTypes()
-    .map((taskType) => {
-      const models = getModelsForTask(taskType);
-      return shouldSuggestReorder(
-        taskType,
-        models.map((m) => m.id)
-      );
-    })
-    .filter(Boolean);
+  // Check for reorder suggestions across all task types (now async with 7-day window)
+  const suggestionPromises = getTaskTypes().map((taskType) => {
+    const models = getModelsForTask(taskType);
+    return shouldSuggestReorder(
+      taskType,
+      models.map((m) => m.id),
+      c.env
+    );
+  });
+  const suggestions = (await Promise.all(suggestionPromises)).filter(Boolean);
 
   return c.json({
     success: true,
@@ -164,13 +173,17 @@ app.post("/ai/registry/reorder", async (c) => {
   // Update the registry
   TASK_MODEL_REGISTRY[body.taskType] = reordered as typeof currentModels;
 
-  console.log(`[REORDER] ${body.taskType} -> [${body.modelIds.join(", ")}]`);
+  // Persist to KV so the reorder survives worker restarts
+  const finalOrder = reordered.map((m) => m!.id);
+  await persistRegistryReorder(body.taskType, finalOrder, c.env);
+
+  console.log(`[REORDER] ${body.taskType} -> [${finalOrder.join(", ")}]`);
 
   return c.json({
     success: true,
     data: {
       taskType: body.taskType,
-      newOrder: reordered.map((m) => m!.id),
+      newOrder: finalOrder,
     },
   });
 });

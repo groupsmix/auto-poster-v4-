@@ -26,13 +26,15 @@ export function sanitizeInput(input: string): string {
   let sanitized = input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u200B-\u200F\uFEFF]/g, "");
   // Trim excessive whitespace
   sanitized = sanitized.trim();
-  // Log (but don't block) if injection patterns are detected
+  // Strip any detected prompt injection patterns from the input
   for (const pattern of INJECTION_PATTERNS) {
     if (pattern.test(sanitized)) {
-      console.warn(`[SANITIZE] Potential prompt injection detected: ${pattern}`);
-      break;
+      console.warn(`[SANITIZE] Prompt injection stripped: ${pattern}`);
+      sanitized = sanitized.replace(pattern, "");
     }
   }
+  // Clean up any leftover whitespace from stripped patterns
+  sanitized = sanitized.replace(/\s{2,}/g, " ").trim();
   return sanitized;
 }
 
