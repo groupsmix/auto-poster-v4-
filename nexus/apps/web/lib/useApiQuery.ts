@@ -74,8 +74,14 @@ export function useApiQuery<T>(
 
   // Track whether we've completed at least one fetch
   const hasLoadedRef = useRef(false);
+  // Prevent overlapping fetches from piling up requests
+  const isFetchingRef = useRef(false);
 
   const doFetch = useCallback(async () => {
+    // Skip if a fetch is already in-flight to prevent request pile-up
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
     // Only show loading spinner on the initial fetch, not on background refetches
     if (!hasLoadedRef.current) {
       setLoading(true);
@@ -107,6 +113,7 @@ export function useApiQuery<T>(
     } finally {
       setLoading(false);
       hasLoadedRef.current = true;
+      isFetchingRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fallback, ...deps]);
