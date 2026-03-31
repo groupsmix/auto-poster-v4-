@@ -13,14 +13,14 @@ assets.get("/", async (c) => {
     const pageSize = parseInt(c.req.query("pageSize") ?? String(DEFAULT_PAGE_SIZE), 10);
     const offset = (page - 1) * pageSize;
 
-    const countResult = (await storageQuery(
+    const countResult = await storageQuery<Array<{ total: number }>>(
       c.env,
       "SELECT COUNT(*) as total FROM assets"
-    )) as Array<{ total: number }>;
+    );
 
     const total = countResult?.[0]?.total ?? 0;
 
-    const data = await storageQuery(
+    const data = await storageQuery<unknown[]>(
       c.env,
       `SELECT a.*, p.name as product_name
        FROM assets a
@@ -32,7 +32,7 @@ assets.get("/", async (c) => {
 
     return c.json<PaginatedResponse>({
       success: true,
-      data: data as unknown[],
+      data,
       total,
       page,
       pageSize,

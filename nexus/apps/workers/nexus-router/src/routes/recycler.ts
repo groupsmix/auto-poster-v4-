@@ -75,7 +75,7 @@ recycler.get("/jobs/:id", async (c) => {
     const id = c.req.param("id");
     const data = await getRecyclerJob(id, c.env);
     if (!data) {
-      return c.json<ApiResponse>({ success: false, error: "Job not found" }, 404);
+      return errorResponse(c, new Error("Job not found"), 404);
     }
     return c.json<ApiResponse>({ success: true, data });
   } catch (err) {
@@ -94,10 +94,7 @@ recycler.post("/jobs", async (c) => {
     }>();
 
     if (!body.source_product_id) {
-      return c.json<ApiResponse>(
-        { success: false, error: "source_product_id is required" },
-        400
-      );
+      return errorResponse(c, new Error("source_product_id is required"), 400);
     }
 
     const result = await createRecyclerJob(body, c.env);

@@ -52,6 +52,19 @@ interface RevenueRecordInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface ManualRevenueInput {
+  product_id?: string;
+  platform?: string;
+  external_product_title?: string;
+  quantity?: number;
+  revenue: number;
+  currency?: string;
+  fees?: number;
+  net_revenue?: number;
+  order_date: string;
+  notes?: string;
+}
+
 // --- Platform Connections CRUD ---
 
 export async function listConnections(env: RouterEnv): Promise<unknown> {
@@ -192,6 +205,44 @@ export async function addRevenueRecords(
     count++;
   }
   return { count };
+}
+
+// --- Manual Revenue Entry (no connection required) ---
+
+export async function addManualRevenueRecord(
+  input: ManualRevenueInput,
+  env: RouterEnv
+): Promise<{ id: string }> {
+  const id = generateId();
+  const netRevenue = input.net_revenue ?? (input.revenue - (input.fees ?? 0));
+
+  await storageQuery(
+    env,
+    `INSERT INTO revenue_records (id, connection_id, platform, product_id, external_order_id,
+       external_product_id, external_product_title, sku, quantity, revenue, currency, fees,
+       net_revenue, order_date, synced_at, metadata)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      null, // no connection required
+      input.platform ?? "manual",
+      input.product_id ?? null,
+      null,
+      null,
+      input.external_product_title ?? null,
+      null,
+      input.quantity ?? 1,
+      input.revenue,
+      input.currency ?? "USD",
+      input.fees ?? 0,
+      netRevenue,
+      input.order_date,
+      now(),
+      input.notes ? JSON.stringify({ notes: input.notes }) : null,
+    ]
+  );
+
+  return { id };
 }
 
 // --- Product Matching ---

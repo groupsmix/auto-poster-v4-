@@ -28,8 +28,8 @@ export { callSegmind } from "./segmind";
 // --- Image editing ---
 export { callClipDropRemoveBackground, callClipDropUpscale, callClipDropCleanup } from "./clipdrop";
 
-// NOTE: Dead callers removed (no task type, workflow step, or frontend uses them):
-// - Audio: callSuno (suno.ts), callUdio (udio.ts)
-// - OCR: callMistralOCR (mistral.ts), callGoogleVisionOCR, callGoogleTTS (google.ts)
-// - Mockups: callPrintful (printful.ts), callPrintify (printify.ts)
-// Source files retained for future use; re-export when wired into a workflow.
+// Dead callers removed — no task type, workflow step, or frontend referenced them:
+// - Audio: suno.ts, udio.ts
+// - OCR/TTS: mistral.ts, google.ts
+// - Mockups: printful.ts, printify.ts
+// Re-add when a workflow step or task type needs them.

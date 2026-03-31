@@ -41,6 +41,7 @@ import recyclerRoutes from "./routes/recycler";
 import localizationRoutes from "./routes/localization";
 import chatbot from "./routes/chatbot";
 import projectBuilder from "./routes/project-builder";
+import { executeCampaignBatch } from "./services/campaign-service";
 
 const app = new Hono<{ Bindings: RouterEnv; Variables: { requestId: string } }>();
 
@@ -436,6 +437,43 @@ export default {
           })()
         );
       }
+
+      // --- Campaign execution: run active campaigns' daily batches ---
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const campaignResp = await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/query", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sql: `SELECT id FROM campaigns WHERE status = 'active'`,
+                params: [],
+              }),
+            });
+            const campaignJson = (await campaignResp.json()) as ApiResponse;
+            if (!campaignJson.success || !campaignJson.data) {
+              console.error("[CRON] Failed to fetch active campaigns:", campaignJson.error);
+              return;
+            }
+
+            const campaigns = ((campaignJson.data as { results?: unknown[] })?.results ?? []) as Array<{ id: string }>;
+            console.log(`[CRON] Found ${campaigns.length} active campaign(s)`);
+
+            for (const campaign of campaigns) {
+              try {
+                const result = await executeCampaignBatch(campaign.id, env);
+                console.log(`[CRON] Campaign ${campaign.id}: queued ${result.products_queued} products (${result.status})`);
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                console.error(`[CRON] Campaign ${campaign.id} failed: ${msg}`);
+              }
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`[CRON] Campaign execution failed: ${msg}`);
+          }
+        })()
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[CRON] Scheduled handler failed: ${msg}`);
