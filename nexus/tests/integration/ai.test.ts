@@ -5,12 +5,19 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import app from "../../apps/workers/nexus-ai/src/index";
+import type { ApiResponse } from "@nexus/shared";
 import {
   createMockD1,
   createMockKV,
   createMockFetcher,
   jsonResponse,
 } from "../helpers/mocks";
+
+/** Typed API response for test assertions (replaces Record<string, any>) */
+interface TestApiResponse extends ApiResponse<Record<string, unknown>> {
+  service?: string;
+  status?: string;
+}
 
 function buildEnv(overrides: Record<string, unknown> = {}) {
   return {
@@ -40,7 +47,7 @@ describe("nexus-ai: Health & Info", () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/"), env);
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data).toHaveProperty("service", "nexus-ai");
     expect(data).toHaveProperty("status", "ok");
   });
@@ -49,7 +56,7 @@ describe("nexus-ai: Health & Info", () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/ai/health"), env);
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("models");
     expect(data.data).toHaveProperty("modelStates");
@@ -59,7 +66,7 @@ describe("nexus-ai: Health & Info", () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/ai/cache/stats"), env);
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("hits");
     expect(data.data).toHaveProperty("misses");
@@ -76,7 +83,7 @@ describe("nexus-ai: Registry", () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/ai/registry"), env);
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("taskTypes");
     expect(data.data).toHaveProperty("registry");
@@ -95,7 +102,7 @@ describe("nexus-ai: Registry", () => {
       env
     );
     expect(res.status).toBe(400);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(false);
   });
 
@@ -132,7 +139,7 @@ describe("nexus-ai: POST /ai/run — Failover", () => {
       env
     );
     expect(res.status).toBe(400);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(false);
     expect(data.error).toContain("taskType");
   });
@@ -151,7 +158,7 @@ describe("nexus-ai: POST /ai/run — Failover", () => {
       env
     );
     expect(res.status).toBe(400);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(false);
   });
 
@@ -188,7 +195,7 @@ describe("nexus-ai: POST /ai/run — Failover", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data.cached).toBe(true);
     expect(data.data.model).toBe("cache");
@@ -235,7 +242,7 @@ describe("nexus-ai: POST /ai/run — Failover", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     // Workers AI should be the model since no other keys
     expect(data.data.cached).toBe(false);
@@ -287,7 +294,7 @@ describe("nexus-ai: Cache behavior", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data.cached).toBe(false);
     // Cache should have been written
@@ -355,7 +362,7 @@ describe("nexus-ai: Workers AI Fallback", () => {
   it("Workers AI is always the last model in every text-based chain", async () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/ai/registry"), env);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
 
     // Text-based chains always end with Workers AI
     const textChains = ["research", "writing", "copywriting", "seo", "seo_formatting", "social"];
@@ -371,7 +378,7 @@ describe("nexus-ai: Workers AI Fallback", () => {
   it("image chains end with Workers AI image model", async () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/ai/registry"), env);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
 
     const imageChains = ["text_on_image", "artistic_image"];
     for (const taskType of imageChains) {

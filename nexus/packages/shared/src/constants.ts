@@ -50,6 +50,14 @@ export const BATCH_POLL_INTERVAL_MS = 5_000;
 /** Maximum number of products in a single batch */
 export const MAX_BATCH_SIZE = 10;
 
+/**
+ * Recommended batch size limit before CF Worker CPU time becomes a risk.
+ * A batch of N products × 9 steps × ~5s/step ≈ N×45s wall-clock.
+ * CF Workers have a 30s CPU limit (longer wall-clock OK with async I/O),
+ * but large batches risk timeouts. Keep batches ≤ this value for safety.
+ */
+export const RECOMMENDED_BATCH_SIZE = 5;
+
 /** Default page size for paginated queries */
 export const DEFAULT_PAGE_SIZE = 50;
 
@@ -201,7 +209,49 @@ export const PRODUCT_STATUSES = [
   "in_revision",
   "published",
   "cancelled",
+  "failed",
 ] as const;
+
+/** Named product status constants for use in SQL queries and business logic */
+export const PRODUCT_STATUS = {
+  DRAFT: "draft",
+  QUEUED: "queued",
+  RUNNING: "running",
+  PENDING_REVIEW: "pending_review",
+  APPROVED: "approved",
+  REJECTED: "rejected",
+  IN_REVISION: "in_revision",
+  PUBLISHED: "published",
+  CANCELLED: "cancelled",
+  FAILED: "failed",
+} as const;
+
+/** Named workflow run status constants */
+export const WorkflowRunStatus = {
+  RUNNING: "running",
+  COMPLETED: "completed",
+  FAILED: "failed",
+  CANCELLED: "cancelled",
+  PENDING_REVIEW: "pending_review",
+  APPROVED: "approved",
+  PUBLISHED: "published",
+} as const;
+
+/** Named workflow step status constants */
+export const StepStatus = {
+  WAITING: "waiting",
+  RUNNING: "running",
+  COMPLETED: "completed",
+  FAILED: "failed",
+  CANCELLED: "cancelled",
+} as const;
+
+/** Named AI model status constants */
+export const ModelStatus = {
+  ACTIVE: "active",
+  SLEEPING: "sleeping",
+  SUPERSEDED: "superseded",
+} as const;
 
 // --- Workers AI Models ---
 

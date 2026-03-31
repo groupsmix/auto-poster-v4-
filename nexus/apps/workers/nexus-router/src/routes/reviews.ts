@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
+import { PRODUCT_STATUS } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { storageQuery, errorResponse } from "../helpers";
 import { approveProduct, rejectProduct } from "../services/review-service";
@@ -15,7 +16,7 @@ reviews.get("/pending", async (c) => {
               wr.total_tokens, wr.total_cost, wr.cache_hits
        FROM products p
        JOIN workflow_runs wr ON wr.product_id = p.id
-       WHERE p.status = 'pending_review'
+       WHERE p.status = '${PRODUCT_STATUS.PENDING_REVIEW}'
        ORDER BY p.updated_at DESC`
     );
     return c.json<ApiResponse>({ success: true, data });

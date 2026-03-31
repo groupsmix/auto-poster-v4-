@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
+import { PRODUCT_STATUS, WorkflowRunStatus } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { forwardToService, errorResponse, storageQuery, validateStringField, sanitizeInput } from "../helpers";
 
@@ -158,8 +159,8 @@ workflows.post("/recover-stuck", async (c) => {
     const result = await storageQuery(
       c.env,
       `UPDATE workflow_runs
-       SET status = 'failed', error = 'Timed out — no progress for 30 minutes', completed_at = datetime('now')
-       WHERE status = 'running'
+              SET status = '${WorkflowRunStatus.FAILED}', error = 'Timed out — no progress for 30 minutes', completed_at = datetime('now')
+              WHERE status = '${WorkflowRunStatus.RUNNING}'
        AND started_at < datetime('now', '-30 minutes')`,
       []
     ) as { meta?: { changes?: number } };
@@ -170,13 +171,13 @@ workflows.post("/recover-stuck", async (c) => {
     if (recovered > 0) {
       await storageQuery(
         c.env,
-        `UPDATE products SET status = 'failed', updated_at = datetime('now')
-         WHERE id IN (
-           SELECT product_id FROM workflow_runs
-           WHERE status = 'failed'
-           AND error = 'Timed out — no progress for 30 minutes'
-         )
-         AND status = 'running'`,
+                `UPDATE products SET status = '${PRODUCT_STATUS.FAILED}', updated_at = datetime('now')
+                 WHERE id IN (
+                   SELECT product_id FROM workflow_runs
+                   WHERE status = '${WorkflowRunStatus.FAILED}'
+                   AND error = 'Timed out — no progress for 30 minutes'
+                 )
+                 AND status = '${PRODUCT_STATUS.RUNNING}'`,
         []
       );
     }

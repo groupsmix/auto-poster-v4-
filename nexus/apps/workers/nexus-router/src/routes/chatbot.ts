@@ -10,7 +10,7 @@
 
 import { Hono } from "hono";
 import type { ApiResponse, ChatAction, ChatActionResult } from "@nexus/shared";
-import { generateId, slugify, now } from "@nexus/shared";
+import { generateId, slugify, now, PRODUCT_STATUS } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { storageQuery, errorResponse, sanitizeInput, forwardToService } from "../helpers";
 
@@ -507,7 +507,7 @@ async function executeAction(
         const { product_id } = action.params as { product_id: string };
         await storageQuery(
           env,
-          "UPDATE products SET status = 'approved', updated_at = ? WHERE id = ?",
+          `UPDATE products SET status = '${PRODUCT_STATUS.APPROVED}', updated_at = ? WHERE id = ?`,
           [ts, product_id]
         );
         return { action_id: action.id, success: true, message: `Product ${product_id} approved` };
@@ -517,7 +517,7 @@ async function executeAction(
         const { product_id, feedback } = action.params as { product_id: string; feedback: string };
         await storageQuery(
           env,
-          "UPDATE products SET status = 'rejected', updated_at = ? WHERE id = ?",
+          `UPDATE products SET status = '${PRODUCT_STATUS.REJECTED}', updated_at = ? WHERE id = ?`,
           [ts, product_id]
         );
         return { action_id: action.id, success: true, message: `Product ${product_id} rejected: ${feedback}` };
@@ -532,7 +532,7 @@ async function executeAction(
         // Update product status
         await storageQuery(
           env,
-          "UPDATE products SET status = 'published', updated_at = ? WHERE id = ?",
+          `UPDATE products SET status = '${PRODUCT_STATUS.PUBLISHED}', updated_at = ? WHERE id = ?`,
           [ts, publishParams.product_id]
         );
         return { action_id: action.id, success: true, message: `Product ${publishParams.product_id} published` };

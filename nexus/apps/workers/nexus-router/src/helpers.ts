@@ -58,12 +58,12 @@ export interface RouterEnv extends Env {
 }
 
 /** Forward a fetch to nexus-storage for D1 queries */
-export async function storageQuery(
+export async function storageQuery<T = unknown>(
   env: RouterEnv,
   sql: string,
   params: unknown[] = [],
   requestId?: string
-): Promise<unknown> {
+): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (requestId) headers["X-Request-ID"] = requestId;
   const resp = await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/query", {
@@ -75,7 +75,7 @@ export async function storageQuery(
   if (!json.success) {
     throw new Error(json.error ?? "Storage query failed");
   }
-  return json.data;
+  return json.data as T;
 }
 
 /** Forward a fetch to nexus-storage for synced cleanup */

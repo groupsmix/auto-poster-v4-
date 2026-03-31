@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { Env, WorkflowStatus, ApiResponse, AutoApproveSettings } from "@nexus/shared";
-import { WORKFLOW_STEPS, generateId, now, parseAIJSON } from "@nexus/shared";
+import { WORKFLOW_STEPS, generateId, now, parseAIJSON, PRODUCT_STATUS, WorkflowRunStatus, StepStatus } from "@nexus/shared";
 import {
   type StepName,
   getStepConfig,
@@ -190,11 +190,11 @@ async function callVariation(
 
 // --- Helper: call nexus-storage D1 queries ---
 
-export async function storageQuery(
+export async function storageQuery<T = unknown>(
   env: Env,
   sql: string,
   params: unknown[] = []
-): Promise<unknown> {
+): Promise<T> {
   const response = await env.NEXUS_STORAGE.fetch(
     "http://nexus-storage/d1/query",
     {
@@ -208,7 +208,7 @@ export async function storageQuery(
   if (!json.success) {
     throw new Error(`Storage query failed: ${json.error ?? "Unknown error"}`);
   }
-  return json.data;
+  return json.data as T;
 }
 
 // --- Helper: update workflow run in D1 ---
@@ -327,16 +327,16 @@ export class WorkflowEngine {
     await storageQuery(
       this.env,
       `INSERT INTO workflow_runs (id, product_id, batch_id, status, started_at, current_step, total_steps, total_tokens, total_cost, cache_hits)
-       VALUES (?, ?, NULL, 'running', ?, ?, ?, 0, 0, 0)`,
-      [runId, productId, now(), WORKFLOW_STEPS[0], totalSteps]
+       VALUES (?, ?, NULL, ?, ?, ?, ?, 0, 0, 0)`,
+      [runId, productId, WorkflowRunStatus.RUNNING, now(), WORKFLOW_STEPS[0], totalSteps]
     );
 
     // Create step records in D1 for all 9 steps (parameterized)
     const stepPlaceholders: string[] = [];
     const stepParams: unknown[] = [];
     for (let i = 0; i < WORKFLOW_STEPS.length; i++) {
-      stepPlaceholders.push("(?, ?, ?, ?, 'waiting', 0, 0)");
-      stepParams.push(generateId(), runId, WORKFLOW_STEPS[i], i + 1);
+      stepPlaceholders.push("(?, ?, ?, ?, ?, 0, 0)");
+      stepParams.push(generateId(), runId, WORKFLOW_STEPS[i], i + 1, StepStatus.WAITING);
     }
     await storageQuery(
       this.env,
@@ -348,8 +348,8 @@ export class WorkflowEngine {
     // Update product status to running
     await storageQuery(
       this.env,
-      `UPDATE products SET status = 'running', updated_at = ? WHERE id = ?`,
-      [now(), productId]
+      `UPDATE products SET status = ?, updated_at = ? WHERE id = ?`,
+      [PRODUCT_STATUS.RUNNING, now(), productId]
     );
 
     // Run the pipeline.
@@ -366,8 +366,8 @@ export class WorkflowEngine {
         });
         await storageQuery(
           this.env,
-          `UPDATE products SET status = 'failed', updated_at = ? WHERE id = ?`,
-          [now(), input.productId]
+          `UPDATE products SET status = ?, updated_at = ? WHERE id = ?`,
+          [PRODUCT_STATUS.FAILED, now(), input.productId]
         );
       } catch (updateErr) {
         console.error(`[WORKFLOW] Failed to update status after pipeline error for run ${runId}:`, updateErr);
@@ -487,8 +487,8 @@ export class WorkflowEngine {
         // Update product status
         await storageQuery(
           this.env,
-          `UPDATE products SET status = 'failed', updated_at = ? WHERE id = ?`,
-          [now(), input.productId]
+          `UPDATE products SET status = ?, updated_at = ? WHERE id = ?`,
+          [PRODUCT_STATUS.FAILED, now(), input.productId]
         );
 
         return;
@@ -538,8 +538,8 @@ export class WorkflowEngine {
 
     await storageQuery(
       this.env,
-      `UPDATE products SET status = 'pending_review', updated_at = ? WHERE id = ?`,
-      [now(), input.productId]
+      `UPDATE products SET status = ?, updated_at = ? WHERE id = ?`,
+      [PRODUCT_STATUS.PENDING_REVIEW, now(), input.productId]
     );
 
     console.log(
@@ -668,16 +668,16 @@ export class WorkflowEngine {
     if (productId) {
       await storageQuery(
         this.env,
-        `UPDATE products SET status = 'cancelled', updated_at = ? WHERE id = ?`,
-        [now(), productId]
+        `UPDATE products SET status = ?, updated_at = ? WHERE id = ?`,
+        [PRODUCT_STATUS.CANCELLED, now(), productId]
       );
     }
 
     // Mark any running/waiting steps as cancelled
     await storageQuery(
       this.env,
-      `UPDATE workflow_steps SET status = 'cancelled', completed_at = ? WHERE run_id = ? AND status IN ('waiting', 'running')`,
-      [now(), runId]
+      `UPDATE workflow_steps SET status = ?, completed_at = ? WHERE run_id = ? AND status IN (?, ?)`,
+      [StepStatus.CANCELLED, now(), runId, StepStatus.WAITING, StepStatus.RUNNING]
     );
 
     console.log(`[WORKFLOW] Run ${runId} cancelled`);
@@ -777,8 +777,8 @@ export class WorkflowEngine {
     // Update product status
     await storageQuery(
       this.env,
-      `UPDATE products SET status = 'in_revision', updated_at = ? WHERE id = ?`,
-      [now(), productId]
+      `UPDATE products SET status = ?, updated_at = ? WHERE id = ?`,
+      [PRODUCT_STATUS.IN_REVISION, now(), productId]
     );
 
     // Load prompt templates from KV
@@ -822,8 +822,8 @@ export class WorkflowEngine {
         });
         await storageQuery(
           this.env,
-          `UPDATE products SET status = 'failed', updated_at = ? WHERE id = ?`,
-          [now(), productId]
+          `UPDATE products SET status = ?, updated_at = ? WHERE id = ?`,
+          [PRODUCT_STATUS.FAILED, now(), productId]
         );
       } catch (updateErr) {
         console.error(`[WORKFLOW] Failed to update status after revision pipeline error for run ${runId}:`, updateErr);
@@ -865,8 +865,8 @@ export class WorkflowEngine {
     // Mark product as approved
     await storageQuery(
       this.env,
-      `UPDATE products SET status = 'approved', updated_at = ? WHERE id = ?`,
-      [ts, input.productId]
+      `UPDATE products SET status = ?, updated_at = ? WHERE id = ?`,
+      [PRODUCT_STATUS.APPROVED, ts, input.productId]
     );
 
     // Record auto-review decision
@@ -959,8 +959,8 @@ export class WorkflowEngine {
 
       await storageQuery(
         this.env,
-        `UPDATE products SET status = 'pending_review', updated_at = ? WHERE id = ?`,
-        [now(), input.productId]
+        `UPDATE products SET status = ?, updated_at = ? WHERE id = ?`,
+        [PRODUCT_STATUS.PENDING_REVIEW, now(), input.productId]
       );
     }
   }
@@ -1030,8 +1030,8 @@ export class WorkflowEngine {
   ): Promise<void> {
     const stepsResult = (await storageQuery(
       this.env,
-      `SELECT step_name, output FROM workflow_steps WHERE run_id = ? AND status = 'completed' AND output IS NOT NULL ORDER BY step_order ASC`,
-      [runId]
+      `SELECT step_name, output FROM workflow_steps WHERE run_id = ? AND status = ? AND output IS NOT NULL ORDER BY step_order ASC`,
+      [runId, StepStatus.COMPLETED]
     )) as { results?: Array<{ step_name: string; output: string }> };
 
     if (stepsResult?.results) {

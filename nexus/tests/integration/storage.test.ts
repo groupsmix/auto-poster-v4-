@@ -5,12 +5,19 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import app from "../../apps/workers/nexus-storage/src/index";
+import type { ApiResponse } from "@nexus/shared";
 import {
   createMockD1,
   createMockKV,
   createMockR2,
   jsonResponse,
 } from "../helpers/mocks";
+
+/** Typed API response for test assertions (replaces Record<string, any>) */
+interface TestApiResponse extends ApiResponse<Record<string, unknown>> {
+  service?: string;
+  status?: string;
+}
 
 function buildEnv(overrides: Record<string, unknown> = {}) {
   return {
@@ -39,7 +46,7 @@ describe("nexus-storage: Health & Info", () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/"), env);
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data).toHaveProperty("service", "nexus-storage");
     expect(data).toHaveProperty("status", "ok");
   });
@@ -48,7 +55,7 @@ describe("nexus-storage: Health & Info", () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/health"), env);
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data).toHaveProperty("status", "healthy");
   });
 });
