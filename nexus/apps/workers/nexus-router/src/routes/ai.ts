@@ -20,12 +20,11 @@ ai.get("/models", async (c) => {
 ai.get("/models/:id", async (c) => {
   try {
     const id = c.req.param("id");
-    const data = await storageQuery(
+    const results = await storageQuery<Record<string, unknown>[]>(
       c.env,
       "SELECT * FROM ai_models WHERE id = ? LIMIT 1",
       [id]
     );
-    const results = data as Record<string, unknown>[];
     if (!results || results.length === 0) {
       return c.json<ApiResponse>(
         { success: false, error: "AI model not found" },

@@ -4,6 +4,7 @@
 // ============================================================
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ApiResponse } from "@nexus/shared";
 import app from "../../apps/workers/nexus-workflow/src/index";
 import {
   createMockD1,
@@ -12,6 +13,12 @@ import {
   jsonResponse,
   aiSuccessResponse,
 } from "../helpers/mocks";
+
+/** Typed API response for test assertions (replaces Record<string, any>) */
+interface TestApiResponse extends ApiResponse<Record<string, unknown>> {
+  service?: string;
+  status?: string;
+}
 
 function buildEnv(overrides: Record<string, unknown> = {}) {
   const storageFetcher = createMockFetcher(async (req) => {
@@ -84,7 +91,7 @@ describe("nexus-workflow: Health & Info", () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/"), env);
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data).toHaveProperty("service", "nexus-workflow");
   });
 
@@ -92,7 +99,7 @@ describe("nexus-workflow: Health & Info", () => {
     const env = buildEnv();
     const res = await app.fetch(makeRequest("/health"), env);
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.status).toBe("healthy");
   });
 });
@@ -113,7 +120,7 @@ describe("nexus-workflow: POST /workflow/start", () => {
       env
     );
     expect(res.status).toBe(400);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(false);
     expect(data.error).toContain("domain_id");
   });
@@ -171,11 +178,11 @@ describe("nexus-workflow: POST /workflow/start", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("product_id");
     expect(data.data).toHaveProperty("run_id");
-    expect(data.data.status).toBe("running");
+    expect((data.data as Record<string, unknown>).status).toBe("running");
   });
 });
 
@@ -228,7 +235,7 @@ describe("nexus-workflow: Batch workflow", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("batch_id");
     expect(data.data).toHaveProperty("batch_count");
@@ -258,7 +265,7 @@ describe("nexus-workflow: Cancel workflow", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
     expect(data.data).toHaveProperty("status", "cancelled");
   });
@@ -320,7 +327,7 @@ describe("nexus-workflow: Workflow status", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 });
@@ -342,7 +349,7 @@ describe("nexus-workflow: Revision", () => {
     );
 
     expect(res.status).toBe(400);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(false);
     expect(data.error).toContain("feedback");
   });
@@ -447,7 +454,7 @@ describe("nexus-workflow: Revision", () => {
     );
 
     expect(res.status).toBe(200);
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data.success).toBe(true);
   });
 });
@@ -473,7 +480,7 @@ describe("nexus-workflow: Batch status", () => {
     );
 
     // May return 404 or 200 with empty data depending on implementation
-    const data = await res.json() as Record<string, any>;
+    const data = await res.json() as TestApiResponse;
     expect(data).toBeDefined();
   });
 });

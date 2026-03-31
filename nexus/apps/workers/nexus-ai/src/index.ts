@@ -5,7 +5,7 @@
 // ============================================================
 
 import { Hono } from "hono";
-import type { Env } from "@nexus/shared";
+import type { Env, ApiResponse } from "@nexus/shared";
 import { runWithFailover, getModelStates } from "./failover";
 import { getHealthReport, shouldSuggestReorder } from "./health";
 import { getCacheStats } from "./cache";
@@ -55,7 +55,7 @@ app.post("/ai/run", async (c) => {
   const body = await c.req.json<{ taskType?: string; prompt?: string }>();
 
   if (!body.taskType || !body.prompt) {
-    return c.json(
+    return c.json<ApiResponse>(
       { success: false, error: "Missing required fields: taskType, prompt" },
       400
     );
@@ -63,7 +63,7 @@ app.post("/ai/run", async (c) => {
 
   const models = getModelsForTask(body.taskType);
   if (models.length === 0) {
-    return c.json(
+    return c.json<ApiResponse>(
       { success: false, error: `Unknown task type: ${body.taskType}` },
       400
     );
@@ -71,14 +71,14 @@ app.post("/ai/run", async (c) => {
 
   try {
     const result = await runWithFailover(body.taskType, body.prompt, c.env);
-    return c.json({
+    return c.json<ApiResponse>({
       success: true,
       data: result,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[FATAL] runWithFailover failed: ${message}`);
-    return c.json({ success: false, error: message }, 500);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });
 
@@ -99,7 +99,7 @@ app.get("/ai/health", async (c) => {
   });
   const suggestions = (await Promise.all(suggestionPromises)).filter(Boolean);
 
-  return c.json({
+  return c.json<ApiResponse>({
     success: true,
     data: {
       models: report,
@@ -112,7 +112,7 @@ app.get("/ai/health", async (c) => {
 // ── GET /ai/registry — returns the model registry ───────────
 
 app.get("/ai/registry", (c) => {
-  return c.json({
+  return c.json<ApiResponse>({
     success: true,
     data: {
       taskTypes: getTaskTypes(),
@@ -130,7 +130,7 @@ app.post("/ai/registry/reorder", async (c) => {
   }>();
 
   if (!body.taskType || !body.modelIds) {
-    return c.json(
+    return c.json<ApiResponse>(
       {
         success: false,
         error: "Missing required fields: taskType, modelIds",
@@ -141,7 +141,7 @@ app.post("/ai/registry/reorder", async (c) => {
 
   const currentModels = getModelsForTask(body.taskType);
   if (currentModels.length === 0) {
-    return c.json(
+    return c.json<ApiResponse>(
       { success: false, error: `Unknown task type: ${body.taskType}` },
       400
     );
@@ -151,7 +151,7 @@ app.post("/ai/registry/reorder", async (c) => {
   const currentIds = new Set(currentModels.map((m) => m.id));
   for (const id of body.modelIds) {
     if (!currentIds.has(id)) {
-      return c.json(
+      return c.json<ApiResponse>(
         { success: false, error: `Model ID not found in ${body.taskType}: ${id}` },
         400
       );
@@ -179,7 +179,7 @@ app.post("/ai/registry/reorder", async (c) => {
 
   console.log(`[REORDER] ${body.taskType} -> [${finalOrder.join(", ")}]`);
 
-  return c.json({
+  return c.json<ApiResponse>({
     success: true,
     data: {
       taskType: body.taskType,
@@ -191,7 +191,7 @@ app.post("/ai/registry/reorder", async (c) => {
 // ── GET /ai/cache/stats — cache hit/miss statistics ─────────
 
 app.get("/ai/cache/stats", async (c) => {
-  return c.json({
+  return c.json<ApiResponse>({
     success: true,
     data: await getCacheStats(c.env),
   });
@@ -205,7 +205,7 @@ app.post("/ai/ceo/setup", async (c) => {
   const body = await c.req.json<CEOSetupInput>();
 
   if (!body.domain_name || !body.category_name) {
-    return c.json(
+    return c.json<ApiResponse>(
       {
         success: false,
         error: "Missing required fields: domain_name, category_name",
@@ -215,7 +215,7 @@ app.post("/ai/ceo/setup", async (c) => {
   }
 
   if (!body.domain_slug || !body.category_slug) {
-    return c.json(
+    return c.json<ApiResponse>(
       {
         success: false,
         error: "Missing required fields: domain_slug, category_slug",
@@ -226,14 +226,14 @@ app.post("/ai/ceo/setup", async (c) => {
 
   try {
     const result = await runCEOSetup(body, c.env);
-    return c.json({
+    return c.json<ApiResponse>({
       success: true,
       data: result,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[CEO] Setup failed: ${message}`);
-    return c.json({ success: false, error: message }, 500);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });
 
@@ -243,7 +243,7 @@ app.get("/ai/ceo/config/:categorySlug", async (c) => {
   const categorySlug = c.req.param("categorySlug");
 
   if (!categorySlug) {
-    return c.json(
+    return c.json<ApiResponse>(
       { success: false, error: "categorySlug is required" },
       400
     );
@@ -253,7 +253,7 @@ app.get("/ai/ceo/config/:categorySlug", async (c) => {
     const config = await getCEOConfig(categorySlug, c.env);
 
     if (!config) {
-      return c.json(
+      return c.json<ApiResponse>(
         {
           success: false,
           error: `No CEO configuration found for category: ${categorySlug}`,
@@ -262,10 +262,10 @@ app.get("/ai/ceo/config/:categorySlug", async (c) => {
       );
     }
 
-    return c.json({ success: true, data: config });
+    return c.json<ApiResponse>({ success: true, data: config });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    return c.json({ success: false, error: message }, 500);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });
 
@@ -280,7 +280,7 @@ app.post("/ai/chatbot/chat", async (c) => {
   }>();
 
   if (!body.message) {
-    return c.json(
+    return c.json<ApiResponse>(
       { success: false, error: "Missing required field: message" },
       400
     );
@@ -292,11 +292,11 @@ app.post("/ai/chatbot/chat", async (c) => {
       body.history ?? [],
       c.env
     );
-    return c.json({ success: true, data: result });
+    return c.json<ApiResponse>({ success: true, data: result });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[CHATBOT] Chat failed: ${message}`);
-    return c.json({ success: false, error: message }, 500);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });
 
@@ -305,10 +305,10 @@ app.post("/ai/chatbot/chat", async (c) => {
 app.get("/ai/chatbot/context", async (c) => {
   try {
     const context = await gatherDashboardContext(c.env);
-    return c.json({ success: true, data: { context } });
+    return c.json<ApiResponse>({ success: true, data: { context } });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    return c.json({ success: false, error: message }, 500);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });
 

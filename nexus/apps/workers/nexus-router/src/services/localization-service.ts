@@ -12,7 +12,7 @@
 import { generateId, now } from "@nexus/shared";
 import type { ApiResponse } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
-import { storageQuery } from "../helpers";
+import { storageQuery, forwardToService } from "../helpers";
 
 // --- Types ---
 
@@ -182,19 +182,88 @@ export async function executeLocalization(
   const completed: string[] = [];
   const failed: string[] = [];
 
+  // Get source product details for translation context
+  const sourceName = (job.source_name as string) ?? "Product";
+  const sourceNiche = (job.niche as string) ?? "";
+  const sourceLanguage = (job.source_language as string) ?? "en";
+
+  // Get platform variants for the source product to translate
+  let sourceVariants: Array<{ title: string; description: string; tags: string | null }> = [];
+  try {
+    const variantsResult = await storageQuery(
+      env,
+      "SELECT title, description, tags FROM platform_variants WHERE product_id = ? LIMIT 5",
+      [job.source_product_id as string]
+    );
+    sourceVariants = extractRows<{ title: string; description: string; tags: string | null }>(variantsResult);
+  } catch {
+    // Variants lookup is best-effort
+  }
+
   for (const lang of languages) {
     try {
       const meta = LANGUAGE_META[lang];
       const langName = meta?.name ?? lang;
       const locale = meta?.locale ?? lang;
 
+      // Call AI for actual translation and localization
+      let translationResult: {
+        translated_name?: string;
+        translated_description?: string;
+        localized_keywords?: string[];
+        cultural_notes?: string;
+      } = {};
+
+      try {
+        const variantContext = sourceVariants.length > 0
+          ? `\nExisting listing title: ${sourceVariants[0].title}\nExisting listing description: ${sourceVariants[0].description}`
+          : "";
+
+        const aiPrompt = `Localize this product for the ${langName} (${locale}) market.
+
+Source product name: ${sourceName}
+Niche: ${sourceNiche || "General"}
+Source language: ${sourceLanguage}${variantContext}
+Target language: ${langName} (${locale})
+Target marketplace: ${meta?.marketplace_note ?? "International"}
+Target currency: ${meta?.currency ?? "USD"}
+
+Perform full localization (not just translation):
+- Translate product name naturally for the target market
+- Adapt description for cultural context
+- Generate SEO keywords in the target language
+- Note any cultural adaptations made
+
+Return a JSON object with:
+- translated_name: string
+- translated_description: string
+- localized_keywords: string[] (5-10 keywords in target language)
+- cultural_notes: string (brief notes on adaptations made)`;
+
+        const aiResp = await env.NEXUS_AI.fetch("http://nexus-ai/ai/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskType: "writing", prompt: aiPrompt }),
+        });
+        const aiResult = (await aiResp.json()) as ApiResponse<{ result: string }>;
+        if (aiResult.success && aiResult.data?.result) {
+          try {
+            translationResult = JSON.parse(aiResult.data.result);
+          } catch {
+            // AI returned non-JSON, continue without translation details
+          }
+        }
+      } catch {
+        // AI translation is best-effort
+      }
+
       const localizedProductId = generateId();
 
-      // Create localized_products record
+      // Create localized_products record with translation metadata
       await storageQuery(
         env,
-        `INSERT INTO localized_products (id, job_id, source_product_id, target_language, target_locale, status, localization_notes, created_at)
-         VALUES (?, ?, ?, ?, ?, 'completed', ?, ?)`,
+        `INSERT INTO localized_products (id, job_id, source_product_id, target_language, target_locale, status, localization_notes, metadata, created_at)
+         VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?)`,
         [
           localizedProductId,
           jobId,
@@ -203,14 +272,20 @@ export async function executeLocalization(
           locale,
           JSON.stringify({
             currency_adapted: true,
-            cultural_references_adapted: true,
-            seo_keywords_localized: true,
+            cultural_references_adapted: !!translationResult.cultural_notes,
+            seo_keywords_localized: (translationResult.localized_keywords?.length ?? 0) > 0,
             platform_specific: true,
             social_content_adapted: true,
             target_marketplace: meta?.marketplace_note ?? "International",
             target_currency: meta?.currency ?? "USD",
-            source_language: job.source_language ?? "en",
+            source_language: sourceLanguage,
             target_language_name: langName,
+          }),
+          JSON.stringify({
+            translated_name: translationResult.translated_name ?? null,
+            translated_description: translationResult.translated_description ?? null,
+            localized_keywords: translationResult.localized_keywords ?? [],
+            cultural_notes: translationResult.cultural_notes ?? null,
           }),
           now(),
         ]
