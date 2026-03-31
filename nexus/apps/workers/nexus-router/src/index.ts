@@ -60,6 +60,7 @@ app.use("*", async (c, next) => {
       if (!origin) return origin;
       const allowed = [
         "https://nexus-dashboard.pages.dev",
+        "https://nexus-dashboard-elk.pages.dev",
         "https://nexus-router.professional-inbox-simo.workers.dev",
       ];
       if (
