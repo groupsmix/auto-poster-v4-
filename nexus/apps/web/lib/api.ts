@@ -164,17 +164,17 @@ export const api = {
 
   // AI model endpoints
   aiModels: {
-    list: () => request<AIModel[]>("/ai-models"),
-    get: (id: string) => request<AIModel>(`/ai-models/${id}`),
+    list: () => request<AIModel[]>("/ai/models"),
+    get: (id: string) => request<AIModel>(`/ai/models/${id}`),
     addKey: (id: string, apiKey: string) =>
-      request<AIModel>(`/ai-models/${id}/key`, {
+      request<AIModel>(`/ai/models/${id}/key`, {
         method: "POST",
         body: { api_key: apiKey },
       }),
     removeKey: (id: string) =>
-      request<AIModel>(`/ai-models/${id}/key`, { method: "DELETE" }),
+      request<AIModel>(`/ai/models/${id}/key`, { method: "DELETE" }),
     reorder: (taskType: string, modelIds: string[]) =>
-      request<void>(`/ai-models/reorder`, {
+      request<void>(`/ai/models/reorder`, {
         method: "POST",
         body: { task_type: taskType, model_ids: modelIds },
       }),
@@ -211,14 +211,14 @@ export const api = {
 
   // Publishing endpoints
   publishing: {
-    ready: () => request<PublishableProduct[]>("/publishing/ready"),
+    ready: () => request<PublishableProduct[]>("/publish/ready"),
     publish: (productId: string, data: { platforms: string[]; channels: string[] }) =>
-      request<void>(`/publishing/${productId}/publish`, {
+      request<void>(`/publish/${productId}`, {
         method: "POST",
         body: data,
       }),
     export: (format: "json" | "csv") =>
-      request<string>(`/publishing/export?format=${format}`),
+      request<string>(`/export/full?format=${format}`),
   },
 
   // Asset / Content endpoints

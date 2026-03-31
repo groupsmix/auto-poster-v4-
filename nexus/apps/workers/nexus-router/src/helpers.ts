@@ -52,6 +52,7 @@ export function validateStringField(
 // ── Router Env extends shared Env with DASHBOARD_SECRET ─────
 export interface RouterEnv extends Env {
   DASHBOARD_SECRET?: string;
+  CUSTOM_DOMAIN_ORIGIN?: string;
 }
 
 /** Forward a fetch to nexus-storage for D1 queries */

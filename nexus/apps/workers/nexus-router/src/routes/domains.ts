@@ -6,6 +6,54 @@ import { storageQuery, storageCleanup, errorResponse } from "../helpers";
 
 const domains = new Hono<{ Bindings: RouterEnv }>();
 
+// GET /api/domains/:slug — get single domain by slug or id
+domains.get("/:slug", async (c) => {
+  try {
+    const slug = c.req.param("slug");
+    const data = await storageQuery(
+      c.env,
+      "SELECT * FROM domains WHERE slug = ? OR id = ? LIMIT 1",
+      [slug, slug]
+    );
+    const results = data as Record<string, unknown>[];
+    if (!results || results.length === 0) {
+      return c.json<ApiResponse>(
+        { success: false, error: "Domain not found" },
+        404
+      );
+    }
+    return c.json<ApiResponse>({ success: true, data: results[0] });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// POST /api/domains/reorder — reorder domains
+domains.post("/reorder", async (c) => {
+  try {
+    const body = await c.req.json<{ ids?: string[] }>();
+    if (!body.ids || !Array.isArray(body.ids) || body.ids.length === 0) {
+      return c.json<ApiResponse>(
+        { success: false, error: "ids array is required" },
+        400
+      );
+    }
+
+    // Update sort_order for each domain based on array position
+    for (let i = 0; i < body.ids.length; i++) {
+      await storageQuery(
+        c.env,
+        "UPDATE domains SET sort_order = ? WHERE id = ?",
+        [i + 1, body.ids[i]]
+      );
+    }
+
+    return c.json<ApiResponse>({ success: true, data: { reordered: body.ids.length } });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
 // GET /api/domains — list all domains
 domains.get("/", async (c) => {
   try {
