@@ -14,6 +14,8 @@ import {
   getModelsForTask,
   getTaskTypes,
 } from "./registry";
+import { runCEOSetup, getCEOConfig } from "./ceo";
+import type { CEOSetupInput } from "./ceo";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -30,6 +32,8 @@ app.get("/", (c) => {
       "GET  /ai/registry",
       "POST /ai/registry/reorder",
       "GET  /ai/cache/stats",
+      "POST /ai/ceo/setup",
+      "GET  /ai/ceo/config/:categorySlug",
     ],
   });
 });
@@ -176,6 +180,78 @@ app.get("/ai/cache/stats", async (c) => {
     success: true,
     data: await getCacheStats(c.env),
   });
+});
+
+// ── POST /ai/ceo/setup — AI CEO auto-orchestration ──────────
+// Deeply analyzes a domain + category niche and generates
+// expert-level prompt templates + workflow configuration.
+
+app.post("/ai/ceo/setup", async (c) => {
+  const body = await c.req.json<CEOSetupInput>();
+
+  if (!body.domain_name || !body.category_name) {
+    return c.json(
+      {
+        success: false,
+        error: "Missing required fields: domain_name, category_name",
+      },
+      400
+    );
+  }
+
+  if (!body.domain_slug || !body.category_slug) {
+    return c.json(
+      {
+        success: false,
+        error: "Missing required fields: domain_slug, category_slug",
+      },
+      400
+    );
+  }
+
+  try {
+    const result = await runCEOSetup(body, c.env);
+    return c.json({
+      success: true,
+      data: result,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[CEO] Setup failed: ${message}`);
+    return c.json({ success: false, error: message }, 500);
+  }
+});
+
+// ── GET /ai/ceo/config/:categorySlug — get existing CEO config ──
+
+app.get("/ai/ceo/config/:categorySlug", async (c) => {
+  const categorySlug = c.req.param("categorySlug");
+
+  if (!categorySlug) {
+    return c.json(
+      { success: false, error: "categorySlug is required" },
+      400
+    );
+  }
+
+  try {
+    const config = await getCEOConfig(categorySlug, c.env);
+
+    if (!config) {
+      return c.json(
+        {
+          success: false,
+          error: `No CEO configuration found for category: ${categorySlug}`,
+        },
+        404
+      );
+    }
+
+    return c.json({ success: true, data: config });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json({ success: false, error: message }, 500);
+  }
 });
 
 export default app;

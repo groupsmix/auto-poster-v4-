@@ -32,6 +32,7 @@ import history from "./routes/history";
 import settings from "./routes/settings";
 import exportRoutes from "./routes/export";
 import apiKeys from "./routes/api-keys";
+import aiCeo from "./routes/ai-ceo";
 
 const app = new Hono<{ Bindings: RouterEnv; Variables: { requestId: string } }>();
 
@@ -292,6 +293,7 @@ app.route("/api/history", history);
 app.route("/api/settings", settings);
 app.route("/api/export", exportRoutes);
 app.route("/api/api-keys", apiKeys);
+app.route("/api/ai-ceo", aiCeo);
 
 // ============================================================
 // 404 catch-all

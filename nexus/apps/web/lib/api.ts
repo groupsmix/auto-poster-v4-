@@ -133,14 +133,12 @@ export const api = {
       request<Category[]>(`/domains/${domainId}/categories`),
     get: (domainId: string, slug: string) =>
       request<Category>(`/domains/${domainId}/categories/${slug}`),
-    create: (domainId: string, data: { name: string; description?: string }) =>
-      request<Category>(`/domains/${domainId}/categories`, { method: "POST", body: data }),
-    update: (domainId: string, id: string, data: Partial<Category>) =>
-      request<Category>(`/domains/${domainId}/categories/${id}`, { method: "PUT", body: data }),
-    delete: (domainId: string, id: string) =>
-      request<void>(`/domains/${domainId}/categories/${id}`, { method: "DELETE" }),
-    reorder: (domainId: string, ids: string[]) =>
-      request<void>(`/domains/${domainId}/categories/reorder`, { method: "POST", body: { ids } }),
+    create: (data: { domain_id: string; name: string; description?: string; auto_setup?: boolean; niche_hint?: string; language?: string }) =>
+      request<Category & { ceo_setup?: string; ceo_data?: CEOSetupResponse; ceo_error?: string }>("/categories", { method: "POST", body: data }),
+    update: (id: string, data: Partial<Category>) =>
+      request<Category>(`/categories/${id}`, { method: "PUT", body: data }),
+    delete: (id: string) =>
+      request<void>(`/categories/${id}`, { method: "DELETE" }),
   },
 
   // Prompt template endpoints
@@ -301,6 +299,27 @@ export const api = {
       request<void>(`/api-keys/${keyName}`, { method: "POST", body: { api_key: apiKey } }),
     remove: (keyName: string) =>
       request<void>(`/api-keys/${keyName}`, { method: "DELETE" }),
+  },
+
+  // AI CEO / Auto-Orchestrator endpoints
+  aiCeo: {
+    /** Run full CEO analysis for a domain + category */
+    setup: (data: { domain_id: string; category_id: string; niche_hint?: string; language?: string }) =>
+      request<CEOSetupResponse>("/ai-ceo/setup", { method: "POST", body: data }),
+    /** Get existing CEO configuration for a category */
+    getConfig: (categoryId: string) =>
+      request<CEOConfigResponse>(`/ai-ceo/config/${categoryId}`),
+    /** Re-run CEO analysis for an existing category */
+    refresh: (categoryId: string, data?: { niche_hint?: string; language?: string }) =>
+      request<CEOSetupResponse>(`/ai-ceo/refresh/${categoryId}`, { method: "POST", body: data ?? {} }),
+    /** List all CEO configuration history */
+    history: (page?: number, pageSize?: number) => {
+      const params = new URLSearchParams();
+      if (page) params.set("page", String(page));
+      if (pageSize) params.set("pageSize", String(pageSize));
+      const query = params.toString() ? `?${params.toString()}` : "";
+      return request<CEOConfigSummary[]>(`/ai-ceo/history${query}`);
+    },
   },
 };
 
@@ -506,6 +525,72 @@ interface APIKeyEntry {
   status: "active" | "not_set";
 }
 
+// AI CEO types
+interface CEONicheAnalysis {
+  market_overview: string;
+  target_audience: string;
+  buyer_psychology: string;
+  price_positioning: string;
+  competitive_landscape: string;
+  demand_signals: string[];
+  key_differentiators: string[];
+}
+
+interface CEOWorkflowConfig {
+  recommended_platforms: string[];
+  recommended_social_channels: string[];
+  content_tone: string;
+  content_style: string;
+  pricing_strategy: string;
+  seo_focus_keywords: string[];
+  quality_threshold: number;
+}
+
+interface CEOAnalysis {
+  niche_analysis: CEONicheAnalysis;
+  generated_prompts: {
+    domain_prompt: string;
+    category_prompt: string;
+    role_overrides: Record<string, string>;
+  };
+  workflow_config: CEOWorkflowConfig;
+}
+
+interface CEOSetupResponse {
+  config_id: string;
+  domain: string;
+  category: string;
+  analysis: CEOAnalysis;
+  prompts_stored: number;
+  kv_keys_written: string[];
+}
+
+interface CEOConfigResponse {
+  id: string;
+  domain_id: string;
+  category_id: string;
+  domain_name: string;
+  category_name: string;
+  analysis: CEOAnalysis;
+  prompts_stored: number;
+  kv_keys: string[];
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface CEOConfigSummary {
+  id: string;
+  domain_id: string;
+  category_id: string;
+  domain_name: string;
+  category_name: string;
+  prompts_stored: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export type {
   Domain,
   Category,
@@ -539,4 +624,10 @@ export type {
   APIKeyEntry,
   ProductListParams,
   RunListParams,
+  CEONicheAnalysis,
+  CEOWorkflowConfig,
+  CEOAnalysis,
+  CEOSetupResponse,
+  CEOConfigResponse,
+  CEOConfigSummary,
 };

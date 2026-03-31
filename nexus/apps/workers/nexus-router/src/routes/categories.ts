@@ -7,12 +7,16 @@ import { storageQuery, storageCleanup, errorResponse } from "../helpers";
 const categories = new Hono<{ Bindings: RouterEnv }>();
 
 // POST /api/categories — create category
+// Supports optional `auto_setup: true` to trigger AI CEO auto-orchestration
 categories.post("/", async (c) => {
   try {
     const body = await c.req.json<{
       domain_id?: string;
       name?: string;
       description?: string;
+      auto_setup?: boolean;
+      niche_hint?: string;
+      language?: string;
     }>();
 
     if (!body.domain_id || !body.name) {
@@ -32,8 +36,58 @@ categories.post("/", async (c) => {
       [id, body.domain_id, body.name, slug, body.description ?? null, body.domain_id]
     );
 
+    const responseData: Record<string, unknown> = {
+      id,
+      domain_id: body.domain_id,
+      name: body.name,
+      slug,
+    };
+
+    // If auto_setup is requested, trigger AI CEO auto-orchestration
+    if (body.auto_setup) {
+      try {
+        // Look up domain info for CEO setup
+        const domainRows = await storageQuery(
+          c.env,
+          "SELECT name, slug FROM domains WHERE id = ? LIMIT 1",
+          [body.domain_id]
+        ) as Array<{ name: string; slug: string }>;
+
+        if (domainRows && domainRows.length > 0) {
+          const domain = domainRows[0];
+          const ceoResp = await c.env.NEXUS_AI.fetch("http://nexus-ai/ai/ceo/setup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              domain_name: domain.name,
+              domain_slug: domain.slug,
+              category_name: body.name,
+              category_slug: slug,
+              niche_hint: body.niche_hint ?? null,
+              language: body.language ?? "en",
+            }),
+          });
+
+          const ceoResult = (await ceoResp.json()) as ApiResponse;
+          if (ceoResult.success) {
+            responseData.ceo_setup = "completed";
+            responseData.ceo_data = ceoResult.data;
+          } else {
+            responseData.ceo_setup = "failed";
+            responseData.ceo_error = ceoResult.error;
+          }
+        }
+      } catch (ceoErr) {
+        // CEO setup failure should not block category creation
+        responseData.ceo_setup = "failed";
+        responseData.ceo_error =
+          ceoErr instanceof Error ? ceoErr.message : String(ceoErr);
+        console.warn(`[CATEGORIES] AI CEO auto-setup failed: ${responseData.ceo_error}`);
+      }
+    }
+
     return c.json<ApiResponse>(
-      { success: true, data: { id, domain_id: body.domain_id, name: body.name, slug } },
+      { success: true, data: responseData },
       201
     );
   } catch (err) {
