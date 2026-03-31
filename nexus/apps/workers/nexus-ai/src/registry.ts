@@ -28,6 +28,35 @@ const WORKERS_AI_TEXT: AIModelConfig = {
   model: "@cf/meta/llama-3.1-8b-instruct",
 };
 
+// --- Premium AI entries (dormant until API key is added) ---
+// The failover engine automatically skips models without an API key.
+// Just set the secret on nexus-ai worker → model activates instantly.
+
+const CLAUDE_SONNET: AIModelConfig = {
+  id: "claude-sonnet", name: "Claude 3.5 Sonnet", provider: "anthropic",
+  apiKeyEnvName: "ANTHROPIC_API_KEY", isWorkersAI: false, isFree: false, model: "claude-3-5-sonnet-20241022",
+};
+const GPT4O: AIModelConfig = {
+  id: "gpt-4o", name: "GPT-4o", provider: "openai",
+  apiKeyEnvName: "OPENAI_API_KEY", isWorkersAI: false, isFree: false, model: "gpt-4o",
+};
+const GPT4O_MINI: AIModelConfig = {
+  id: "gpt-4o-mini", name: "GPT-4o Mini", provider: "openai",
+  apiKeyEnvName: "OPENAI_API_KEY", isWorkersAI: false, isFree: false, model: "gpt-4o-mini",
+};
+const GEMINI_PRO: AIModelConfig = {
+  id: "gemini-pro", name: "Gemini 2.0 Pro", provider: "google",
+  apiKeyEnvName: "GOOGLE_API_KEY", isWorkersAI: false, isFree: false, model: "gemini-2.0-pro",
+};
+const GEMINI_FLASH: AIModelConfig = {
+  id: "gemini-flash", name: "Gemini 2.0 Flash", provider: "google",
+  apiKeyEnvName: "GOOGLE_API_KEY", isWorkersAI: false, isFree: false, model: "gemini-2.0-flash",
+};
+const PERPLEXITY_SONAR: AIModelConfig = {
+  id: "perplexity-sonar", name: "Perplexity Sonar", provider: "perplexity",
+  apiKeyEnvName: "PERPLEXITY_API_KEY", isWorkersAI: false, isFree: false, model: "sonar-pro",
+};
+
 // ============================================================
 // TASK_MODEL_REGISTRY — The master registry
 // ============================================================
@@ -37,6 +66,11 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   // RESEARCH TASKS
   // ----------------------------------------------------------
   research: [
+    // Premium (dormant until key added)
+    PERPLEXITY_SONAR,
+    GPT4O,
+    GEMINI_PRO,
+    // Free tier
     { id: "tavily", name: "Tavily Search", provider: "tavily", apiKeyEnvName: "TAVILY_API_KEY", isWorkersAI: false, isFree: true },
     { id: "exa", name: "Exa Neural Search", provider: "exa", apiKeyEnvName: "EXA_API_KEY", isWorkersAI: false, isFree: true },
     { id: "serpapi", name: "SerpAPI", provider: "serpapi", apiKeyEnvName: "SERPAPI_KEY", isWorkersAI: false, isFree: true },
@@ -45,6 +79,10 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   ],
 
   seo: [
+    // Premium (dormant until key added)
+    GPT4O,
+    GEMINI_PRO,
+    // Free tier
     { id: "dataforseo", name: "DataForSEO", provider: "dataforseo", apiKeyEnvName: "DATAFORSEO_KEY", isWorkersAI: false, isFree: true },
     { id: "serpapi-seo", name: "SerpAPI", provider: "serpapi", apiKeyEnvName: "SERPAPI_KEY", isWorkersAI: false, isFree: true },
     { id: "qwen-flash", name: "Qwen 3.5 Flash", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-7B-Instruct" },
@@ -55,6 +93,10 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   // WRITING & CONTENT TASKS
   // ----------------------------------------------------------
   writing: [
+    // Premium (dormant until key added) — Claude excels at nuanced, creative writing
+    CLAUDE_SONNET,
+    GPT4O,
+    // Free tier
     { id: "deepseek-v3-write", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
     { id: "qwen-max", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
     { id: "doubao-pro", name: "Doubao 1.5 Pro", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-pro" },
@@ -63,6 +105,10 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   ],
 
   copywriting: [
+    // Premium (dormant until key added)
+    CLAUDE_SONNET,
+    GPT4O_MINI,
+    // Free tier
     { id: "deepseek-v3-copy", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
     { id: "doubao-pro-copy", name: "Doubao 1.5 Pro", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-pro" },
     { id: "qwen-max-copy", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
@@ -73,6 +119,10 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   // PLATFORM & SOCIAL TASKS
   // ----------------------------------------------------------
   platform_variation: [
+    // Premium (dormant until key added)
+    GPT4O_MINI,
+    GEMINI_FLASH,
+    // Free tier
     { id: "qwen-flash-var", name: "Qwen 3.5 Flash", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-7B-Instruct" },
     { id: "deepseek-v3-var", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
     { id: "doubao-lite", name: "Doubao 1.5 Lite", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-lite" },
@@ -80,6 +130,10 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   ],
 
   social_adaptation: [
+    // Premium (dormant until key added) — Claude excels at tone/voice adaptation
+    CLAUDE_SONNET,
+    GPT4O_MINI,
+    // Free tier
     { id: "doubao-pro-social", name: "Doubao 1.5 Pro", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-pro" },
     { id: "deepseek-v3-social", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
     { id: "qwen-max-social", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
@@ -87,6 +141,9 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   ],
 
   humanizer: [
+    // Premium (dormant until key added) — Claude is best at natural-sounding text
+    CLAUDE_SONNET,
+    // Free tier
     { id: "doubao-pro-human", name: "Doubao 1.5 Pro", provider: "doubao", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "ByteDance/Doubao-1.5-pro" },
     { id: "deepseek-v3-human", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
     { id: "minimax-m25", name: "MiniMax M2.5", provider: "minimax", apiKeyEnvName: "MINIMAX_API_KEY", isWorkersAI: false, isFree: true },
@@ -94,6 +151,10 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   ],
 
   quality_review: [
+    // Premium (dormant until key added) — Claude & GPT-4o are best at critical analysis
+    CLAUDE_SONNET,
+    GPT4O,
+    // Free tier
     { id: "deepseek-r1-review", name: "DeepSeek-R1", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-reasoner" },
     { id: "qwen-max-review", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },
     WORKERS_AI_TEXT,
@@ -103,6 +164,10 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   // REASONING TASKS (used by AI CEO for deep niche analysis)
   // ----------------------------------------------------------
   reasoning: [
+    // Premium (dormant until key added) — GPT-4o & Claude excel at deep analysis
+    GPT4O,
+    CLAUDE_SONNET,
+    // Free tier
     { id: "deepseek-r1-reason", name: "DeepSeek-R1", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-reasoner" },
     { id: "deepseek-v3-reason", name: "DeepSeek-V3", provider: "deepseek", apiKeyEnvName: "DEEPSEEK_API_KEY", isWorkersAI: false, isFree: true, model: "deepseek-chat" },
     { id: "qwen-max-reason", name: "Qwen 3.5 Max", provider: "qwen", apiKeyEnvName: "SILICONFLOW_API_KEY", isWorkersAI: false, isFree: true, model: "Qwen/Qwen2.5-72B-Instruct" },

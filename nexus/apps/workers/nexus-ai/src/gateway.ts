@@ -19,6 +19,10 @@ const PROVIDER_GATEWAY_MAP: Record<string, string> = {
   moonshot: "moonshot",
   huggingface: "huggingface",
   minimax: "minimax",
+  anthropic: "anthropic",
+  openai: "openai",
+  google: "google-ai-studio",
+  perplexity: "perplexity",
 };
 
 /** Provider-to-base-URL mapping for API calls */
@@ -31,6 +35,10 @@ const PROVIDER_API_URL: Record<string, string> = {
   moonshot: "https://api.moonshot.cn/v1/chat/completions",
   huggingface: "https://api-inference.huggingface.co/models",
   minimax: "https://api.minimax.chat/v1/text/chatcompletion_v2",
+  anthropic: "https://api.anthropic.com/v1/messages",
+  openai: "https://api.openai.com/v1/chat/completions",
+  google: "https://generativelanguage.googleapis.com/v1beta/models",
+  perplexity: "https://api.perplexity.ai/chat/completions",
 };
 
 /** Result from an AI Gateway call */
@@ -116,11 +124,20 @@ async function callAIviaGatewayInternal(
   const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
+    // Split prompt into system + user messages for better role adherence.
+    // Convention: everything before "=== TASK ===" is system context;
+    // everything from "=== TASK ===" onward is the user request.
+    const taskSplit = prompt.indexOf("=== TASK ===");
+    const systemContent = taskSplit > 0
+      ? prompt.slice(0, taskSplit).trim()
+      : "You are NEXUS — a world-class AI business engine. Follow all instructions precisely and output valid JSON only.";
+    const userContent = taskSplit > 0
+      ? prompt.slice(taskSplit).trim()
+      : prompt;
+
     if (provider === "huggingface") {
       // HuggingFace uses a different API format
-      const url = gatewayPath && accountId && gatewayId
-        ? `${apiUrl}/${modelId}`
-        : `${apiUrl}/${modelId}`;
+      const url = `${apiUrl}/${modelId}`;
       response = await fetch(url, {
         method: "POST",
         headers: {
@@ -133,22 +150,43 @@ async function callAIviaGatewayInternal(
         }),
         signal: controller.signal,
       });
+    } else if (provider === "anthropic") {
+      // Anthropic uses x-api-key header and a different body structure
+      response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: modelId,
+          system: systemContent,
+          messages: [{ role: "user", content: userContent }],
+          max_tokens: 4096,
+          temperature: 0.7,
+        }),
+        signal: controller.signal,
+      });
+    } else if (provider === "google") {
+      // Google Gemini uses generateContent endpoint with API key as query param
+      const url = `${apiUrl}/${modelId}:generateContent?key=${apiKey}`;
+      response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemContent }] },
+          contents: [{ role: "user", parts: [{ text: userContent }] }],
+          generationConfig: { maxOutputTokens: 4096, temperature: 0.7 },
+        }),
+        signal: controller.signal,
+      });
     } else {
-      // OpenAI-compatible format (DeepSeek, Qwen, Doubao, Groq, Fireworks, Moonshot, MiniMax)
-      // Split prompt into system + user messages for better role adherence.
-      // Convention: everything before "=== TASK ===" is system context (role, rules, constraints);
-      // everything from "=== TASK ===" onward is the user request.
-      const taskSplit = prompt.indexOf("=== TASK ===");
-      const messages =
-        taskSplit > 0
-          ? [
-              { role: "system" as const, content: prompt.slice(0, taskSplit).trim() },
-              { role: "user" as const, content: prompt.slice(taskSplit).trim() },
-            ]
-          : [
-              { role: "system" as const, content: "You are NEXUS — a world-class AI business engine. Follow all instructions precisely and output valid JSON only." },
-              { role: "user" as const, content: prompt },
-            ];
+      // OpenAI-compatible format (DeepSeek, Qwen, Doubao, Groq, Fireworks, Moonshot, MiniMax, OpenAI, Perplexity)
+      const messages = [
+        { role: "system" as const, content: systemContent },
+        { role: "user" as const, content: userContent },
+      ];
 
       response = await fetch(apiUrl, {
         method: "POST",
@@ -211,8 +249,24 @@ async function callAIviaGatewayInternal(
     } else {
       text = data.generated_text ?? "";
     }
+  } else if (provider === "anthropic") {
+    // Anthropic response format
+    const data = (await response.json()) as {
+      content?: Array<{ type: string; text?: string }>;
+      usage?: { input_tokens?: number; output_tokens?: number };
+    };
+    text = data.content?.find((c) => c.type === "text")?.text ?? "";
+    tokens = (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0) || undefined;
+  } else if (provider === "google") {
+    // Google Gemini response format
+    const data = (await response.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      usageMetadata?: { totalTokenCount?: number };
+    };
+    text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    tokens = data.usageMetadata?.totalTokenCount;
   } else {
-    // OpenAI-compatible response
+    // OpenAI-compatible response (OpenAI, DeepSeek, Qwen, Doubao, Groq, Fireworks, Moonshot, MiniMax, Perplexity)
     const data = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
       usage?: { total_tokens?: number };

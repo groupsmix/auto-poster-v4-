@@ -59,17 +59,25 @@ PRINTIFY_API_KEY=
 SUNO_API_KEY=
 
 # ============================================================
-# AI API Keys — Add When Ready (sleeping until key added)
+# Premium AI — Add When Ready (dormant until key added)
+# These models are already in the failover registry positioned
+# first for their strengths. Just add the key to activate.
 # ============================================================
 
-# ANTHROPIC_API_KEY=
-# OPENAI_API_KEY=
-# GOOGLE_API_KEY=
+# Text & Reasoning — Claude is #1 for writing, humanizer, social, quality review
+ANTHROPIC_API_KEY=
+# Text & Reasoning — GPT-4o is #1 for research, SEO, reasoning
+OPENAI_API_KEY=
+# Text & Research — Gemini is strong at research, SEO, platform variations
+GOOGLE_API_KEY=
+# Research — Perplexity Sonar is #1 for research tasks
+PERPLEXITY_API_KEY=
+
+# Image & Media — not yet in registry, add when needed
 # MIDJOURNEY_API_KEY=
 # IDEOGRAM_API_KEY=
 # ELEVENLABS_API_KEY=
 # CARTESIA_API_KEY=
-# PERPLEXITY_API_KEY=
 # PLACEIT_API_KEY=
 
 # ============================================================
