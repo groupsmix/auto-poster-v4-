@@ -17,6 +17,14 @@ import type {
   Campaign,
   PlatformConnection,
   RevenueDashboard,
+  ROIDashboard,
+  ROIReport,
+  ROISnapshot,
+  NicheCost,
+  RecyclerJob,
+  RecyclerVariation,
+  LocalizationJob,
+  LocalizedProduct,
 } from "@nexus/shared";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
@@ -363,6 +371,86 @@ export const api = {
       request<ProductRevenueDetail>(`/revenue/products/${productId}`),
   },
 
+  // ROI Optimizer / Niche Killer endpoints (Phase 2.5)
+  roi: {
+    costs: {
+      list: (params?: { domain_id?: string; niche?: string }) => {
+        const query = params
+          ? "?" + new URLSearchParams(params as Record<string, string>).toString()
+          : "";
+        return request<NicheCost[]>(`/roi/costs${query}`);
+      },
+      add: (data: { domain_id: string; category_id?: string; niche?: string; cost_type?: string; amount: number; currency?: string; description?: string; product_id?: string }) =>
+        request<{ id: string }>("/roi/costs", { method: "POST", body: data }),
+      delete: (id: string) =>
+        request<void>(`/roi/costs/${id}`, { method: "DELETE" }),
+    },
+    snapshots: {
+      generate: (data: { domain_id: string; category_id?: string; niche?: string; period?: string; period_start: string; period_end: string }) =>
+        request<{ id: string }>("/roi/snapshots", { method: "POST", body: data }),
+    },
+    reports: {
+      list: () => request<ROIReport[]>("/roi/reports"),
+      generate: (data: { period_start: string; period_end: string; report_type?: string }) =>
+        request<{ id: string }>("/roi/reports", { method: "POST", body: data }),
+    },
+    dashboard: (params?: { period?: string; domain_id?: string }) => {
+      const query = params
+        ? "?" + new URLSearchParams(params as Record<string, string>).toString()
+        : "";
+      return request<ROIDashboard>(`/roi/dashboard${query}`);
+    },
+  },
+
+  // Smart Product Recycler endpoints (Phase 3)
+  recycler: {
+    topSellers: (limit?: number) =>
+      request<TopSellerProduct[]>(`/recycler/top-sellers${limit ? `?limit=${limit}` : ""}`),
+    analyze: (productId: string) =>
+      request<ProductAnalysisResult>(`/recycler/analyze/${productId}`),
+    jobs: {
+      list: (params?: { status?: string }) => {
+        const query = params
+          ? "?" + new URLSearchParams(params as Record<string, string>).toString()
+          : "";
+        return request<RecyclerJob[]>(`/recycler/jobs${query}`);
+      },
+      get: (id: string) => request<RecyclerJob>(`/recycler/jobs/${id}`),
+      create: (data: { source_product_id: string; strategy?: string; variations_requested?: number }) =>
+        request<{ id: string }>("/recycler/jobs", { method: "POST", body: data }),
+      delete: (id: string) =>
+        request<void>(`/recycler/jobs/${id}`, { method: "DELETE" }),
+      generate: (id: string) =>
+        request<{ variations: Array<{ id: string; type: string; label: string }> }>(`/recycler/jobs/${id}/generate`, { method: "POST", body: {} }),
+      variations: (id: string) =>
+        request<RecyclerVariation[]>(`/recycler/jobs/${id}/variations`),
+    },
+  },
+
+  // Multi-Language Printer endpoints (Phase 3)
+  localization: {
+    languages: () => request<LanguageOption[]>("/localization/languages"),
+    candidates: (limit?: number) =>
+      request<LocalizationCandidate[]>(`/localization/candidates${limit ? `?limit=${limit}` : ""}`),
+    jobs: {
+      list: (params?: { status?: string }) => {
+        const query = params
+          ? "?" + new URLSearchParams(params as Record<string, string>).toString()
+          : "";
+        return request<LocalizationJob[]>(`/localization/jobs${query}`);
+      },
+      get: (id: string) => request<LocalizationJob>(`/localization/jobs/${id}`),
+      create: (data: { source_product_id: string; languages: string[] }) =>
+        request<{ id: string }>("/localization/jobs", { method: "POST", body: data }),
+      delete: (id: string) =>
+        request<void>(`/localization/jobs/${id}`, { method: "DELETE" }),
+      execute: (id: string) =>
+        request<{ completed: string[]; failed: string[] }>(`/localization/jobs/${id}/execute`, { method: "POST", body: {} }),
+      products: (id: string) =>
+        request<LocalizedProduct[]>(`/localization/jobs/${id}/products`),
+    },
+  },
+
   // AI CEO / Auto-Orchestrator endpoints
   aiCeo: {
     /** Run full CEO analysis for a domain + category */
@@ -697,6 +785,57 @@ interface ProductRevenueDetail {
   by_platform: Array<{ platform: string; revenue: number; orders: number; quantity: number }>;
 }
 
+// ROI Optimizer types
+interface TopSellerProduct {
+  id: string;
+  name: string;
+  niche: string;
+  domain_id: string;
+  category_id: string;
+  domain_name: string;
+  category_name: string;
+  total_revenue: number;
+  total_orders: number;
+  total_quantity: number;
+}
+
+interface ProductAnalysisResult {
+  product_name: string;
+  domain: string;
+  category: string;
+  niche: string;
+  revenue: number;
+  orders: number;
+  why_it_sells: string[];
+  keywords: string[];
+  positioning: string;
+  price_point: string;
+  target_audience: string;
+  strengths: string[];
+}
+
+// Localization types
+interface LanguageOption {
+  code: string;
+  name: string;
+  locale: string;
+  currency: string;
+  marketplace_note: string;
+}
+
+interface LocalizationCandidate {
+  id: string;
+  name: string;
+  niche: string;
+  language: string;
+  domain_id: string;
+  category_id: string;
+  domain_name: string;
+  category_name: string;
+  total_revenue: number;
+  total_orders: number;
+}
+
 export type {
   Domain,
   Category,
@@ -745,4 +884,16 @@ export type {
   CampaignProgress,
   RevenueDashboardParams,
   ProductRevenueDetail,
+  ROIDashboard,
+  ROIReport,
+  ROISnapshot,
+  NicheCost,
+  RecyclerJob,
+  RecyclerVariation,
+  LocalizationJob,
+  LocalizedProduct,
+  TopSellerProduct,
+  ProductAnalysisResult,
+  LanguageOption,
+  LocalizationCandidate,
 };

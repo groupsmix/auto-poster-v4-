@@ -36,6 +36,9 @@ import aiCeo from "./routes/ai-ceo";
 import schedulesRoutes from "./routes/schedules";
 import campaignsRoutes from "./routes/campaigns";
 import revenueRoutes from "./routes/revenue";
+import roiRoutes from "./routes/roi";
+import recyclerRoutes from "./routes/recycler";
+import localizationRoutes from "./routes/localization";
 
 const app = new Hono<{ Bindings: RouterEnv; Variables: { requestId: string } }>();
 
@@ -300,6 +303,9 @@ app.route("/api/ai-ceo", aiCeo);
 app.route("/api/schedules", schedulesRoutes);
 app.route("/api/campaigns", campaignsRoutes);
 app.route("/api/revenue", revenueRoutes);
+app.route("/api/roi", roiRoutes);
+app.route("/api/recycler", recyclerRoutes);
+app.route("/api/localization", localizationRoutes);
 
 // ============================================================
 // 404 catch-all
