@@ -16,6 +16,8 @@ import {
 } from "./registry";
 import { runCEOSetup, getCEOConfig } from "./ceo";
 import type { CEOSetupInput } from "./ceo";
+import { runChatbot, gatherDashboardContext } from "./chatbot";
+import type { ChatHistoryMessage } from "./chatbot";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -248,6 +250,49 @@ app.get("/ai/ceo/config/:categorySlug", async (c) => {
     }
 
     return c.json({ success: true, data: config });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json({ success: false, error: message }, 500);
+  }
+});
+
+// ── POST /ai/chatbot/chat — AI chatbot conversation ──────────
+// Takes a user message + conversation history, returns AI response
+// with optional proposed actions.
+
+app.post("/ai/chatbot/chat", async (c) => {
+  const body = await c.req.json<{
+    message?: string;
+    history?: ChatHistoryMessage[];
+  }>();
+
+  if (!body.message) {
+    return c.json(
+      { success: false, error: "Missing required field: message" },
+      400
+    );
+  }
+
+  try {
+    const result = await runChatbot(
+      body.message,
+      body.history ?? [],
+      c.env
+    );
+    return c.json({ success: true, data: result });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[CHATBOT] Chat failed: ${message}`);
+    return c.json({ success: false, error: message }, 500);
+  }
+});
+
+// ── GET /ai/chatbot/context — get current dashboard context ──
+
+app.get("/ai/chatbot/context", async (c) => {
+  try {
+    const context = await gatherDashboardContext(c.env);
+    return c.json({ success: true, data: { context } });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     return c.json({ success: false, error: message }, 500);
