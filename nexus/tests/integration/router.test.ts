@@ -146,7 +146,7 @@ describe("nexus-router: Auth Middleware", () => {
     );
     expect(res.status).toBe(200);
     const data = await res.json() as TestApiResponse;
-    expect(data.status).toBe("healthy");
+    expect(data.status).toBe("ok");
   });
 });
 

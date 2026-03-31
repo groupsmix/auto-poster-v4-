@@ -8,7 +8,7 @@ import { executeUpdate } from "./base";
 
 export async function getProducts(db: D1Database): Promise<Product[]> {
   const result = await db
-    .prepare("SELECT * FROM products ORDER BY created_at DESC")
+    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products ORDER BY created_at DESC")
     .all<Product>();
   return result.results;
 }
@@ -22,7 +22,7 @@ export async function getProductById(db: D1Database, id: string): Promise<Produc
 
 export async function getProductsByDomain(db: D1Database, domainId: string): Promise<Product[]> {
   const result = await db
-    .prepare("SELECT * FROM products WHERE domain_id = ? ORDER BY created_at DESC")
+    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products WHERE domain_id = ? ORDER BY created_at DESC")
     .bind(domainId)
     .all<Product>();
   return result.results;
@@ -30,7 +30,7 @@ export async function getProductsByDomain(db: D1Database, domainId: string): Pro
 
 export async function getProductsByCategory(db: D1Database, categoryId: string): Promise<Product[]> {
   const result = await db
-    .prepare("SELECT * FROM products WHERE category_id = ? ORDER BY created_at DESC")
+    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products WHERE category_id = ? ORDER BY created_at DESC")
     .bind(categoryId)
     .all<Product>();
   return result.results;
@@ -38,7 +38,7 @@ export async function getProductsByCategory(db: D1Database, categoryId: string):
 
 export async function getProductsByBatch(db: D1Database, batchId: string): Promise<Product[]> {
   const result = await db
-    .prepare("SELECT * FROM products WHERE batch_id = ? ORDER BY created_at ASC")
+    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products WHERE batch_id = ? ORDER BY created_at ASC")
     .bind(batchId)
     .all<Product>();
   return result.results;

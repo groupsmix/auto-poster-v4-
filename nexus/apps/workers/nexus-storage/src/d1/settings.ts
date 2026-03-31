@@ -15,7 +15,7 @@ export async function getSettingByKey(db: D1Database, key: string): Promise<Sett
 /** Helper: get all settings as key-value object */
 export async function getSettings(db: D1Database): Promise<Record<string, string>> {
   const result = await db
-    .prepare("SELECT * FROM settings")
+    .prepare("SELECT key, value, updated_at FROM settings")
     .all<Setting>();
 
   const settings: Record<string, string> = {};

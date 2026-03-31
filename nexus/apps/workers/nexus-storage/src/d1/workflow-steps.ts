@@ -8,7 +8,7 @@ import { executeUpdate } from "./base";
 
 export async function getWorkflowSteps(db: D1Database, runId: string): Promise<WorkflowStep[]> {
   const result = await db
-    .prepare("SELECT * FROM workflow_steps WHERE run_id = ? ORDER BY step_order ASC")
+    .prepare("SELECT id, run_id, step_name, step_order, status, ai_used, ai_tried, input, output, tokens_used, cost, cached, latency_ms, started_at, completed_at FROM workflow_steps WHERE run_id = ? ORDER BY step_order ASC")
     .bind(runId)
     .all<WorkflowStep>();
   return result.results;

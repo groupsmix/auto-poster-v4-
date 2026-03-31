@@ -9,13 +9,13 @@ import { executeUpdate } from "./base";
 export async function getAssets(db: D1Database, productId?: string): Promise<Asset[]> {
   if (productId) {
     const result = await db
-      .prepare("SELECT * FROM assets WHERE product_id = ? ORDER BY created_at DESC")
+      .prepare("SELECT id, product_id, asset_type, r2_key, cf_image_id, url, metadata, created_at FROM assets WHERE product_id = ? ORDER BY created_at DESC")
       .bind(productId)
       .all<Asset>();
     return result.results;
   }
   const result = await db
-    .prepare("SELECT * FROM assets ORDER BY created_at DESC")
+    .prepare("SELECT id, product_id, asset_type, r2_key, cf_image_id, url, metadata, created_at FROM assets ORDER BY created_at DESC")
     .all<Asset>();
   return result.results;
 }

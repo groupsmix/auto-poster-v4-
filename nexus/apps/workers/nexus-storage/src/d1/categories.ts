@@ -8,13 +8,13 @@ import { executeUpdate } from "./base";
 export async function getCategories(db: D1Database, domainId?: string): Promise<Category[]> {
   if (domainId) {
     const result = await db
-      .prepare("SELECT * FROM categories WHERE domain_id = ? ORDER BY sort_order ASC")
+      .prepare("SELECT id, domain_id, name, slug, description, sort_order, is_active FROM categories WHERE domain_id = ? ORDER BY sort_order ASC")
       .bind(domainId)
       .all<Category>();
     return result.results;
   }
   const result = await db
-    .prepare("SELECT * FROM categories ORDER BY sort_order ASC")
+    .prepare("SELECT id, domain_id, name, slug, description, sort_order, is_active FROM categories ORDER BY sort_order ASC")
     .all<Category>();
   return result.results;
 }

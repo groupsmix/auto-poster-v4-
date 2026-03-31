@@ -4,7 +4,7 @@
 -- ============================================================
 
 -- Analytics / event tracking table
-CREATE TABLE analytics (
+CREATE TABLE IF NOT EXISTS analytics (
   id            TEXT PRIMARY KEY,
   event_type    TEXT NOT NULL,
   product_id    TEXT,
@@ -19,10 +19,10 @@ CREATE TABLE analytics (
 );
 
 -- Analytics indexes
-CREATE INDEX idx_analytics_event_type ON analytics(event_type);
-CREATE INDEX idx_analytics_product_id ON analytics(product_id);
-CREATE INDEX idx_analytics_created_at ON analytics(created_at);
-CREATE INDEX idx_analytics_ai_model ON analytics(ai_model);
+CREATE INDEX IF NOT EXISTS idx_analytics_event_type ON analytics(event_type);
+CREATE INDEX IF NOT EXISTS idx_analytics_product_id ON analytics(product_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_created_at ON analytics(created_at);
+CREATE INDEX IF NOT EXISTS idx_analytics_ai_model ON analytics(ai_model);
 
 -- ============================================================
 -- SEED DATA: Default Domains (Part 3)

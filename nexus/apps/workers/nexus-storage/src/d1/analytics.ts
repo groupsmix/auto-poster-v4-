@@ -7,7 +7,7 @@ import { generateId, now } from "@nexus/shared";
 
 export async function getAnalytics(db: D1Database, limit = 100): Promise<AnalyticsEvent[]> {
   const result = await db
-    .prepare("SELECT * FROM analytics ORDER BY created_at DESC LIMIT ?")
+    .prepare("SELECT id, event_type, product_id, run_id, ai_model, tokens_used, cost, latency_ms, cached, metadata, created_at FROM analytics ORDER BY created_at DESC LIMIT ?")
     .bind(limit)
     .all<AnalyticsEvent>();
   return result.results;
@@ -15,7 +15,7 @@ export async function getAnalytics(db: D1Database, limit = 100): Promise<Analyti
 
 export async function getAnalyticsByType(db: D1Database, eventType: string, limit = 100): Promise<AnalyticsEvent[]> {
   const result = await db
-    .prepare("SELECT * FROM analytics WHERE event_type = ? ORDER BY created_at DESC LIMIT ?")
+    .prepare("SELECT id, event_type, product_id, run_id, ai_model, tokens_used, cost, latency_ms, cached, metadata, created_at FROM analytics WHERE event_type = ? ORDER BY created_at DESC LIMIT ?")
     .bind(eventType, limit)
     .all<AnalyticsEvent>();
   return result.results;

@@ -10,7 +10,7 @@
 #   2. Creates Cloudflare resources (D1, KV, R2) — skips if they exist
 #   3. Auto-updates all wrangler.toml files with real resource IDs
 #   4. Builds the entire monorepo
-#   5. Runs D1 database migrations (all 4 migration files)
+#   5. Runs D1 database migrations (all migration files)
 #   6. Seeds prompt templates, domains, categories, platforms, etc.
 #   7. Deploys all 5 workers in dependency order
 #   8. Deploys the Next.js frontend to CF Pages
@@ -345,33 +345,45 @@ build_project() {
 run_migrations() {
   step "5: Running D1 database migrations"
 
-  local migration_files=(
-    "${MIGRATIONS_DIR}/001_initial_schema.sql"
-    "${MIGRATIONS_DIR}/002_v4_analytics.sql"
-    "${MIGRATIONS_DIR}/003_schema_fixes.sql"
-    "${MIGRATIONS_DIR}/004_updated_at_triggers.sql"
-  )
+  # Ensure _migrations tracking table exists
+  log "Ensuring _migrations tracking table exists..."
+  if [ "$DRY_RUN" = true ]; then
+    info "  (dry run) wrangler d1 execute ${D1_DB_NAME} --file=${MIGRATIONS_DIR}/000_migrations_tracker.sql --remote"
+  else
+    npx wrangler d1 execute "$D1_DB_NAME" --file="${MIGRATIONS_DIR}/000_migrations_tracker.sql" --remote
+  fi
 
-  for migration in "${migration_files[@]}"; do
-    if [ ! -f "$migration" ]; then
-      warn "Migration file not found: $migration (skipping)"
-      continue
-    fi
-
+  local migration_count=0
+  for migration in $(ls ${MIGRATIONS_DIR}/*.sql 2>/dev/null | sort); do
     local basename
     basename=$(basename "$migration")
-    log "Applying migration: $basename"
 
     if [ "$DRY_RUN" = true ]; then
       info "  (dry run) wrangler d1 execute ${D1_DB_NAME} --file=$migration --remote"
-    else
-      npx wrangler d1 execute "$D1_DB_NAME" --file="$migration" --remote
+      migration_count=$((migration_count + 1))
+      continue
     fi
 
+    # Skip if already applied
+    local applied
+    applied=$(npx wrangler d1 execute "$D1_DB_NAME" --command "SELECT 1 FROM _migrations WHERE name='$basename'" --remote --json 2>/dev/null || echo "[]")
+    if echo "$applied" | grep -q '"1"'; then
+      info "Skipping $basename (already applied)"
+      continue
+    fi
+
+    log "Applying migration: $basename"
+    npx wrangler d1 execute "$D1_DB_NAME" --file="$migration" --remote
+    npx wrangler d1 execute "$D1_DB_NAME" --command "INSERT OR IGNORE INTO _migrations (name) VALUES ('$basename')" --remote
     log "Migration $basename applied"
+    migration_count=$((migration_count + 1))
   done
 
-  log "All migrations complete"
+  if [ "$migration_count" -eq 0 ]; then
+    log "No new migrations to apply (all already applied)"
+  else
+    log "All $migration_count new migrations applied"
+  fi
 }
 
 # ── Step 6: Seed Data ────────────────────────────────────────

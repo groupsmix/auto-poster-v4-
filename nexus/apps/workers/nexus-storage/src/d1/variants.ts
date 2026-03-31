@@ -10,13 +10,13 @@ import { executeUpdate } from "./base";
 export async function getPlatformVariants(db: D1Database, productId?: string): Promise<PlatformVariant[]> {
   if (productId) {
     const result = await db
-      .prepare("SELECT * FROM platform_variants WHERE product_id = ?")
+      .prepare("SELECT id, product_id, platform_id, title, description, tags, price, metadata, status, published_at FROM platform_variants WHERE product_id = ?")
       .bind(productId)
       .all<PlatformVariant>();
     return result.results;
   }
   const result = await db
-    .prepare("SELECT * FROM platform_variants")
+    .prepare("SELECT id, product_id, platform_id, title, description, tags, price, metadata, status, published_at FROM platform_variants")
     .all<PlatformVariant>();
   return result.results;
 }
@@ -79,13 +79,13 @@ export async function deletePlatformVariant(db: D1Database, id: string): Promise
 export async function getSocialVariants(db: D1Database, productId?: string): Promise<SocialVariant[]> {
   if (productId) {
     const result = await db
-      .prepare("SELECT * FROM social_variants WHERE product_id = ?")
+      .prepare("SELECT id, product_id, channel_id, content, status, scheduled_at, published_at FROM social_variants WHERE product_id = ?")
       .bind(productId)
       .all<SocialVariant>();
     return result.results;
   }
   const result = await db
-    .prepare("SELECT * FROM social_variants")
+    .prepare("SELECT id, product_id, channel_id, content, status, scheduled_at, published_at FROM social_variants")
     .all<SocialVariant>();
   return result.results;
 }

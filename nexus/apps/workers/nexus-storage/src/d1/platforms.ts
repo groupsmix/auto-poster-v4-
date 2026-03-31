@@ -7,7 +7,7 @@ import { executeUpdate } from "./base";
 
 export async function getPlatforms(db: D1Database): Promise<Platform[]> {
   const result = await db
-    .prepare("SELECT * FROM platforms ORDER BY name ASC")
+    .prepare("SELECT id, name, slug, title_max_chars, tag_count, tag_max_chars, audience, tone, seo_style, description_style, cta_style, rules_json, is_active FROM platforms ORDER BY name ASC")
     .all<Platform>();
   return result.results;
 }

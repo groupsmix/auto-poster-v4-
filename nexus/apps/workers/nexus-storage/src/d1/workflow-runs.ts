@@ -9,13 +9,13 @@ import { executeUpdate } from "./base";
 export async function getWorkflowRuns(db: D1Database, productId?: string): Promise<WorkflowRun[]> {
   if (productId) {
     const result = await db
-      .prepare("SELECT * FROM workflow_runs WHERE product_id = ? ORDER BY started_at DESC")
+      .prepare("SELECT id, product_id, batch_id, status, started_at, completed_at, current_step, total_steps, total_tokens, total_cost, cache_hits, error FROM workflow_runs WHERE product_id = ? ORDER BY started_at DESC")
       .bind(productId)
       .all<WorkflowRun>();
     return result.results;
   }
   const result = await db
-    .prepare("SELECT * FROM workflow_runs ORDER BY started_at DESC")
+    .prepare("SELECT id, product_id, batch_id, status, started_at, completed_at, current_step, total_steps, total_tokens, total_cost, cache_hits, error FROM workflow_runs ORDER BY started_at DESC")
     .all<WorkflowRun>();
   return result.results;
 }
@@ -115,7 +115,7 @@ export async function getWorkflowWithSteps(
   if (!run) return null;
 
   const stepsResult = await db
-    .prepare("SELECT * FROM workflow_steps WHERE run_id = ? ORDER BY step_order ASC")
+    .prepare("SELECT id, run_id, step_name, step_order, status, ai_used, ai_tried, input, output, tokens_used, cost, cached, latency_ms, started_at, completed_at FROM workflow_steps WHERE run_id = ? ORDER BY step_order ASC")
     .bind(runId)
     .all<WorkflowStep>();
 
