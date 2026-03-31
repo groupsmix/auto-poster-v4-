@@ -68,15 +68,25 @@ export interface CEOSetupResult {
 
 function buildCEOAnalysisPrompt(input: CEOSetupInput): string {
   const lang = input.language ?? "en";
-  return `You are the AI CEO of NEXUS — a world-class AI business engine that creates and sells digital products, physical products, content, and services across multiple platforms.
+  return `You are the AI CEO of NEXUS — a world-class AI business engine that has generated $2M+ in revenue across 50+ niches. You've personally configured AI pipelines for 200+ product categories, and your configurations consistently produce content that ranks in the top 5% of every marketplace.
 
-You are configuring the AI pipeline for a NEW business category. Your job is to deeply understand this niche and generate the PERFECT configuration so that every product created in this category is expert-level quality.
+You are configuring the AI pipeline for a NEW business category. Your configuration will determine the quality of EVERY product created in this category. Get it wrong, and every product fails. Get it right, and every product competes with the top sellers.
 
 === NEW CATEGORY TO CONFIGURE ===
 Domain: ${input.domain_name}
 Category: ${input.category_name}
 ${input.niche_hint ? `User's niche focus hint: ${input.niche_hint}` : ""}
 Language: ${lang}
+
+=== THINK STEP-BY-STEP BEFORE CONFIGURING ===
+
+STEP 1 — MARKET UNDERSTANDING: What is the current state of the ${input.domain_name} > ${input.category_name} market? Who are the top sellers? What do they charge? What gaps exist?
+
+STEP 2 — BUYER PSYCHOLOGY: Who buys products in this category? What pain point are they solving? What makes them pull out their wallet? What objections do they have?
+
+STEP 3 — COMPETITIVE POSITIONING: How can a new seller in this niche stand out? What do top sellers do wrong? What angles are underserved?
+
+STEP 4 — PROMPT STRATEGY: What specific instructions will make the AI produce content that competes with the top 5% of sellers in this niche? What tone, style, keywords, and psychological triggers should the prompts encode?
 
 === YOUR TASK ===
 Perform a DEEP analysis of this domain + category combination and generate a complete configuration. Think like you have 15 years of experience selling in this exact niche.
@@ -124,7 +134,15 @@ You MUST return a JSON object with EXACTLY this structure:
 7. For recommended_platforms, use slugs from: etsy, gumroad, shopify, redbubble, amazon_kdp
 8. For recommended_social_channels, use slugs from: instagram, tiktok, pinterest, linkedin, x_twitter
 9. Return ONLY the JSON object. No markdown, no explanation, no code blocks.
-10. Every prompt you generate should be written as if a $200/hour consultant wrote it specifically for this niche.`;
+10. Every prompt you generate should be written as if a $200/hour consultant wrote it specifically for this niche.
+
+=== EXAMPLE OF EXCELLENT vs POOR DOMAIN PROMPT ===
+
+POOR (too generic): "This domain focuses on digital products. Create high-quality content that appeals to buyers. Use SEO best practices and write compelling descriptions."
+
+EXCELLENT (specific and actionable): "Digital planners sell on emotion + utility. Buyers are 25-40 year old professionals (70% female) who've tried paper planners and failed. They search 'notion planner', 'digital planner adhd', 'weekly planner template'. Price sweet spot: $9.99-$14.99 for singles, $24.99-$34.99 for bundles. Etsy dominates (60% of sales), Gumroad second (25%). Key conversion trigger: showing the planner IN USE with real data, not empty templates. Must include: feature list as buyer benefits, FAQ addressing 'is this hard to set up?', social proof language. Top sellers differentiate by audience (ADHD, students, entrepreneurs) not by features. NEVER use 'comprehensive' or 'ultimate' — buyers are numb to these words."
+
+Your domain_prompt and category_prompt must match the EXCELLENT example's level of specificity.`;
 }
 
 // ============================================================
@@ -137,7 +155,7 @@ function buildPromptRefinementPrompt(
   input: CEOSetupInput,
   initialAnalysis: CEOAnalysis
 ): string {
-  return `You are a world-class prompt engineer. You've been given an initial AI configuration for a business niche. Your job is to REFINE and ELEVATE the prompt templates to maximum quality.
+  return `You are the world's top prompt engineer with 10 years of experience optimizing AI prompts for e-commerce. You've refined 500+ prompt templates, and your optimized prompts consistently produce output that scores 9+/10 in quality reviews. Your secret: you encode expert knowledge so deeply that even a mediocre AI model produces expert-level output.
 
 === NICHE ===
 Domain: ${input.domain_name}
@@ -151,26 +169,33 @@ Domain Prompt: ${initialAnalysis.generated_prompts.domain_prompt}
 
 Category Prompt: ${initialAnalysis.generated_prompts.category_prompt}
 
-=== YOUR TASK ===
-Refine BOTH prompts to be even more powerful. Apply these prompt engineering techniques:
+=== THINK STEP-BY-STEP BEFORE REFINING ===
 
-1. **Chain-of-Thought Triggers**: Add phrases that force the AI to reason step-by-step
-2. **Specificity Anchors**: Replace any vague instruction with a concrete, measurable one
-3. **Anti-Pattern Guards**: Add explicit "DO NOT" rules for common mistakes in this niche
-4. **Quality Escalators**: Add phrases that push output quality higher ("Think like a $200/hr consultant", "This must pass expert review")
-5. **Platform Intelligence**: Add platform-specific rules that only an experienced seller would know
-6. **Psychological Triggers**: Encode buyer psychology into the instructions so AI content naturally triggers purchase desire
-7. **SEO Integration**: Weave keyword strategy naturally into the content instructions
+STEP 1: Read both prompts. What is VAGUE that should be SPECIFIC? ("write good content" → "write 2000+ word descriptions that open with a relatable scenario, not a product announcement")
+STEP 2: What buyer psychology is MISSING? (What emotional triggers, objections, and decision factors should be encoded?)
+STEP 3: What ANTI-PATTERNS should be explicitly banned? (What mistakes do AI models commonly make in this niche?)
+STEP 4: What PLATFORM-SPECIFIC intelligence is missing? (Each platform has different buyer behavior and algorithm rules)
+
+=== YOUR TASK ===
+Refine BOTH prompts to be significantly more powerful. Apply these techniques:
+
+1. **Chain-of-Thought Triggers**: Add "Before writing, first analyze..." and "Think step-by-step about..." phrases
+2. **Specificity Anchors**: Replace EVERY vague instruction with a concrete, measurable one ("good title" → "title with primary keyword in first 40 chars")
+3. **Anti-Pattern Guards**: Add explicit "NEVER" rules for common mistakes in this niche (at least 5 per prompt)
+4. **Quality Escalators**: Add phrases that push quality higher ("This must compete with the top 5% of ${input.domain_name} sellers")
+5. **Few-Shot Patterns**: Add examples of good vs bad output where helpful
+6. **Psychological Triggers**: Encode buyer psychology so AI content naturally triggers purchase desire
+7. **SEO Integration**: Weave specific keyword patterns and placement rules into the instructions
 
 Return a JSON object with EXACTLY this structure:
 {
-  "domain_prompt": "The refined domain prompt (15-20 lines). Must be significantly more detailed and actionable than the original.",
-  "category_prompt": "The refined category prompt (15-20 lines). Must include specific examples, anti-patterns, and quality bars.",
+  "domain_prompt": "The refined domain prompt (15-20 lines). Must be significantly more detailed and actionable than the original. Include specific anti-patterns, examples, and quality bars.",
+  "category_prompt": "The refined category prompt (15-20 lines). Must include specific examples, anti-patterns, keyword patterns, and quality bars.",
   "role_overrides": {
-    "researcher": "Refined researcher override (3-4 sentences)",
-    "copywriter": "Refined copywriter override (3-4 sentences)",
-    "seo": "Refined SEO override (3-4 sentences)",
-    "reviewer": "Refined reviewer override (3-4 sentences)"
+    "researcher": "Refined researcher override (3-4 sentences with specific data sources and analysis focus for this niche)",
+    "copywriter": "Refined copywriter override (3-4 sentences with specific tone, emotional triggers, and anti-patterns for this niche)",
+    "seo": "Refined SEO override (3-4 sentences with specific keyword patterns, tag strategies, and platform SEO rules for this niche)",
+    "reviewer": "Refined reviewer override (3-4 sentences with specific quality bars and common issues to catch in this niche)"
   }
 }
 

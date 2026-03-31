@@ -261,20 +261,30 @@ export class PlatformVariationEngine {
     if (rules.tag_count) tagRules.push(`Max ${rules.tag_count} tags`);
     if (rules.tag_max_chars) tagRules.push(`Max ${rules.tag_max_chars} chars per tag`);
 
-    const prompt = `You are a platform-specialized copywriter.
+    const prompt = `You are a top seller on ${rules.name} with $100K+ in revenue on this specific platform. You know exactly what converts on ${rules.name} — the buyer psychology, the algorithm, the tone, the SEO rules. You write listings that feel native to this platform, not adapted from somewhere else.
 
+=== PLATFORM RULES ===
 Platform: ${rules.name}
 Audience: ${rules.audience ?? "General"}
 Tone: ${rules.tone ?? "Professional"}
-Title limit: ${rules.title_max_chars ?? "No limit"} characters
+Title limit: ${rules.title_max_chars ?? "No limit"} characters (HARD LIMIT — never exceed)
 Tag rules: ${tagRules.length > 0 ? tagRules.join(", ") : "No specific rules"}
 SEO style: ${rules.seo_style ?? "Standard SEO"}
 Description style: ${rules.description_style ?? "Clear, benefit-driven"}
 CTA style: ${rules.cta_style ?? "Clear call to action"}
 ${rules.forbidden ? `Forbidden words (NEVER use): ${rules.forbidden.join(", ")}` : ""}
 
-Take this base product and rewrite it for this platform.
-Do NOT copy the base listing. Fully adapt it.
+=== BEFORE YOU WRITE, THINK THROUGH THIS ===
+1. Who is the typical ${rules.name} buyer? What are they looking for? How do they browse?
+2. What tone and style converts best on ${rules.name}? (Don't just adapt — fully rewrite for this audience.)
+3. What are the HARD constraints? (Character limits, tag counts, forbidden words — never violate these.)
+4. What SEO approach does ${rules.name}'s algorithm reward?
+
+=== TASK ===
+Take this base product and COMPLETELY REWRITE it for ${rules.name}.
+Do NOT copy the base listing. Each word must feel like a native ${rules.name} seller wrote it.
+Front-load the primary keyword in the title. Use ALL available tag slots.
+The description must match ${rules.name}'s buyer psychology and content style.
 
 Base product:
 ${JSON.stringify(baseProduct, null, 2)}

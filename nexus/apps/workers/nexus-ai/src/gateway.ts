@@ -130,6 +130,21 @@ async function callAIviaGatewayInternal(
     });
   } else {
     // OpenAI-compatible format (DeepSeek, Qwen, Doubao, Groq, Fireworks, Moonshot, MiniMax)
+    // Split prompt into system + user messages for better role adherence.
+    // Convention: everything before "=== TASK ===" is system context (role, rules, constraints);
+    // everything from "=== TASK ===" onward is the user request.
+    const taskSplit = prompt.indexOf("=== TASK ===");
+    const messages =
+      taskSplit > 0
+        ? [
+            { role: "system" as const, content: prompt.slice(0, taskSplit).trim() },
+            { role: "user" as const, content: prompt.slice(taskSplit).trim() },
+          ]
+        : [
+            { role: "system" as const, content: "You are NEXUS — a world-class AI business engine. Follow all instructions precisely and output valid JSON only." },
+            { role: "user" as const, content: prompt },
+          ];
+
     response = await fetch(apiUrl, {
       method: "POST",
       headers: {
@@ -138,7 +153,7 @@ async function callAIviaGatewayInternal(
       },
       body: JSON.stringify({
         model: modelId,
-        messages: [{ role: "user", content: prompt }],
+        messages,
         max_tokens: 4096,
         temperature: 0.7,
       }),
