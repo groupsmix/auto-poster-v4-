@@ -8,7 +8,7 @@ import AddDomainModal from "@/components/AddDomainModal";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { handleApiError } from "@/lib/handleApiError";
-import { DEFAULT_CATEGORIES } from "@/lib/domains";
+import { DEFAULT_DOMAINS, DEFAULT_CATEGORIES } from "@/lib/domains";
 import type { DomainData } from "@/lib/domains";
 import type { Domain } from "@nexus/shared";
 
@@ -26,9 +26,20 @@ export default function HomePage() {
     localStorage.setItem("nexus_onboarding_dismissed", "1");
   };
 
+  // Use DEFAULT_DOMAINS as fallback so domains are visible even when the API is down
+  const fallbackDomains: Domain[] = DEFAULT_DOMAINS.map((d, i) => ({
+    id: d.slug,
+    name: d.name,
+    slug: d.slug,
+    icon: d.icon,
+    sort_order: i + 1,
+    is_active: true,
+    created_at: "",
+  }));
+
   const { data: apiDomains, loading, refetch } = useApiQuery(
     () => api.domains.list(),
-    [] as Domain[],
+    fallbackDomains,
   );
 
   const domains: DomainData[] = useMemo(() => {

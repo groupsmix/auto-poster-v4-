@@ -175,15 +175,36 @@ domains.delete("/:id", async (c) => {
 });
 
 // GET /api/domains/:id/categories — list categories for domain
+// Accepts either a domain UUID (id) or a domain slug as the :id parameter
 domains.get("/:id/categories", async (c) => {
   try {
     const domainId = c.req.param("id");
-    const data = await storageQuery(
+
+    // First try matching by domain_id directly (UUID).
+    // If no results, resolve the slug to an id and retry.
+    let data = await storageQuery<Record<string, unknown>[]>(
       c.env,
       "SELECT * FROM categories WHERE domain_id = ? ORDER BY sort_order ASC",
       [domainId]
     );
-    return c.json<ApiResponse>({ success: true, data });
+
+    if ((!data || data.length === 0) && domainId) {
+      // The caller may have passed a slug — resolve it to the domain's id
+      const domainRows = await storageQuery<Array<{ id: string }>>(
+        c.env,
+        "SELECT id FROM domains WHERE slug = ? LIMIT 1",
+        [domainId]
+      );
+      if (domainRows && domainRows.length > 0) {
+        data = await storageQuery<Record<string, unknown>[]>(
+          c.env,
+          "SELECT * FROM categories WHERE domain_id = ? ORDER BY sort_order ASC",
+          [domainRows[0].id]
+        );
+      }
+    }
+
+    return c.json<ApiResponse>({ success: true, data: data ?? [] });
   } catch (err) {
     return errorResponse(c, err);
   }
