@@ -16,26 +16,37 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
  * Retry wrapper for fetch: retries up to `retries` times with exponential
  * backoff for network errors and 5xx responses.
  * Does not retry 4xx (client errors) including 429 rate-limit responses.
+ *
+ * Mutations (POST/PUT/DELETE) get 1 retry on 5xx to handle transient
+ * Cloudflare Worker cold-start and service-binding hiccups.
  */
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
   retries = 2
 ): Promise<Response> {
-  // Never retry mutations — only GET (and HEAD) are safe to retry
   const method = (options.method ?? "GET").toUpperCase();
-  const effectiveRetries = method === "GET" || method === "HEAD" ? retries : 0;
+  // Mutations get 1 retry (handles CF Worker cold-starts / transient 5xx)
+  const effectiveRetries = method === "GET" || method === "HEAD" ? retries : 1;
+
+  let lastResponse: Response | undefined;
 
   for (let i = 0; i <= effectiveRetries; i++) {
     try {
       const response = await fetch(url, options);
       if (response.ok || response.status < 500) return response;
+      lastResponse = response;
       if (i < effectiveRetries) await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
     } catch (e) {
       if (i === effectiveRetries) throw e;
       await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
     }
   }
+
+  // Return the last 5xx response so the caller can read the actual error
+  // from the body instead of showing a generic message.
+  if (lastResponse) return lastResponse;
+
   throw new Error("Max retries exceeded");
 }
 
