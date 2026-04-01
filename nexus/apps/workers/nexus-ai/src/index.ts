@@ -57,7 +57,7 @@ app.use("*", async (c, next) => {
 // ── POST /ai/run — main AI request endpoint ─────────────────
 
 app.post("/ai/run", async (c) => {
-  const body = await c.req.json<{ taskType?: string; prompt?: string }>();
+  const body = await c.req.json<{ taskType?: string; prompt?: string; preferredProvider?: string }>();
 
   if (!body.taskType || !body.prompt) {
     return c.json<ApiResponse>(
@@ -75,7 +75,7 @@ app.post("/ai/run", async (c) => {
   }
 
   try {
-    const result = await runWithFailover(body.taskType, body.prompt, c.env);
+    const result = await runWithFailover(body.taskType, body.prompt, c.env, body.preferredProvider);
     return c.json<ApiResponse>({
       success: true,
       data: result,

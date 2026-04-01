@@ -58,6 +58,7 @@ import type {
   RunListParams,
   RevisionEntry,
   APIKeyEntry,
+  CEOWorkflowConfig,
   CEOSetupResponse,
   CEOConfigResponse,
   CEOConfigSummary,
@@ -642,6 +643,9 @@ export const api = {
     /** Re-run CEO analysis for an existing category */
     refresh: (categoryId: string, data?: { niche_hint?: string; language?: string }) =>
       request<CEOSetupResponse>(`/ai-ceo/refresh/${categoryId}`, { method: "POST", body: data ?? {} }),
+    /** Update CEO workflow config for a category */
+    updateWorkflowConfig: (categoryId: string, config: CEOWorkflowConfig) =>
+      request<{ success: boolean }>(`/ai-ceo/config/${categoryId}`, { method: "PUT", body: config }),
     /** List all CEO configuration history */
     history: (page?: number, pageSize?: number) => {
       const params = new URLSearchParams();

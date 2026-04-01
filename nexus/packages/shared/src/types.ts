@@ -721,6 +721,21 @@ export interface AutoApproveSettings {
   max_auto_revisions: number;
 }
 
+// --- CEO Workflow Config ---
+
+/** CEO workflow recommendations loaded from KV (per-category niche directives) */
+export interface CEOWorkflowConfig {
+  recommended_platforms: string[];
+  recommended_social_channels: string[];
+  content_tone: string;
+  content_style: string;
+  pricing_strategy: string;
+  seo_focus_keywords: string[];
+  quality_threshold: number;
+  /** Per-task-type AI model provider preferences for this niche */
+  preferred_models?: Record<string, string>;
+}
+
 // --- ROI Optimizer / Niche Killer ---
 
 export type ROICostType = "ai_api" | "time" | "platform_fee" | "other";

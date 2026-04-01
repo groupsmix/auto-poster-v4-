@@ -2,8 +2,10 @@
 // Workflow Engine — Types
 // ============================================================
 
-import type { AutoApproveSettings } from "@nexus/shared";
+import type { AutoApproveSettings, CEOWorkflowConfig } from "@nexus/shared";
 import type { StepName, ProductContext, PromptTemplates } from "../steps";
+
+export type { CEOWorkflowConfig } from "@nexus/shared";
 
 export interface WorkflowInput {
   productId: string;
@@ -16,6 +18,8 @@ export interface WorkflowInput {
   autoApproveSettings?: AutoApproveSettings;
   /** Track auto-revision attempts to prevent infinite loops */
   autoRevisionAttempt?: number;
+  /** CEO workflow recommendations for this category (loaded from KV) */
+  ceoWorkflowConfig?: CEOWorkflowConfig;
 }
 
 export interface StepResult {
