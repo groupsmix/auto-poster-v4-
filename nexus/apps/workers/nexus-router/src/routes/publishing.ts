@@ -6,19 +6,169 @@ import { storageQuery, errorResponse } from "../helpers";
 
 const publishing = new Hono<{ Bindings: RouterEnv }>();
 
-// GET /api/publish/ready — list approved products ready to publish
+// --- Row types for Ready to Post queries ---
+
+interface ProductRow {
+  id: string;
+  name?: string;
+  status?: string;
+  ai_score?: number;
+  domain_name?: string;
+  category_name?: string;
+}
+
+interface PlatformVariantRow {
+  product_id: string;
+  platform?: string;
+  title?: string;
+  description?: string;
+  tags?: string;
+  price?: number;
+  seo_score?: number;
+  title_score?: number;
+  tags_score?: number;
+}
+
+interface SocialVariantRow {
+  product_id: string;
+  channel?: string;
+  caption?: string;
+  hashtags?: string;
+  post_type?: string;
+  scheduled_time?: string;
+}
+
+interface ImageRow {
+  id: string;
+  product_id: string;
+  asset_type?: string;
+  r2_key?: string;
+  url?: string;
+  metadata?: string;
+  created_at?: string;
+}
+
+function groupBy<T>(items: T[], key: keyof T): Record<string, T[]> {
+  const map: Record<string, T[]> = {};
+  for (const item of items) {
+    const k = String(item[key] ?? "");
+    if (!map[k]) map[k] = [];
+    map[k].push(item);
+  }
+  return map;
+}
+
+function parseMetadata(raw: string | undefined | null): {
+  prompt: string;
+  style?: string;
+  platform: string;
+  model: string;
+  width: number;
+  height: number;
+} {
+  if (!raw) return { prompt: "", platform: "unknown", model: "unknown", width: 0, height: 0 };
+  try {
+    return JSON.parse(raw) as { prompt: string; style?: string; platform: string; model: string; width: number; height: number };
+  } catch {
+    return { prompt: "", platform: "unknown", model: "unknown", width: 0, height: 0 };
+  }
+}
+
+// GET /api/publish/ready — list approved products with full variant + image data
+// Used by the "Ready to Post" page for copy-paste ready content
 publishing.get("/ready", async (c) => {
   try {
-    const data = await storageQuery(
+    // 1. Fetch approved products
+    const products = await storageQuery<ProductRow[]>(
       c.env,
-      `SELECT p.*,
-              (SELECT COUNT(*) FROM platform_variants pv WHERE pv.product_id = p.id) as variant_count,
-              (SELECT COUNT(*) FROM social_variants sv WHERE sv.product_id = p.id) as social_count
+      `SELECT p.id, p.name, p.status, p.ai_score,
+              d.name as domain_name, cat.name as category_name
        FROM products p
+       LEFT JOIN domains d ON d.id = p.domain_id
+       LEFT JOIN categories cat ON cat.id = p.category_id
        WHERE p.status = '${PRODUCT_STATUS.APPROVED}'
        ORDER BY p.updated_at DESC`
     );
-    return c.json<ApiResponse>({ success: true, data });
+
+    const rows = Array.isArray(products) ? products : [];
+    if (rows.length === 0) {
+      return c.json<ApiResponse>({ success: true, data: [] });
+    }
+
+    // 2. Fetch platform variants, social variants, and images for all products in parallel
+    const productIds = rows.map((p) => p.id);
+    const placeholders = productIds.map(() => "?").join(", ");
+
+    const [platformVariants, socialVariants, images] = await Promise.all([
+      storageQuery<PlatformVariantRow[]>(
+        c.env,
+        `SELECT pv.product_id, pl.slug as platform, pv.title, pv.description, pv.tags, pv.price,
+                pv.seo_score, pv.title_score, pv.tags_score
+         FROM platform_variants pv
+         JOIN platforms pl ON pl.id = pv.platform_id
+         WHERE pv.product_id IN (${placeholders})`,
+        productIds
+      ),
+      storageQuery<SocialVariantRow[]>(
+        c.env,
+        `SELECT sv.product_id, sc.slug as channel, sv.caption, sv.hashtags, sv.post_type, sv.scheduled_time
+         FROM social_variants sv
+         JOIN social_channels sc ON sc.id = sv.channel_id
+         WHERE sv.product_id IN (${placeholders})`,
+        productIds
+      ),
+      storageQuery<ImageRow[]>(
+        c.env,
+        `SELECT id, product_id, asset_type, r2_key, url, metadata, created_at
+         FROM assets
+         WHERE product_id IN (${placeholders}) AND asset_type = 'image'
+         ORDER BY created_at DESC`,
+        productIds
+      ),
+    ]);
+
+    // 3. Group by product_id
+    const pvByProduct = groupBy(Array.isArray(platformVariants) ? platformVariants : [], "product_id");
+    const svByProduct = groupBy(Array.isArray(socialVariants) ? socialVariants : [], "product_id");
+    const imgByProduct = groupBy(Array.isArray(images) ? images : [], "product_id");
+
+    // 4. Assemble ReadyToPostProduct objects
+    const result = rows.map((p) => ({
+      id: p.id,
+      product_id: p.id,
+      product_name: p.name ?? "",
+      domain_name: p.domain_name ?? undefined,
+      category_name: p.category_name ?? undefined,
+      ai_score: p.ai_score ?? 0,
+      status: p.status,
+      platform_variants: (pvByProduct[p.id] ?? []).map((pv) => ({
+        platform: pv.platform ?? "",
+        title: pv.title ?? "",
+        description: pv.description ?? "",
+        tags: parseTags(pv.tags as string | undefined),
+        price: pv.price ?? 0,
+        scores: { seo: pv.seo_score ?? 0, title: pv.title_score ?? 0, tags: pv.tags_score ?? 0 },
+      })),
+      social_variants: (svByProduct[p.id] ?? []).map((sv) => ({
+        channel: sv.channel ?? "",
+        caption: sv.caption ?? "",
+        hashtags: parseTags(sv.hashtags as string | undefined),
+        post_type: sv.post_type ?? "",
+        scheduled_time: sv.scheduled_time ?? undefined,
+      })),
+      images: (imgByProduct[p.id] ?? []).map((img) => ({
+        id: img.id,
+        product_id: img.product_id,
+        asset_type: img.asset_type ?? "image",
+        r2_key: img.r2_key ?? "",
+        url: img.url ?? "",
+        metadata: parseMetadata(img.metadata),
+        created_at: img.created_at ?? "",
+      })),
+      posting_mode: "manual" as const,
+    }));
+
+    return c.json<ApiResponse>({ success: true, data: result });
   } catch (err) {
     return errorResponse(c, err);
   }
@@ -130,7 +280,7 @@ publishing.get("/:productId/export", async (c) => {
 // Platform-Ready Export Formats
 // ============================================================
 
-interface VariantRow {
+interface ExportVariantRow {
   title?: string;
   description?: string;
   tags?: string;
@@ -145,7 +295,7 @@ interface AssetRow {
   asset_type?: string;
 }
 
-interface ProductRow {
+interface ExportProductRow {
   name?: string;
   niche?: string;
 }
@@ -186,7 +336,7 @@ publishing.get("/:productId/export/etsy-csv", async (c) => {
       ]),
     ]);
 
-    const variants = extractRows<VariantRow>(variantsRaw);
+    const variants = extractRows<ExportVariantRow>(variantsRaw);
     const assets = extractRows<AssetRow>(assetsRaw);
     const imageUrls = assets
       .filter((a) => a.asset_type === "image" || !a.asset_type)
@@ -258,10 +408,10 @@ publishing.get("/:productId/export/gumroad-json", async (c) => {
       ]),
     ]);
 
-    const products = extractRows<ProductRow>(productRaw);
-    const variants = extractRows<VariantRow>(variantsRaw);
+    const gProducts = extractRows<ExportProductRow>(productRaw);
+    const variants = extractRows<ExportVariantRow>(variantsRaw);
     const assets = extractRows<AssetRow>(assetsRaw);
-    const product = products[0];
+    const product = gProducts[0];
     const variant = variants[0];
 
     const gumroadPayload = {
@@ -306,10 +456,10 @@ publishing.get("/:productId/export/shopify-json", async (c) => {
       ]),
     ]);
 
-    const products = extractRows<ProductRow>(productRaw);
-    const variants = extractRows<VariantRow>(variantsRaw);
+    const sProducts = extractRows<ExportProductRow>(productRaw);
+    const variants = extractRows<ExportVariantRow>(variantsRaw);
     const assets = extractRows<AssetRow>(assetsRaw);
-    const product = products[0];
+    const product = sProducts[0];
 
     const shopifyPayload = {
       product: {

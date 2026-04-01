@@ -682,6 +682,134 @@ app.post("/workflow/resume/:runId", async (c) => {
 });
 
 // ============================================================
+// POST /workflow/products/:productId/regenerate-images
+// Delete existing images and regenerate platform-specific images
+// ============================================================
+
+app.post("/workflow/products/:productId/regenerate-images", async (c) => {
+  try {
+    const productId = c.req.param("productId");
+
+    if (!productId) {
+      return c.json<ApiResponse>(
+        { success: false, error: "Missing productId parameter" },
+        400
+      );
+    }
+
+    // 1. Get product info for context
+    const productResult = (await storageQuery(
+      c.env,
+      `SELECT p.*, d.slug as domain_slug, cat.slug as category_slug
+       FROM products p
+       LEFT JOIN domains d ON d.id = p.domain_id
+       LEFT JOIN categories cat ON cat.id = p.category_id
+       WHERE p.id = ?`,
+      [productId]
+    )) as { results?: Array<Record<string, unknown>> };
+
+    const product = Array.isArray(productResult)
+      ? productResult[0]
+      : productResult?.results?.[0];
+
+    if (!product) {
+      return c.json<ApiResponse>(
+        { success: false, error: `Product ${productId} not found` },
+        404
+      );
+    }
+
+    // 2. Get existing image_generation step output for prompts
+    const stepsResult = (await storageQuery(
+      c.env,
+      `SELECT ws.output FROM workflow_steps ws
+       JOIN workflow_runs wr ON wr.id = ws.run_id
+       WHERE wr.product_id = ? AND ws.step_name = 'image_generation' AND ws.output IS NOT NULL
+       ORDER BY ws.completed_at DESC LIMIT 1`,
+      [productId]
+    )) as { results?: Array<{ output?: string }> };
+
+    const stepRows = Array.isArray(stepsResult)
+      ? stepsResult
+      : stepsResult?.results ?? [];
+    const stepOutput = stepRows[0]?.output;
+
+    let heroPrompt = `Professional product image for ${(product.name as string) ?? "product"}`;
+    let heroStyle = "";
+
+    if (stepOutput) {
+      try {
+        const parsed = JSON.parse(stepOutput) as Record<string, unknown>;
+        const rawPrompts = (parsed.image_prompts ?? parsed.images ?? []) as Array<{
+          description: string;
+          style?: string;
+        }>;
+        if (rawPrompts[0]?.description) {
+          heroPrompt = rawPrompts[0].description;
+          heroStyle = rawPrompts[0].style ?? "";
+        }
+      } catch {
+        // Use default prompt
+      }
+    }
+
+    // 3. Delete existing images for this product
+    await storageQuery(
+      c.env,
+      `DELETE FROM assets WHERE product_id = ? AND asset_type = 'image'`,
+      [productId]
+    );
+
+    // 4. Determine platforms
+    let platforms: string[] = [];
+    try {
+      const userInput = product.user_input
+        ? JSON.parse(product.user_input as string) as { platforms?: string[] }
+        : null;
+      platforms = userInput?.platforms ?? [];
+    } catch {
+      // ignore
+    }
+    if (platforms.length === 0) {
+      platforms = ["etsy", "pinterest", "instagram", "twitter", "facebook"];
+    }
+
+    // 5. Build platform-specific prompts
+    const { generateAndStoreImages } = await import("./engine/service-clients");
+
+    const platformPrompts = platforms.map((platform: string) => ({
+      description: heroPrompt,
+      style: heroStyle,
+      platform,
+    }));
+    platformPrompts.push({
+      description: heroPrompt,
+      style: "High contrast, bold, readable at small size",
+      platform: "thumbnail",
+    });
+
+    // 6. Generate images
+    const assets = await generateAndStoreImages(c.env, productId, platformPrompts);
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: {
+        product_id: productId,
+        images_generated: assets.length,
+        assets,
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[WORKFLOW] Regenerate images failed:", message);
+    return c.json<ApiResponse>(
+      { success: false, error: message },
+      500
+    );
+  }
+});
+
+// ============================================================
 // PROJECT BUILDER ROUTES
 // ============================================================
 
