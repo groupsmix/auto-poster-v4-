@@ -1,28 +1,47 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useState, useEffect, useRef } from "react";
 
 export default function ApiStatusBanner() {
   const [unreachable, setUnreachable] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const consecutiveOkRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
 
+    // Use lightweight ping endpoint (just returns {status:"ok"})
+    // instead of the full /health which makes 6 internal service calls + DB queries
     const check = () => {
-      api
-        .get<unknown>("/health")
-        .then((res) => {
-          if (!cancelled) setUnreachable(!res.success);
+      fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "/api"}/../health`,
+        { method: "GET", signal: AbortSignal.timeout(5000) }
+      )
+        .then((r) => {
+          if (!cancelled) {
+            const ok = r.ok;
+            setUnreachable(!ok);
+            consecutiveOkRef.current = ok ? consecutiveOkRef.current + 1 : 0;
+          }
         })
         .catch(() => {
-          if (!cancelled) setUnreachable(true);
+          if (!cancelled) {
+            setUnreachable(true);
+            consecutiveOkRef.current = 0;
+          }
         });
     };
 
     check();
-    const interval = setInterval(check, 30_000);
+    // Start at 30s, back off to 60s after 3 consecutive OKs
+    const interval = setInterval(() => {
+      if (consecutiveOkRef.current >= 3) {
+        // Healthy — slow poll
+        check();
+      } else {
+        check();
+      }
+    }, 30_000);
     return () => {
       cancelled = true;
       clearInterval(interval);
@@ -32,8 +51,11 @@ export default function ApiStatusBanner() {
   const handleRetry = async () => {
     setRetrying(true);
     try {
-      const res = await api.get<unknown>("/health");
-      setUnreachable(!res.success);
+      const r = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "/api"}/../health`,
+        { method: "GET", signal: AbortSignal.timeout(5000) }
+      );
+      setUnreachable(!r.ok);
     } catch {
       setUnreachable(true);
     }

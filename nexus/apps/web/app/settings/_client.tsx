@@ -5,7 +5,9 @@ import { api } from "@/lib/api";
 import Modal from "@/components/Modal";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { toast } from "sonner";
-import type { APIKeyEntry, SettingsMap } from "@/lib/api";
+import type { APIKeyEntry, SettingsMap, AIModel } from "@/lib/api";
+import { Bars3Icon } from "@/components/icons/Icons";
+import Link from "next/link";
 
 
 const LANGUAGES = [
@@ -105,6 +107,242 @@ function ToggleSwitch({
           }`}
         />
       </button>
+    </div>
+  );
+}
+
+// Task type labels for AI model grouping
+const TASK_TYPES = [
+  { key: "research", label: "Research" },
+  { key: "writing", label: "Writing & Content" },
+  { key: "seo", label: "SEO Formatting" },
+  { key: "reasoning", label: "Reasoning & Analysis" },
+  { key: "code", label: "Code Generation" },
+  { key: "image", label: "Image & Visual" },
+  { key: "audio", label: "Audio & Music" },
+  { key: "variation", label: "Platform Variation" },
+  { key: "social", label: "Social Adaptation" },
+  { key: "review", label: "CEO Review" },
+] as const;
+
+function AIModelPrioritySection() {
+  const { data: fetchedModels, loading } = useApiQuery(
+    () => api.aiModels.list(),
+    [],
+  );
+
+  const [models, setModels] = useState<AIModel[]>([]);
+  const [expandedTask, setExpandedTask] = useState<string | null>(null);
+  const [dragState, setDragState] = useState<{
+    taskType: string;
+    dragIdx: number;
+    overIdx: number;
+  } | null>(null);
+
+  const dragItemRef = useRef<number | null>(null);
+  const dragOverRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setModels(fetchedModels);
+  }, [fetchedModels]);
+
+  // Group models by task type
+  const modelsByTask: Record<string, AIModel[]> = {};
+  for (const model of models) {
+    if (!modelsByTask[model.task_type]) {
+      modelsByTask[model.task_type] = [];
+    }
+    modelsByTask[model.task_type].push(model);
+  }
+  for (const key of Object.keys(modelsByTask)) {
+    modelsByTask[key].sort((a, b) => a.rank - b.rank);
+  }
+
+  const handleDragStart = (taskType: string, idx: number) => {
+    dragItemRef.current = idx;
+    setDragState({ taskType, dragIdx: idx, overIdx: idx });
+  };
+
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    dragOverRef.current = idx;
+    if (dragState) {
+      setDragState({ ...dragState, overIdx: idx });
+    }
+  };
+
+  const handleDrop = async (taskType: string) => {
+    if (dragItemRef.current === null || dragOverRef.current === null) return;
+    const taskModels = [...(modelsByTask[taskType] ?? [])];
+    const dragIdx = dragItemRef.current;
+    const dropIdx = dragOverRef.current;
+
+    if (dragIdx === dropIdx) {
+      setDragState(null);
+      return;
+    }
+
+    const [removed] = taskModels.splice(dragIdx, 1);
+    taskModels.splice(dropIdx, 0, removed);
+
+    const updatedModels = taskModels.map((m, i) => ({ ...m, rank: i + 1 }));
+    setModels((prev) => {
+      const others = prev.filter((m) => m.task_type !== taskType);
+      return [...others, ...updatedModels];
+    });
+
+    try {
+      await api.aiModels.reorder(taskType, updatedModels.map((m) => m.id));
+      toast.success("Model priority updated");
+    } catch {
+      toast.error("Failed to save model order");
+    }
+
+    dragItemRef.current = null;
+    dragOverRef.current = null;
+    setDragState(null);
+  };
+
+  const visibleTaskTypes = TASK_TYPES.filter((t) => modelsByTask[t.key]?.length);
+
+  return (
+    <div className="rounded-xl border border-card-border bg-card-bg p-6">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-base font-semibold text-foreground">
+          AI Model Priority
+        </h2>
+        <Link
+          href="/ai-manager"
+          className="text-xs text-accent hover:underline"
+        >
+          Full AI Manager &rarr;
+        </Link>
+      </div>
+      <p className="text-xs text-muted mb-4">
+        Drag models to reorder failover priority. #1 is tried first, then #2, etc. When a new AI comes out, just add its API key above and reorder here.
+      </p>
+
+      {loading && (
+        <div className="space-y-3 animate-pulse">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-10 bg-card-hover rounded-lg" />
+          ))}
+        </div>
+      )}
+
+      {!loading && visibleTaskTypes.length === 0 && (
+        <div className="rounded-lg bg-card-hover border border-card-border p-8 text-center">
+          <p className="text-sm text-muted">No AI models found.</p>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="space-y-2">
+          {visibleTaskTypes.map(({ key: taskType, label }) => {
+            const taskModels = modelsByTask[taskType] ?? [];
+            const activeCount = taskModels.filter(
+              (m) => m.status === "active"
+            ).length;
+            const isExpanded = expandedTask === taskType;
+
+            return (
+              <div
+                key={taskType}
+                className="rounded-lg border border-card-border overflow-hidden"
+              >
+                {/* Collapsible header */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedTask(isExpanded ? null : taskType)
+                  }
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-card-hover transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-foreground">
+                      {label}
+                    </span>
+                    <span className="text-xs text-muted">
+                      {activeCount}/{taskModels.length} active
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted font-mono">
+                      #{taskModels[0]?.name ?? "—"}
+                    </span>
+                    <svg
+                      className={`w-4 h-4 text-muted transition-transform ${
+                        isExpanded ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
+                </button>
+
+                {/* Expanded model list */}
+                {isExpanded && (
+                  <div className="border-t border-card-border divide-y divide-card-border">
+                    {taskModels.map((model, idx) => (
+                      <div
+                        key={model.id}
+                        draggable
+                        onDragStart={() =>
+                          handleDragStart(taskType, idx)
+                        }
+                        onDragOver={(e) => handleDragOver(e, idx)}
+                        onDrop={() => handleDrop(taskType)}
+                        onDragEnd={() => setDragState(null)}
+                        className={`flex items-center gap-3 px-4 py-2.5 cursor-grab active:cursor-grabbing transition-all ${
+                          dragState?.taskType === taskType &&
+                          dragState.dragIdx === idx
+                            ? "opacity-50 scale-[0.98]"
+                            : dragState?.taskType === taskType &&
+                                dragState.overIdx === idx
+                              ? "bg-accent/10"
+                              : "hover:bg-card-hover"
+                        }`}
+                      >
+                        <Bars3Icon className="w-4 h-4 text-muted shrink-0" />
+                        <span className="w-5 h-5 rounded bg-card-hover flex items-center justify-center text-xs font-mono text-muted shrink-0">
+                          {model.rank}
+                        </span>
+                        <span className="text-sm text-foreground truncate flex-1">
+                          {model.name}
+                        </span>
+                        <span className="text-xs text-muted shrink-0">
+                          {model.provider}
+                        </span>
+                        <span
+                          className={`text-xs font-medium px-2 py-0.5 rounded shrink-0 ${
+                            model.status === "active"
+                              ? "bg-green-500/10 text-green-400"
+                              : model.is_workers_ai
+                                ? "bg-green-500/10 text-green-400"
+                                : "bg-gray-500/10 text-gray-400"
+                          }`}
+                        >
+                          {model.status === "active" || model.is_workers_ai
+                            ? "Active"
+                            : "Sleeping"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -529,20 +767,8 @@ export default function SettingsClient() {
           </div>
         </div>
 
-        {/* Account Preferences Placeholder */}
-        <div className="rounded-xl border border-card-border bg-card-bg p-6">
-          <h2 className="text-base font-semibold text-foreground mb-1">
-            Account Preferences
-          </h2>
-          <p className="text-xs text-muted mb-4">
-            Additional account settings coming soon
-          </p>
-          <div className="rounded-lg bg-card-hover border border-card-border p-8 text-center">
-            <p className="text-sm text-muted">
-              Account preferences will be available in a future update.
-            </p>
-          </div>
-        </div>
+        {/* AI Model Priority Management */}
+        <AIModelPrioritySection />
       </div>
 
       {/* Add Key Modal */}

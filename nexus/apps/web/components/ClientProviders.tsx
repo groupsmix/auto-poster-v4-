@@ -7,6 +7,7 @@ import { useKeyboardShortcuts } from "@/lib/useKeyboardShortcuts";
 import CommandPalette from "@/components/CommandPalette";
 import LoginGate from "@/components/LoginGate";
 import ApiStatusBanner from "@/components/ApiStatusBanner";
+import InstallPrompt from "@/components/InstallPrompt";
 import { Toaster } from "sonner";
 
 function KeyboardShortcutsInit() {
@@ -66,6 +67,7 @@ export default function ClientProviders({ children }: { children: ReactNode }) {
         <CommandPalette />
         <ApiStatusBanner />
         {children}
+        <InstallPrompt />
         <Toaster position="bottom-right" theme="dark" richColors />
       </ReviewCountProvider>
     </LoginGate>
