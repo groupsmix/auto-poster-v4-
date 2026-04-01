@@ -50,16 +50,52 @@ ai.post("/models/:id/key", async (c) => {
       );
     }
 
-    // Store the key name as a secret reference on the model
+    // Look up the model's apiKeyEnvName from the registry
+    const registryRes = await forwardToService(c.env.NEXUS_AI, "/ai/registry");
+    let envName: string | null = null;
+    if (registryRes.success && registryRes.data) {
+      const registry = (registryRes.data as { registry: Record<string, Array<{ id: string; apiKeyEnvName?: string }>> }).registry;
+      for (const models of Object.values(registry)) {
+        const found = models.find((m) => m.id === id);
+        if (found?.apiKeyEnvName) {
+          envName = found.apiKeyEnvName;
+          break;
+        }
+      }
+    }
+
+    if (!envName) {
+      return c.json<ApiResponse>(
+        { success: false, error: `Could not find API key env name for model: ${id}` },
+        404
+      );
+    }
+
+    // Store the actual API key in KV via nexus-ai
+    const kvResult = await forwardToService(
+      c.env.NEXUS_AI,
+      `/ai/keys/${envName}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: body.api_key }),
+      }
+    );
+
+    if (!kvResult.success) {
+      return c.json<ApiResponse>(kvResult, 500);
+    }
+
+    // Also update D1 model status
     await storageQuery(
       c.env,
       `UPDATE ai_models SET api_key_secret_name = ?, status = '${ModelStatus.ACTIVE}' WHERE id = ?`,
-      [body.api_key, id]
+      [envName, id]
     );
 
     return c.json<ApiResponse>({
       success: true,
-      data: { id, status: "active" },
+      data: { id, env_name: envName, status: "active" },
     });
   } catch (err) {
     return errorResponse(c, err);
@@ -71,6 +107,30 @@ ai.delete("/models/:id/key", async (c) => {
   try {
     const id = c.req.param("id");
 
+    // Look up the model's apiKeyEnvName from the registry
+    const registryRes = await forwardToService(c.env.NEXUS_AI, "/ai/registry");
+    let envName: string | null = null;
+    if (registryRes.success && registryRes.data) {
+      const registry = (registryRes.data as { registry: Record<string, Array<{ id: string; apiKeyEnvName?: string }>> }).registry;
+      for (const models of Object.values(registry)) {
+        const found = models.find((m) => m.id === id);
+        if (found?.apiKeyEnvName) {
+          envName = found.apiKeyEnvName;
+          break;
+        }
+      }
+    }
+
+    // Remove from KV if we found the env name
+    if (envName) {
+      await forwardToService(
+        c.env.NEXUS_AI,
+        `/ai/keys/${envName}`,
+        { method: "DELETE" }
+      );
+    }
+
+    // Update D1 model status
     await storageQuery(
       c.env,
       `UPDATE ai_models SET api_key_secret_name = NULL, status = '${ModelStatus.SLEEPING}' WHERE id = ?`,

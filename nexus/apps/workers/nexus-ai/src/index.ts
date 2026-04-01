@@ -366,6 +366,71 @@ app.get("/ai/neurons", async (c) => {
   }
 });
 
+// ── POST /ai/keys/:envName — store an API key in KV ─────────
+// Allows the dashboard to manage API keys without wrangler CLI.
+// Keys are stored in KV under "apikey:{ENV_NAME}" and read by
+// the failover engine when env vars don't have the key.
+
+app.post("/ai/keys/:envName", async (c) => {
+  const envName = c.req.param("envName");
+  const body = await c.req.json<{ api_key?: string }>();
+
+  if (!body.api_key || !envName) {
+    return c.json<ApiResponse>(
+      { success: false, error: "envName and api_key are required" },
+      400
+    );
+  }
+
+  try {
+    await c.env.KV.put(`apikey:${envName}`, body.api_key, {
+      // No expiration — persists until explicitly deleted
+    });
+    console.log(`[KEYS] Stored API key for ${envName} in KV`);
+    return c.json<ApiResponse>({
+      success: true,
+      data: { env_name: envName, status: "stored" },
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
+});
+
+// ── DELETE /ai/keys/:envName — remove an API key from KV ────
+
+app.delete("/ai/keys/:envName", async (c) => {
+  const envName = c.req.param("envName");
+
+  try {
+    await c.env.KV.delete(`apikey:${envName}`);
+    console.log(`[KEYS] Removed API key for ${envName} from KV`);
+    return c.json<ApiResponse>({
+      success: true,
+      data: { env_name: envName, status: "removed" },
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
+});
+
+// ── GET /ai/keys — list which API keys are configured in KV ──
+
+app.get("/ai/keys", async (c) => {
+  try {
+    const kvList = await c.env.KV.list({ prefix: "apikey:" });
+    const keys = kvList.keys.map((k) => ({
+      env_name: k.name.replace("apikey:", ""),
+      status: "stored",
+    }));
+    return c.json<ApiResponse>({ success: true, data: keys });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
+});
+
 // ── GET /ai/chatbot/context — get current dashboard context ──
 
 app.get("/ai/chatbot/context", async (c) => {
