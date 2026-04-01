@@ -140,12 +140,17 @@ export function useApiQuery<T>(
     doFetch();
   }, [doFetch]);
 
-  // Refetch on window focus (stale-while-revalidate)
+  // Refetch on window focus (stale-while-revalidate) — throttled to once per 30s
   useEffect(() => {
     if (!refetchOnFocus) return;
 
+    let lastFocusFetch = 0;
+    const FOCUS_THROTTLE_MS = 30_000;
+
     const onFocus = () => {
-      // Only refetch if we're not already loading
+      const now = Date.now();
+      if (now - lastFocusFetch < FOCUS_THROTTLE_MS) return;
+      lastFocusFetch = now;
       doFetch();
     };
 
