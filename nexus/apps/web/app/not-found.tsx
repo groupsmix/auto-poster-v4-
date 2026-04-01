@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import DomainPageClient from "./[domain]/DomainPageClient";
 import CategoryPageClient from "./[domain]/[category]/CategoryPageClient";
 import LoadingState from "@/components/LoadingState";
@@ -19,23 +19,29 @@ import Link from "next/link";
  *  - 2-segment path (e.g. /health-wellness/my-category) -> CategoryPageClient
  *  - Otherwise -> a proper 404 message
  *
- * NOTE: We use useState + useEffect instead of useSyncExternalStore because
- * getSnapshot must return a referentially stable value. Returning a new array
- * from window.location.pathname.split() every call causes Object.is comparison
- * to fail on every render, triggering an infinite re-render loop (React #185).
+ * NOTE: useSyncExternalStore getSnapshot must return a referentially stable
+ * value. We cache the pathname string (immutable primitive) so Object.is
+ * comparison succeeds across renders, avoiding infinite re-render loops.
  */
 
+// Subscribe is a no-op — pathname doesn't change after the 404 page loads.
+const noop = () => () => {};
+
+// Return the raw pathname string (a primitive), NOT an array.
+// Primitives are compared by value with Object.is, so this is stable.
+function getPathname(): string {
+  return window.location.pathname;
+}
+function getServerPathname(): string {
+  return "";
+}
+
 export default function NotFound() {
-  const [segments, setSegments] = useState<string[]>([]);
-  const [mounted, setMounted] = useState(false);
+  const pathname = useSyncExternalStore(noop, getPathname, getServerPathname);
+  const segments = pathname ? pathname.split("/").filter(Boolean) : [];
 
-  useEffect(() => {
-    setSegments(window.location.pathname.split("/").filter(Boolean));
-    setMounted(true);
-  }, []);
-
-  // Show loading skeleton while we determine what to render
-  if (!mounted) {
+  // Show loading skeleton during SSR / before hydration
+  if (!pathname) {
     return <LoadingState count={8} />;
   }
 
