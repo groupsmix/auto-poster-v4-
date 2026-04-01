@@ -11,31 +11,37 @@ import Link from "next/link";
  *
  * With `output: "export"`, only domains listed in DEFAULT_DOMAINS get
  * pre-rendered static pages. User-created domains (e.g. "Health & Wellness")
- * don't have a static HTML file, so Cloudflare Pages serves 404.html via
- * the `_redirects` rule `/* /404.html 200`.
+ * don't have a static HTML file, so Cloudflare Pages serves 404.html
+ * automatically.
  *
  * This component reads the URL on mount and renders the appropriate page:
  *  - 1-segment path (e.g. /health-wellness) -> DomainPageClient
  *  - 2-segment path (e.g. /health-wellness/my-category) -> CategoryPageClient
  *  - Otherwise -> a proper 404 message
+ *
+ * NOTE: useSyncExternalStore getSnapshot must return a referentially stable
+ * value. We cache the pathname string (immutable primitive) so Object.is
+ * comparison succeeds across renders, avoiding infinite re-render loops.
  */
 
-// Read the pathname segments without using setState inside useEffect.
-// useSyncExternalStore safely returns the client value after hydration.
+// Subscribe is a no-op — pathname doesn't change after the 404 page loads.
 const noop = () => () => {};
-function getSegments(): string[] {
-  return window.location.pathname.split("/").filter(Boolean);
+
+// Return the raw pathname string (a primitive), NOT an array.
+// Primitives are compared by value with Object.is, so this is stable.
+function getPathname(): string {
+  return window.location.pathname;
 }
-function getServerSegments(): string[] {
-  return [];
+function getServerPathname(): string {
+  return "";
 }
 
 export default function NotFound() {
-  const segments = useSyncExternalStore(noop, getSegments, getServerSegments);
-  const mounted = segments.length > 0 || typeof window !== "undefined";
+  const pathname = useSyncExternalStore(noop, getPathname, getServerPathname);
+  const segments = pathname ? pathname.split("/").filter(Boolean) : [];
 
-  // Show loading skeleton while we determine what to render
-  if (!mounted) {
+  // Show loading skeleton during SSR / before hydration
+  if (!pathname) {
     return <LoadingState count={8} />;
   }
 
