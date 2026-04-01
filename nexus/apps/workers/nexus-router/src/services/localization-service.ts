@@ -263,7 +263,7 @@ Return a JSON object with:
       await storageQuery(
         env,
         `INSERT INTO localized_products (id, job_id, source_product_id, target_language, target_locale, status, localization_notes, metadata, created_at)
-         VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
         [
           localizedProductId,
           jobId,
@@ -290,6 +290,56 @@ Return a JSON object with:
           now(),
         ]
       );
+
+      // Trigger full 9-step workflow run for this language variant
+      // This creates a real product in the target language, not just metadata
+      try {
+        const translatedName = translationResult.translated_name ?? `${sourceName} (${langName})`;
+        const localizedKeywords = translationResult.localized_keywords ?? [];
+
+        await env.NEXUS_WORKFLOW.fetch("http://nexus-workflow/workflow/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            domainId: job.domain_id as string,
+            categoryId: job.category_id as string | undefined,
+            keyword: translatedName,
+            language: lang,
+            localizationContext: {
+              source_product_id: job.source_product_id as string,
+              source_language: sourceLanguage,
+              target_language: lang,
+              target_locale: locale,
+              target_currency: meta?.currency ?? "USD",
+              target_marketplace: meta?.marketplace_note ?? "International",
+              localized_keywords: localizedKeywords,
+              cultural_notes: translationResult.cultural_notes ?? null,
+              translated_description: translationResult.translated_description ?? null,
+              localization_record_id: localizedProductId,
+            },
+          }),
+        });
+
+        // Mark localized product as processing (workflow triggered)
+        await storageQuery(
+          env,
+          "UPDATE localized_products SET status = 'processing' WHERE id = ?",
+          [localizedProductId]
+        );
+
+        console.log(`[LOCALIZATION] Workflow triggered for ${langName} (${locale}) variant of product ${job.source_product_id}`);
+      } catch (wfErr) {
+        const msg = wfErr instanceof Error ? wfErr.message : String(wfErr);
+        console.error(`[LOCALIZATION] Failed to trigger workflow for ${lang}: ${msg}`);
+        // Mark as failed if workflow trigger fails
+        await storageQuery(
+          env,
+          "UPDATE localized_products SET status = 'failed' WHERE id = ?",
+          [localizedProductId]
+        );
+        failed.push(lang);
+        continue;
+      }
 
       completed.push(lang);
     } catch {

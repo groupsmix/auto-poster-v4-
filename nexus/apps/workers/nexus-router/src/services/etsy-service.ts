@@ -6,6 +6,7 @@
 
 import type { RouterEnv } from "../helpers";
 import { storageQuery } from "../helpers";
+import { resolveEtsyTaxonomyId } from "./etsy-taxonomy";
 
 const ETSY_API_BASE = "https://openapi.etsy.com/v3";
 
@@ -307,6 +308,23 @@ export async function createEtsyListing(
   if (shopResults.length === 0) throw new Error("Etsy shop not connected");
   const shopId = shopResults[0].value;
 
+  // Get product domain/category info for taxonomy mapping
+  const productRows = await storageQuery<Array<{
+    domain_slug?: string;
+    category_slug?: string;
+    domain_name?: string;
+    category_name?: string;
+  }>>(
+    env,
+    `SELECT d.slug as domain_slug, c.slug as category_slug, d.name as domain_name, c.name as category_name
+     FROM products p
+     LEFT JOIN domains d ON d.id = p.domain_id
+     LEFT JOIN categories c ON c.id = p.category_id
+     WHERE p.id = ?`,
+    [productId]
+  );
+  const productInfo = Array.isArray(productRows) ? productRows[0] : undefined;
+
   // Get product variant data for Etsy
   const variantRows = await storageQuery<{ results?: Array<{
     title: string;
@@ -350,7 +368,12 @@ export async function createEtsyListing(
     tags,
     who_made: "i_did",
     when_made: "2020_2025",
-    taxonomy_id: 0, // Will be set by user or auto-detected
+    taxonomy_id: resolveEtsyTaxonomyId(
+      productInfo?.domain_slug,
+      productInfo?.category_slug,
+      productInfo?.category_name,
+      productInfo?.domain_name
+    ),
     is_supply: false,
   };
 
