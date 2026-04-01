@@ -13,16 +13,23 @@ async function fetchWithRetry(
   retries = 2,
   fetchFn: typeof fetch = fetch
 ): Promise<Response> {
+  let lastResponse: Response | undefined;
+
   for (let i = 0; i <= retries; i++) {
     try {
       const response = await fetchFn(url, options);
       if (response.ok || response.status < 500) return response;
+      lastResponse = response;
       if (i < retries) await new Promise((r) => setTimeout(r, 10)); // shortened for tests
     } catch (e) {
       if (i === retries) throw e;
       await new Promise((r) => setTimeout(r, 10));
     }
   }
+
+  // Return the last 5xx response so callers can read the actual error
+  if (lastResponse) return lastResponse;
+
   throw new Error("Max retries exceeded");
 }
 
@@ -83,21 +90,25 @@ describe("fetchWithRetry", () => {
     expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 
-  it("throws 'Max retries exceeded' after exhausting retries on 5xx", async () => {
-    const mockFetch = vi.fn().mockResolvedValue(new Response("", { status: 500 }));
+  it("returns last 5xx response after exhausting retries (surfaces real error)", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "D1 connection failed" }), { status: 500 })
+    );
 
-    await expect(
-      fetchWithRetry("https://example.com/api", {}, 2, mockFetch)
-    ).rejects.toThrow("Max retries exceeded");
+    const result = await fetchWithRetry("https://example.com/api", {}, 2, mockFetch);
+    expect(result.status).toBe(500);
+    const body = await result.json();
+    expect(body.error).toBe("D1 connection failed");
     expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 
-  it("respects custom retry count", async () => {
-    const mockFetch = vi.fn().mockResolvedValue(new Response("", { status: 500 }));
+  it("respects custom retry count and returns last 5xx response", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "Service unavailable" }), { status: 503 })
+    );
 
-    await expect(
-      fetchWithRetry("https://example.com/api", {}, 0, mockFetch)
-    ).rejects.toThrow("Max retries exceeded");
+    const result = await fetchWithRetry("https://example.com/api", {}, 0, mockFetch);
+    expect(result.status).toBe(503);
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });
