@@ -410,6 +410,45 @@ jobs:
           KV_NAMESPACE_ID: ${{ steps.kv.outputs.id }}
         run: npx tsx scripts/seed-prompts.ts || echo "Prompt seeding skipped (non-fatal)"
 
+      # -- Restore Data from R2 Backup (if available) ------------
+      - name: "\U0001F4BE Restore data from latest R2 backup"
+        env:
+          SUBDOMAIN: ${{ steps.discover.outputs.subdomain }}
+          DASH_SECRET: ${{ steps.secret.outputs.value }}
+        run: |
+          echo "Checking for R2 backups in nexus-backups bucket..."
+          LATEST=$(npx wrangler r2 object list nexus-backups --json 2>/dev/null | python3 -c "
+          import sys, json
+          try:
+              data = json.load(sys.stdin)
+              objects = data if isinstance(data, list) else data.get('objects', [])
+              backups = [o for o in objects if o.get('key','').startswith('d1-backup-')]
+              if backups:
+                  backups.sort(key=lambda x: x['key'], reverse=True)
+                  print(backups[0]['key'])
+          except: pass
+          " 2>/dev/null || true)
+
+          if [ -z "$LATEST" ]; then
+            echo "No R2 backups found — starting fresh (seed data only)"
+          else
+            echo "Found backup: $LATEST"
+            echo "Downloading backup..."
+            npx wrangler r2 object get "nexus-backups/$LATEST" --file=/tmp/d1-restore.json 2>/dev/null || true
+
+            if [ -f /tmp/d1-restore.json ] && [ -s /tmp/d1-restore.json ]; then
+              echo "Waiting for nexus-storage to be reachable..."
+              sleep 10
+
+              STORAGE_URL="https://nexus-storage.${SUBDOMAIN}.workers.dev"
+              NEXUS_STORAGE_URL="$STORAGE_URL" DASHBOARD_SECRET="$DASH_SECRET" \
+                npx tsx scripts/restore-d1.ts < /tmp/d1-restore.json || echo "Restore failed (non-fatal — seed data is already loaded)"
+              echo "Data restore complete"
+            else
+              echo "Backup file empty or download failed — skipping restore"
+            fi
+          fi
+
       # -- Deploy Frontend ----------------------------------------
       - name: "\U0001F310 Deploy frontend to CF Pages"
         env:

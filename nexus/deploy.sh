@@ -21,6 +21,7 @@
 #   ./deploy.sh --seed       # Run seed script only
 #   ./deploy.sh --pages      # Deploy CF Pages only
 #   ./deploy.sh --secrets    # Set all secrets interactively
+#   ./deploy.sh --restore    # Restore D1 from latest R2 backup
 #   ./deploy.sh storage      # Deploy a single worker
 #
 # When to use each tool:
@@ -60,6 +61,9 @@ for arg in "$@"; do
       ;;
     --secrets)
       MODE="secrets"
+      ;;
+    --restore)
+      MODE="restore"
       ;;
     *)
       TARGET="$arg"
@@ -335,6 +339,39 @@ case "$MODE" in
 
   secrets)
     set_secrets
+    ;;
+
+  restore)
+    step "Restoring D1 database from latest R2 backup..."
+    if [ "$DRY_RUN" = true ]; then
+      info "  (dry run) wrangler r2 object list nexus-backups"
+      info "  (dry run) npx tsx scripts/restore-d1.ts < backup.json"
+    else
+      LATEST=$(npx wrangler r2 object list nexus-backups --json 2>/dev/null | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    objects = data if isinstance(data, list) else data.get('objects', [])
+    backups = [o for o in objects if o.get('key','').startswith('d1-backup-')]
+    if backups:
+        backups.sort(key=lambda x: x['key'], reverse=True)
+        print(backups[0]['key'])
+except: pass
+" 2>/dev/null || true)
+
+      if [ -z "$LATEST" ]; then
+        err "No R2 backups found in nexus-backups bucket."
+        exit 1
+      fi
+
+      log "Found latest backup: $LATEST"
+      log "Downloading..."
+      npx wrangler r2 object get "nexus-backups/$LATEST" --file=/tmp/d1-restore.json
+
+      log "Restoring data..."
+      npx tsx scripts/restore-d1.ts < /tmp/d1-restore.json
+      log "Restore complete!"
+    fi
     ;;
 
   full)
