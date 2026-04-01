@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useEffect } from "react";
 import DomainPageClient from "./[domain]/DomainPageClient";
 import CategoryPageClient from "./[domain]/[category]/CategoryPageClient";
 import LoadingState from "@/components/LoadingState";
@@ -11,28 +11,28 @@ import Link from "next/link";
  *
  * With `output: "export"`, only domains listed in DEFAULT_DOMAINS get
  * pre-rendered static pages. User-created domains (e.g. "Health & Wellness")
- * don't have a static HTML file, so Cloudflare Pages serves 404.html via
- * the `_redirects` rule `/* /404.html 200`.
+ * don't have a static HTML file, so Cloudflare Pages serves 404.html
+ * automatically.
  *
  * This component reads the URL on mount and renders the appropriate page:
  *  - 1-segment path (e.g. /health-wellness) -> DomainPageClient
  *  - 2-segment path (e.g. /health-wellness/my-category) -> CategoryPageClient
  *  - Otherwise -> a proper 404 message
+ *
+ * NOTE: We use useState + useEffect instead of useSyncExternalStore because
+ * getSnapshot must return a referentially stable value. Returning a new array
+ * from window.location.pathname.split() every call causes Object.is comparison
+ * to fail on every render, triggering an infinite re-render loop (React #185).
  */
 
-// Read the pathname segments without using setState inside useEffect.
-// useSyncExternalStore safely returns the client value after hydration.
-const noop = () => () => {};
-function getSegments(): string[] {
-  return window.location.pathname.split("/").filter(Boolean);
-}
-function getServerSegments(): string[] {
-  return [];
-}
-
 export default function NotFound() {
-  const segments = useSyncExternalStore(noop, getSegments, getServerSegments);
-  const mounted = segments.length > 0 || typeof window !== "undefined";
+  const [segments, setSegments] = useState<string[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setSegments(window.location.pathname.split("/").filter(Boolean));
+    setMounted(true);
+  }, []);
 
   // Show loading skeleton while we determine what to render
   if (!mounted) {
