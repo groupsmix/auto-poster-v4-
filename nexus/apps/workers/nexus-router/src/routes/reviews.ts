@@ -25,6 +25,42 @@ reviews.get("/pending", async (c) => {
   }
 });
 
+// GET /api/reviews/in-revision — list products in revision
+reviews.get("/in-revision", async (c) => {
+  try {
+    const data = await storageQuery(
+      c.env,
+      `SELECT p.*, wr.id as run_id, wr.current_step, wr.total_steps,
+              wr.total_tokens, wr.total_cost, wr.cache_hits
+       FROM products p
+       JOIN workflow_runs wr ON wr.product_id = p.id
+       WHERE p.status = '${PRODUCT_STATUS.IN_REVISION}'
+       ORDER BY p.updated_at DESC`
+    );
+    return c.json<ApiResponse>({ success: true, data });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// GET /api/reviews/history — list reviewed products (approved/rejected/published)
+reviews.get("/history", async (c) => {
+  try {
+    const data = await storageQuery(
+      c.env,
+      `SELECT p.*, wr.id as run_id, wr.current_step, wr.total_steps,
+              wr.total_tokens, wr.total_cost, wr.cache_hits
+       FROM products p
+       JOIN workflow_runs wr ON wr.product_id = p.id
+       WHERE p.status IN ('${PRODUCT_STATUS.APPROVED}', '${PRODUCT_STATUS.REJECTED}', '${PRODUCT_STATUS.PUBLISHED}')
+       ORDER BY p.updated_at DESC`
+    );
+    return c.json<ApiResponse>({ success: true, data });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
 // GET /api/reviews/:productId — get review for product
 reviews.get("/:productId", async (c) => {
   try {

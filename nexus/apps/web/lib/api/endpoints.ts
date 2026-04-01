@@ -172,8 +172,8 @@ export const api = {
 
   // Review endpoints
   reviews: {
-    pending: () => request<ReviewItem[]>("/reviews?status=pending_review"),
-    inRevision: () => request<ReviewItem[]>("/reviews?status=in_revision"),
+    pending: () => request<ReviewItem[]>("/reviews/pending"),
+    inRevision: () => request<ReviewItem[]>("/reviews/in-revision"),
     history: () => request<ReviewItem[]>("/reviews/history"),
     get: (productId: string) =>
       request<ReviewDetail>(`/reviews/${productId}`),
