@@ -1,6 +1,9 @@
 import { DEFAULT_DOMAINS, DEFAULT_CATEGORIES } from "@/lib/domains";
 import CategoryPageClient from "./CategoryPageClient";
 
+// Allow client-side navigation to dynamically created categories
+export const dynamicParams = true;
+
 export function generateStaticParams() {
   const params: { domain: string; category: string }[] = [];
   for (const d of DEFAULT_DOMAINS) {
