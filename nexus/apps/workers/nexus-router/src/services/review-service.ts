@@ -6,6 +6,7 @@
 import { generateId, now } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
 import { storageQuery, forwardToService } from "../helpers";
+import { autoPublishAfterApproval } from "./publish-service";
 
 /**
  * Approve a product: update status, record review, trigger variation generation.
@@ -44,6 +45,18 @@ export async function approveProduct(
 
   // Trigger platform variation + social content generation
   await triggerVariationGeneration(productId, env);
+
+  // Auto-publish to configured platforms (Phase 1: Etsy)
+  let publishResult: { queued: string[]; skipped: string[] } = { queued: [], skipped: [] };
+  try {
+    publishResult = await autoPublishAfterApproval(productId, env);
+    if (publishResult.queued.length > 0) {
+      console.log(`[REVIEW-SERVICE] Auto-publish queued for ${productId}: ${publishResult.queued.join(", ")}`);
+    }
+  } catch (err) {
+    // Non-fatal: auto-publish failure should not block approval
+    console.error("[REVIEW-SERVICE] Auto-publish enqueue failed for", productId, err);
+  }
 
   return { product_id: productId, status: "approved" };
 }

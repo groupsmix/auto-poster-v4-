@@ -247,6 +247,16 @@ export default function ReadyToPostPage() {
                                         Posted
                                       </span>
                                     )}
+                                    {variant.published_via === "auto" && (
+                                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                        Auto-Published
+                                      </span>
+                                    )}
+                                    {variant.publish_error && !variant.external_url && (
+                                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20" title={variant.publish_error}>
+                                        Publish Failed
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <button
@@ -285,6 +295,28 @@ export default function ReadyToPostPage() {
                                     </div>
                                   )}
                                 </div>
+
+                                {/* External link */}
+                                {variant.external_url && (
+                                  <a
+                                    href={variant.external_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-all"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                    </svg>
+                                    View on {meta?.label ?? variant.platform}
+                                  </a>
+                                )}
+
+                                {/* Publish error details */}
+                                {variant.publish_error && (
+                                  <div className="mt-2 px-3 py-2 rounded-lg bg-red-500/5 border border-red-500/20 text-xs text-red-400">
+                                    <span className="font-medium">Error:</span> {variant.publish_error}
+                                  </div>
+                                )}
 
                                 {/* Copy button */}
                                 <button

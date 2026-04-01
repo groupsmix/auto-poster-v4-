@@ -43,7 +43,9 @@ import chatbot from "./routes/chatbot";
 import projectBuilder from "./routes/project-builder";
 import briefingsRoutes from "./routes/briefings";
 import etsyRoutes from "./routes/etsy";
+import publishQueueRoutes from "./routes/publish-queue";
 import { executeCampaignBatch } from "./services/campaign-service";
+import { processPublishQueue } from "./services/publish-service";
 
 const app = new Hono<{ Bindings: RouterEnv; Variables: { requestId: string } }>();
 
@@ -311,6 +313,7 @@ app.route("/api/chatbot", chatbot);
 app.route("/api/project-builder", projectBuilder);
 app.route("/api/briefings", briefingsRoutes);
 app.route("/api/etsy", etsyRoutes);
+app.route("/api/publish-queue", publishQueueRoutes);
 
 // ============================================================
 // 404 catch-all
@@ -587,6 +590,23 @@ export default {
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             console.error(`[CRON] Briefing generation error: ${msg}`);
+          }
+        })()
+      );
+
+      // --- Publish queue processing: auto-publish approved products ---
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const publishResult = await processPublishQueue(env);
+            if (publishResult.processed > 0) {
+              console.log(
+                `[CRON] Publish queue: ${publishResult.published} published, ${publishResult.failed} failed out of ${publishResult.processed} processed`
+              );
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`[CRON] Publish queue processing failed: ${msg}`);
           }
         })()
       );

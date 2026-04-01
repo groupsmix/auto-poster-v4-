@@ -1164,3 +1164,23 @@ export interface BriefingSettings {
   created_at: string;
   updated_at: string;
 }
+
+// --- Publish Queue ---
+
+export type PublishQueueStatus = "pending" | "publishing" | "published" | "failed";
+
+export interface PublishQueueItem {
+  id: string;
+  product_id: string;
+  platform: string;
+  status: PublishQueueStatus;
+  attempts: number;
+  max_attempts: number;
+  external_id?: string;
+  external_url?: string;
+  error?: string;
+  created_at: string;
+  published_at?: string;
+  /** Joined fields for display */
+  product_name?: string;
+}

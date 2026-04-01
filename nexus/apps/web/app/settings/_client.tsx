@@ -33,6 +33,7 @@ interface SettingsState {
   default_language: string;
   ceo_review_required: boolean;
   auto_publish_after_approval: boolean;
+  auto_publish_etsy: boolean;
   batch_max_products: number;
   cache_enabled: boolean;
   ai_gateway_enabled: boolean;
@@ -43,6 +44,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   default_language: "en",
   ceo_review_required: true,
   auto_publish_after_approval: false,
+  auto_publish_etsy: false,
   batch_max_products: 10,
   cache_enabled: true,
   ai_gateway_enabled: true,
@@ -54,6 +56,7 @@ function deserializeSettings(raw: Partial<SettingsMap>): SettingsState {
     default_language: raw.default_language || "en",
     ceo_review_required: raw.ceo_review_required !== "false",
     auto_publish_after_approval: raw.auto_publish_after_approval === "true",
+    auto_publish_etsy: raw.auto_publish_etsy === "true",
     batch_max_products: parseInt(raw.batch_max_products ?? "10", 10) || 10,
     cache_enabled: raw.cache_enabled !== "false",
     ai_gateway_enabled: raw.ai_gateway_enabled !== "false",
@@ -66,6 +69,7 @@ function serializeSettings(settings: SettingsState): Record<string, string> {
     default_language: settings.default_language,
     ceo_review_required: String(settings.ceo_review_required),
     auto_publish_after_approval: String(settings.auto_publish_after_approval),
+    auto_publish_etsy: String(settings.auto_publish_etsy),
     batch_max_products: String(settings.batch_max_products),
     cache_enabled: String(settings.cache_enabled),
     ai_gateway_enabled: String(settings.ai_gateway_enabled),
@@ -652,6 +656,18 @@ export default function SettingsClient() {
                 updateSetting("auto_publish_after_approval", v)
               }
             />
+
+            {/* Auto Publish to Etsy */}
+            {settings.auto_publish_after_approval && (
+              <ToggleSwitch
+                label="Auto-Publish to Etsy"
+                description="Automatically create Etsy listings when products are approved (requires Etsy OAuth connection)"
+                enabled={settings.auto_publish_etsy}
+                onChange={(v) =>
+                  updateSetting("auto_publish_etsy", v)
+                }
+              />
+            )}
           </div>
         </div>
 
