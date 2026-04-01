@@ -32,6 +32,7 @@ const KNOWN_KEYS: Record<string, string> = {
   CARTESIA_API_KEY: "Cartesia",
   PERPLEXITY_API_KEY: "Perplexity",
   PLACEIT_API_KEY: "Placeit",
+  TOGETHER_API_KEY: "Together.ai",
 };
 
 // GET /api/api-keys — list all known API keys and their status
