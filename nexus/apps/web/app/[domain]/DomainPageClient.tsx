@@ -22,7 +22,7 @@ export default function DomainPageClient({ domain }: { domain: string }) {
   const domainData = DEFAULT_DOMAINS.find((d) => d.slug === domain);
   const displayName = domainData?.name || domain.replace(/-/g, " ");
 
-  const { data: apiCategories, loading, error, refetch } = useApiQuery(
+  const { data: apiCategories, loading, error } = useApiQuery(
     () => api.categories.list(domain).then((response) => ({
       success: response.success,
       data: response.success && response.data
@@ -41,7 +41,7 @@ export default function DomainPageClient({ domain }: { domain: string }) {
   };
 
   const handleAddCategory = useCallback(
-    (data: { name: string }) => {
+    async (data: { name: string }) => {
       const slug = data.name
         .toLowerCase()
         .replace(/[^\w\s-]/g, "")
@@ -49,17 +49,19 @@ export default function DomainPageClient({ domain }: { domain: string }) {
         .replace(/-+/g, "-")
         .trim();
 
+      const res = await api.categories.create(domain, { name: data.name });
+
+      if (!res.success) {
+        const message = res.error || "Failed to create category";
+        handleApiError(new Error(message), message);
+        throw new Error(message);
+      }
+
       const updated = [...categories, { name: data.name, slug }];
       setLocalCategories(updated);
       setHasLocalOverride(true);
-
-      api.categories.create(domain, { name: data.name }).catch((err) => {
-        handleApiError(err, "Failed to create category");
-        setLocalCategories((prev) => prev.filter((c) => c.slug !== slug));
-        refetch();
-      });
     },
-    [categories, domain, refetch],
+    [categories, domain],
   );
 
   return (
