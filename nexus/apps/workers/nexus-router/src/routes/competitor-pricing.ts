@@ -206,4 +206,167 @@ competitorPricing.delete("/rules/:id", async (c) => {
   }
 });
 
+// POST /api/competitor-pricing/scrape — scrape competitor prices from a platform
+competitorPricing.post("/scrape", async (c) => {
+  try {
+    const body = await c.req.json<{
+      niche: string;
+      platform?: string;
+      max_results?: number;
+    }>();
+
+    if (!body.niche) {
+      return c.json<ApiResponse>({ success: false, error: "niche is required" }, 400);
+    }
+
+    const platform = body.platform ?? "etsy";
+    const maxResults = body.max_results ?? 20;
+
+    // Build search URL based on platform
+    const searchUrl = buildSearchUrl(platform, body.niche);
+    if (!searchUrl) {
+      return c.json<ApiResponse>(
+        { success: false, error: `Unsupported platform: ${platform}` },
+        400
+      );
+    }
+
+    // Fetch the search results page
+    const resp = await fetch(searchUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
+
+    if (!resp.ok) {
+      return c.json<ApiResponse>(
+        { success: false, error: `Failed to fetch ${platform}: HTTP ${resp.status}` },
+        502
+      );
+    }
+
+    const html = await resp.text();
+    const prices = parseSearchResults(html, platform, body.niche, maxResults);
+
+    // Store scraped prices
+    let inserted = 0;
+    for (const p of prices) {
+      const id = crypto.randomUUID();
+      await storageQuery(
+        c.env,
+        `INSERT INTO competitor_prices (id, niche, platform, competitor_name, product_title, product_url, price, currency)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, p.niche, p.platform, p.competitor_name, p.product_title, p.product_url, p.price, p.currency]
+      );
+      inserted++;
+    }
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { scraped: prices.length, inserted, platform, niche: body.niche },
+    });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+function buildSearchUrl(platform: string, niche: string): string | null {
+  const query = encodeURIComponent(niche);
+  switch (platform) {
+    case "etsy":
+      return `https://www.etsy.com/search?q=${query}&ref=search_bar`;
+    case "amazon":
+      return `https://www.amazon.com/s?k=${query}`;
+    default:
+      return null;
+  }
+}
+
+interface ScrapedPrice {
+  niche: string;
+  platform: string;
+  competitor_name: string;
+  product_title: string;
+  product_url: string;
+  price: number;
+  currency: string;
+}
+
+function parseSearchResults(
+  html: string,
+  platform: string,
+  niche: string,
+  maxResults: number
+): ScrapedPrice[] {
+  const prices: ScrapedPrice[] = [];
+
+  if (platform === "etsy") {
+    // Parse Etsy search results — extract price and title from listing cards
+    const listingPattern =
+      /data-listing-id="[^"]*"[\s\S]*?<h3[^>]*>([\s\S]*?)<\/h3>[\s\S]*?currency_value">([\d,.]+)<\/span>/g;
+    let match;
+    while ((match = listingPattern.exec(html)) !== null && prices.length < maxResults) {
+      const title = match[1].replace(/<[^>]+>/g, "").trim();
+      const priceStr = match[2].replace(/,/g, "");
+      const price = parseFloat(priceStr);
+      if (title && !isNaN(price) && price > 0) {
+        prices.push({
+          niche,
+          platform,
+          competitor_name: "etsy_seller",
+          product_title: title.slice(0, 200),
+          product_url: "",
+          price,
+          currency: "USD",
+        });
+      }
+    }
+
+    // Fallback: try JSON-LD structured data
+    if (prices.length === 0) {
+      const jsonLdPattern = /"@type"\s*:\s*"Product"[\s\S]*?"name"\s*:\s*"([^"]+)"[\s\S]*?"price"\s*:\s*"?([\d.]+)"?/g;
+      while ((match = jsonLdPattern.exec(html)) !== null && prices.length < maxResults) {
+        const price = parseFloat(match[2]);
+        if (!isNaN(price) && price > 0) {
+          prices.push({
+            niche,
+            platform,
+            competitor_name: "etsy_seller",
+            product_title: match[1].slice(0, 200),
+            product_url: "",
+            price,
+            currency: "USD",
+          });
+        }
+      }
+    }
+  } else if (platform === "amazon") {
+    // Parse Amazon search results
+    const itemPattern =
+      /data-asin="([A-Z0-9]+)"[\s\S]*?<span[^>]*class="a-text-normal"[^>]*>([\s\S]*?)<\/span>[\s\S]*?<span class="a-offscreen">\$([\d,.]+)<\/span>/g;
+    let match;
+    while ((match = itemPattern.exec(html)) !== null && prices.length < maxResults) {
+      const asin = match[1];
+      const title = match[2].replace(/<[^>]+>/g, "").trim();
+      const price = parseFloat(match[3].replace(/,/g, ""));
+      if (title && !isNaN(price) && price > 0) {
+        prices.push({
+          niche,
+          platform,
+          competitor_name: "amazon_seller",
+          product_title: title.slice(0, 200),
+          product_url: `https://www.amazon.com/dp/${asin}`,
+          price,
+          currency: "USD",
+        });
+      }
+    }
+  }
+
+  return prices;
+}
+
 export default competitorPricing;

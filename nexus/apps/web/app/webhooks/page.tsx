@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import type { WebhookConfig, WebhookLog } from "@/lib/api";
+import { SummaryCard } from "@/components/ui";
 
 const EVENT_LABELS: Record<string, string> = {
   product_approved: "Product Approved",
@@ -125,6 +126,13 @@ export default function WebhooksPage() {
           </button>
         </div>
       )}
+
+      {/* Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <SummaryCard label="Total Webhooks" value={configs.length} />
+        <SummaryCard label="Active" value={configs.filter((c) => c.is_active).length} color="text-green-400" />
+        <SummaryCard label="Total Sent" value={configs.reduce((sum, c) => sum + c.total_sent, 0)} />
+      </div>
 
       {/* Webhook List */}
       {loading ? (

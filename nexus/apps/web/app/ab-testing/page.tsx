@@ -4,30 +4,19 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import type { ABTest } from "@/lib/api";
+import { SummaryCard, VariantBar } from "@/components/ui";
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    active: "bg-green-500/10 text-green-400",
-    completed: "bg-blue-500/10 text-blue-400",
-    cancelled: "bg-red-500/10 text-red-400",
-  };
+const AB_STATUS_COLORS: Record<string, string> = {
+  active: "bg-green-500/10 text-green-400",
+  completed: "bg-blue-500/10 text-blue-400",
+  cancelled: "bg-red-500/10 text-red-400",
+};
+
+function ABStatusBadge({ status }: { status: string }) {
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full ${colors[status] ?? "bg-card-border text-muted"}`}>
+    <span className={`text-xs px-2 py-0.5 rounded-full ${AB_STATUS_COLORS[status] ?? "bg-card-border text-muted"}`}>
       {status}
     </span>
-  );
-}
-
-function VariantBar({ label, value, maxValue, color }: { label: string; value: number; maxValue: number; color: string }) {
-  const pct = maxValue > 0 ? (value / maxValue) * 100 : 0;
-  return (
-    <div className="flex items-center gap-3">
-      <span className="text-xs text-muted w-6 font-bold">{label}</span>
-      <div className="flex-1 h-4 bg-card-border rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-xs text-muted w-16 text-right">{value.toFixed(1)}%</span>
-    </div>
   );
 }
 
@@ -67,18 +56,9 @@ export default function ABTestingPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="rounded-xl border border-card-border bg-card-bg p-5">
-          <p className="text-xs font-medium text-muted uppercase tracking-wider">Active Tests</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{activeTests.length}</p>
-        </div>
-        <div className="rounded-xl border border-card-border bg-card-bg p-5">
-          <p className="text-xs font-medium text-muted uppercase tracking-wider">Completed Tests</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{completedTests.length}</p>
-        </div>
-        <div className="rounded-xl border border-card-border bg-card-bg p-5">
-          <p className="text-xs font-medium text-muted uppercase tracking-wider">Total Tests</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{tests.length}</p>
-        </div>
+        <SummaryCard label="Active Tests" value={activeTests.length} />
+        <SummaryCard label="Completed Tests" value={completedTests.length} />
+        <SummaryCard label="Total Tests" value={tests.length} />
       </div>
 
       {loading ? (
@@ -117,7 +97,7 @@ export default function ABTestingPage() {
                         <span className="font-medium text-foreground">
                           {test.product_name || test.product_id.slice(0, 8)}
                         </span>
-                        <StatusBadge status={test.status} />
+                        <ABStatusBadge status={test.status} />
                         {test.winning_variant && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent">
                             Winner: {test.winning_variant}

@@ -4,20 +4,13 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import type { SeasonalEvent } from "@/lib/api";
+import { DaysUntilBadge } from "@/components/ui";
 
 const PRIORITY_COLORS: Record<string, string> = {
   high: "bg-red-500/10 text-red-400",
   medium: "bg-yellow-500/10 text-yellow-400",
   low: "bg-blue-500/10 text-blue-400",
 };
-
-function DaysUntilBadge({ days }: { days: number | undefined }) {
-  if (days === undefined) return null;
-  if (days <= 0) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">Passed</span>;
-  if (days <= 14) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">{days}d away</span>;
-  if (days <= 42) return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400">{days}d away</span>;
-  return <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400">{days}d away</span>;
-}
 
 export default function SeasonalCalendarPage() {
   const { data: events, loading, refetch } = useApiQuery(

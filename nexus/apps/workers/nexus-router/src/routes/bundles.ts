@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { ApiResponse, Bundle, BundleItem } from "@nexus/shared";
 import type { RouterEnv } from "../helpers";
-import { storageQuery, errorResponse } from "../helpers";
+import { storageQuery, errorResponse, forwardToService } from "../helpers";
 
 const bundles = new Hono<{ Bindings: RouterEnv }>();
 
@@ -268,6 +268,155 @@ bundles.post("/auto-group", async (c) => {
     }
 
     return c.json<ApiResponse>({ success: true, data: { bundles_created: bundlesCreated } });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// POST /api/bundles/ai-suggest — use AI embeddings to find related products for smart bundles
+bundles.post("/ai-suggest", async (c) => {
+  try {
+    const body = await c.req.json<{
+      product_id?: string;
+      niche?: string;
+      max_bundles?: number;
+      min_similarity?: number;
+    }>();
+
+    // Get products to analyze
+    let sql = `SELECT id, niche, category_id FROM products WHERE status = 'published'`;
+    const params: unknown[] = [];
+
+    if (body.niche) {
+      sql += ` AND niche = ?`;
+      params.push(body.niche);
+    }
+
+    sql += ` LIMIT 200`;
+
+    const products = await storageQuery<Array<{ id: string; niche: string; category_id: string }>>(
+      c.env, sql, params
+    );
+
+    if (products.length < 3) {
+      return c.json<ApiResponse>({
+        success: false,
+        error: "Need at least 3 published products for AI suggestions",
+      }, 400);
+    }
+
+    // Use AI service to generate embeddings and find clusters
+    const aiPrompt = `Analyze these product niches and group them into logical bundles that a customer would want to buy together. Each bundle should have 3-6 related products.
+
+Products:
+${products.map((p, i) => `${i + 1}. ID: ${p.id}, Niche: ${p.niche}`).join("\n")}
+
+Return a JSON array of bundle suggestions. Each suggestion should have:
+- name: A compelling bundle name
+- description: Why these products go together
+- product_ids: Array of product IDs that belong together
+- estimated_multiplier: Price multiplier (1.5-3.0)
+
+Return ONLY valid JSON array, no other text.`;
+
+    const aiResp = await forwardToService(
+      c.env.NEXUS_AI,
+      "/ai/generate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: aiPrompt,
+          model: "deepseek",
+          max_tokens: 2000,
+        }),
+      }
+    );
+
+    // Parse AI response for bundle suggestions
+    let suggestions: Array<{
+      name: string;
+      description: string;
+      product_ids: string[];
+      estimated_multiplier: number;
+    }> = [];
+
+    if (aiResp.success && aiResp.data) {
+      try {
+        const resultText = typeof aiResp.data === "string"
+          ? aiResp.data
+          : (aiResp.data as Record<string, unknown>).result as string ?? JSON.stringify(aiResp.data);
+        // Extract JSON from the response
+        const jsonMatch = resultText.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          suggestions = JSON.parse(jsonMatch[0]);
+        }
+      } catch {
+        // AI response wasn't valid JSON — fall back to similarity grouping
+      }
+    }
+
+    // Fallback: use keyword-based similarity if AI didn't return results
+    if (suggestions.length === 0) {
+      const nicheGroups = new Map<string, Array<{ id: string; niche: string }>>();
+      for (const p of products) {
+        // Group by common words in niche names
+        const words = (p.niche || "").toLowerCase().split(/[\s-_]+/);
+        for (const word of words) {
+          if (word.length < 3) continue;
+          if (!nicheGroups.has(word)) nicheGroups.set(word, []);
+          nicheGroups.get(word)!.push(p);
+        }
+      }
+
+      // Find groups with enough products
+      const maxBundles = body.max_bundles ?? 5;
+      const usedProducts = new Set<string>();
+
+      for (const [keyword, group] of nicheGroups) {
+        if (suggestions.length >= maxBundles) break;
+        const uniqueProducts = group.filter((p) => !usedProducts.has(p.id));
+        if (uniqueProducts.length < 3) continue;
+
+        const bundleProducts = uniqueProducts.slice(0, 6);
+        bundleProducts.forEach((p) => usedProducts.add(p.id));
+
+        suggestions.push({
+          name: `Complete ${keyword.charAt(0).toUpperCase() + keyword.slice(1)} Collection`,
+          description: `AI-suggested bundle of ${bundleProducts.length} related ${keyword} products`,
+          product_ids: bundleProducts.map((p) => p.id),
+          estimated_multiplier: 2.0,
+        });
+      }
+    }
+
+    // Optionally create the bundles
+    let created = 0;
+    for (const suggestion of suggestions) {
+      const bundleId = crypto.randomUUID();
+      await storageQuery(
+        c.env,
+        `INSERT INTO bundles (id, name, description, status) VALUES (?, ?, ?, 'draft')`,
+        [bundleId, suggestion.name, suggestion.description]
+      );
+
+      for (let i = 0; i < suggestion.product_ids.length; i++) {
+        const itemId = crypto.randomUUID();
+        await storageQuery(
+          c.env,
+          `INSERT INTO bundle_items (id, bundle_id, product_id, sort_order) VALUES (?, ?, ?, ?)`,
+          [itemId, bundleId, suggestion.product_ids[i], i]
+        );
+      }
+
+      await recalculateBundle(c.env, bundleId, suggestion.estimated_multiplier);
+      created++;
+    }
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { suggestions: suggestions.length, bundles_created: created },
+    });
   } catch (err) {
     return errorResponse(c, err);
   }
