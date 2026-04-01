@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Modal from "@/components/Modal";
+import { toast } from "sonner";
 
 interface AddCategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string }) => void;
+  onSubmit: (data: { name: string }) => Promise<void>;
 }
 
 export default function AddCategoryModal({
@@ -15,13 +16,23 @@ export default function AddCategoryModal({
   onSubmit,
 }: AddCategoryModalProps) {
   const [name, setName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
-    onSubmit({ name: name.trim() });
-    setName("");
-    onClose();
+    if (!name.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit({ name: name.trim() });
+      setName("");
+      onClose();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create category"
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -57,10 +68,10 @@ export default function AddCategoryModal({
           </button>
           <button
             type="submit"
-            disabled={!name.trim()}
+            disabled={!name.trim() || submitting}
             className="flex-1 px-4 py-2.5 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Create Category
+            {submitting ? "Creating…" : "Create Category"}
           </button>
         </div>
       </form>
