@@ -243,25 +243,50 @@ function buildPayload(
   return { event, data, timestamp: new Date().toISOString() };
 }
 
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000;
+
 async function fireWebhook(
   url: string,
   _type: string,
-  payload: Record<string, unknown>
-): Promise<{ success: boolean; status: number; error?: string }> {
-  try {
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    return { success: resp.ok, status: resp.status };
-  } catch (err) {
-    return {
-      success: false,
-      status: 0,
-      error: err instanceof Error ? err.message : "Unknown error",
-    };
+  payload: Record<string, unknown>,
+  maxRetries: number = MAX_RETRIES
+): Promise<{ success: boolean; status: number; attempts: number; error?: string }> {
+  let lastError: string | undefined;
+  let lastStatus = 0;
+
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    try {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (resp.ok) {
+        return { success: true, status: resp.status, attempts: attempt };
+      }
+
+      lastStatus = resp.status;
+      lastError = `HTTP ${resp.status}`;
+
+      // Don't retry on 4xx client errors (except 429 rate limit)
+      if (resp.status >= 400 && resp.status < 500 && resp.status !== 429) {
+        return { success: false, status: resp.status, attempts: attempt, error: lastError };
+      }
+    } catch (err) {
+      lastStatus = 0;
+      lastError = err instanceof Error ? err.message : "Unknown error";
+    }
+
+    // Exponential backoff before retry (skip on last attempt)
+    if (attempt <= maxRetries) {
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
   }
+
+  return { success: false, status: lastStatus, attempts: maxRetries + 1, error: lastError };
 }
 
 export default webhooks;

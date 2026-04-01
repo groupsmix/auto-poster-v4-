@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import type { Bundle } from "@/lib/api";
+import { SummaryCard } from "@/components/ui";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-yellow-500/10 text-yellow-400",
@@ -87,18 +88,9 @@ export default function BundlesPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="rounded-xl border border-card-border bg-card-bg p-5">
-          <p className="text-xs font-medium text-muted uppercase tracking-wider">Active Bundles</p>
-          <p className="text-2xl font-bold text-green-400 mt-1">{activeBundles.length}</p>
-        </div>
-        <div className="rounded-xl border border-card-border bg-card-bg p-5">
-          <p className="text-xs font-medium text-muted uppercase tracking-wider">Draft Bundles</p>
-          <p className="text-2xl font-bold text-yellow-400 mt-1">{draftBundles.length}</p>
-        </div>
-        <div className="rounded-xl border border-card-border bg-card-bg p-5">
-          <p className="text-xs font-medium text-muted uppercase tracking-wider">Total Bundles</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{bundles.length}</p>
-        </div>
+        <SummaryCard label="Active Bundles" value={activeBundles.length} color="text-green-400" />
+        <SummaryCard label="Draft Bundles" value={draftBundles.length} color="text-yellow-400" />
+        <SummaryCard label="Total Bundles" value={bundles.length} />
       </div>
 
       {/* Create Form */}
