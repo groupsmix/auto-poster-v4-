@@ -129,8 +129,12 @@ jobs:
         run: |
           sleep 5
           echo "Verifying nexus-storage is responsive..."
-          # Workers may take a moment to propagate; a non-error deploy is sufficient
-          echo "✅ nexus-storage deployed successfully"
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "https://nexus-storage.${{ vars.CF_SUBDOMAIN || 'your-subdomain' }}.workers.dev/health" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "nexus-storage health check passed (HTTP $STATUS)"
+          else
+            echo "::warning::nexus-storage health check returned HTTP $STATUS (may still be propagating)"
+          fi
 
       - name: Deploy nexus-ai
         run: cd apps/workers/nexus-ai && npx wrangler deploy
@@ -142,7 +146,12 @@ jobs:
         run: |
           sleep 5
           echo "Verifying nexus-ai is responsive..."
-          echo "✅ nexus-ai deployed successfully"
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "https://nexus-ai.${{ vars.CF_SUBDOMAIN || 'your-subdomain' }}.workers.dev/ai/health" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "nexus-ai health check passed (HTTP $STATUS)"
+          else
+            echo "::warning::nexus-ai health check returned HTTP $STATUS (may still be propagating)"
+          fi
 
       - name: Deploy nexus-variation
         run: cd apps/workers/nexus-variation && npx wrangler deploy
@@ -154,7 +163,12 @@ jobs:
         run: |
           sleep 5
           echo "Verifying nexus-variation is responsive..."
-          echo "✅ nexus-variation deployed successfully"
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "https://nexus-variation.${{ vars.CF_SUBDOMAIN || 'your-subdomain' }}.workers.dev/variation/platforms" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "nexus-variation health check passed (HTTP $STATUS)"
+          else
+            echo "::warning::nexus-variation health check returned HTTP $STATUS (may still be propagating)"
+          fi
 
       - name: Deploy nexus-workflow
         run: cd apps/workers/nexus-workflow && npx wrangler deploy
@@ -166,7 +180,12 @@ jobs:
         run: |
           sleep 5
           echo "Verifying nexus-workflow is responsive..."
-          echo "✅ nexus-workflow deployed successfully"
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "https://nexus-workflow.${{ vars.CF_SUBDOMAIN || 'your-subdomain' }}.workers.dev/workflow/health" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "nexus-workflow health check passed (HTTP $STATUS)"
+          else
+            echo "::warning::nexus-workflow health check returned HTTP $STATUS (may still be propagating)"
+          fi
 
       - name: Deploy nexus-router
         run: cd apps/workers/nexus-router && npx wrangler deploy
@@ -232,13 +251,18 @@ jobs:
       - name: Wait for workers to propagate
         run: sleep 10
 
-      - name: Health check
+      - name: Health check nexus-router
         run: |
-          echo "Deployment complete!"
+          ROUTER_URL="https://nexus-router.${{ vars.CF_SUBDOMAIN || 'your-subdomain' }}.workers.dev"
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$ROUTER_URL/health" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "nexus-router health check passed (HTTP $STATUS)"
+          else
+            echo "::warning::nexus-router health check returned HTTP $STATUS (may still be propagating)"
+          fi
           echo ""
-          echo "Verify manually:"
-          echo "  curl https://nexus-router.<your-subdomain>.workers.dev/health"
-          echo "  Visit your CF Pages dashboard URL"
+          echo "Deployment complete!"
+          echo "  Router: $ROUTER_URL/health"
           echo ""
           echo "Rollback (if needed):"
           echo "  npx wrangler rollback --name <worker-name>"

@@ -61,8 +61,12 @@ export async function runImageWithFailover(
     const state = getImageModelState(model.id);
 
     // Check API key (Workers AI doesn't need one)
+    // Check env vars first, then KV (dashboard-managed keys)
     if (!model.isWorkersAI) {
-      const apiKey = env[model.apiKeyEnvName] as string | undefined;
+      let apiKey = env[model.apiKeyEnvName] as string | undefined;
+      if (!apiKey) {
+        apiKey = await env.KV.get(`apikey:${model.apiKeyEnvName}`).catch(() => null) ?? undefined;
+      }
       if (!apiKey) {
         console.log(`[IMG SKIP] ${model.name} -- no API key`);
         continue;
@@ -107,8 +111,12 @@ export async function runImageWithFailover(
         console.log(`[IMG WORKERS-AI] Fallback succeeded`);
       } else {
         // External AI — Together.ai via gateway
-        const apiKey = env[model.apiKeyEnvName] as string;
-        const result = await callImageViaGateway(model, apiKey, prompt, {
+        // Read key from env first, then KV (same lookup order as above)
+        let apiKey = env[model.apiKeyEnvName] as string | undefined;
+        if (!apiKey) {
+          apiKey = await env.KV.get(`apikey:${model.apiKeyEnvName}`).catch(() => null) ?? undefined;
+        }
+        const result = await callImageViaGateway(model, apiKey!, prompt, {
           width,
           height,
           steps: options.steps,

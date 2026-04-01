@@ -109,8 +109,14 @@ export async function runWithFailover(
     const state = await getModelState(model.id, env);
 
     // (a) Check API key (Workers AI doesn't need one)
+    //     First check env vars (wrangler secrets), then fall back to KV
+    //     (dashboard-managed keys stored under "apikey:{ENV_NAME}")
     if (!model.isWorkersAI) {
-      const apiKey = env[model.apiKeyEnvName] as string | undefined;
+      let apiKey = env[model.apiKeyEnvName] as string | undefined;
+      if (!apiKey) {
+        // Try KV — allows keys to be managed from the dashboard UI
+        apiKey = await env.KV.get(`apikey:${model.apiKeyEnvName}`).catch(() => null) ?? undefined;
+      }
       if (!apiKey) {
         console.log(`[SKIP] ${model.name} -- no API key`);
         continue;
@@ -158,8 +164,12 @@ export async function runWithFailover(
         console.log(`[WORKERS-AI] Fallback succeeded`);
       } else {
         // External AI — route through AI Gateway
-        const apiKey = env[model.apiKeyEnvName] as string;
-        const aiResult = await callAIviaGateway(model, apiKey, prompt, env);
+        // Read key from env first, then KV (same lookup order as step (a))
+        let apiKey = env[model.apiKeyEnvName] as string | undefined;
+        if (!apiKey) {
+          apiKey = await env.KV.get(`apikey:${model.apiKeyEnvName}`).catch(() => null) ?? undefined;
+        }
+        const aiResult = await callAIviaGateway(model, apiKey!, prompt, env);
         result = aiResult.text;
         tokens = aiResult.tokens;
       }

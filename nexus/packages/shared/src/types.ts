@@ -51,7 +51,8 @@ export type ProductStatus =
   | "rejected"
   | "in_revision"
   | "published"
-  | "cancelled";
+  | "cancelled"
+  | "failed";
 
 export type AIModelStatus =
   | "active"

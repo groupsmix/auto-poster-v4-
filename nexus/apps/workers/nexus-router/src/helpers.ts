@@ -8,13 +8,39 @@ import type { Env, ApiResponse } from "@nexus/shared";
 
 /** Patterns that indicate prompt injection attempts */
 const INJECTION_PATTERNS = [
+  // Direct instruction override attempts
   /ignore\s+(all\s+)?previous\s+instructions/i,
   /disregard\s+(all\s+)?previous/i,
+  /forget\s+(all\s+)?previous\s+(instructions|context|rules)/i,
+  /override\s+(all\s+)?previous/i,
+  /do\s+not\s+follow\s+(any\s+)?(previous|prior|above)/i,
+  // Role hijacking
   /you\s+are\s+now\s+/i,
+  /act\s+as\s+(a\s+)?(different|new|another)/i,
+  /pretend\s+(to\s+be|you\s+are)/i,
+  /roleplay\s+as/i,
+  /switch\s+to\s+.+\s+mode/i,
+  // Model-specific control tokens
   /system\s*:\s*/i,
   /\[\s*INST\s*\]/i,
   /<\|im_start\|>/i,
+  /<\|im_end\|>/i,
+  /<\|endoftext\|>/i,
+  /<\|system\|>/i,
+  /<\|user\|>/i,
+  /<\|assistant\|>/i,
   /\{\{\s*system/i,
+  /<<\s*SYS\s*>>/i,
+  /\[\/?\s*INST\s*\]/i,
+  // Prompt leaking / extraction
+  /reveal\s+(your\s+)?(system\s+)?prompt/i,
+  /show\s+(me\s+)?(your\s+)?(system\s+)?(prompt|instructions)/i,
+  /what\s+(are|is)\s+your\s+(system\s+)?(prompt|instructions|rules)/i,
+  /repeat\s+(the\s+)?(text|words|instructions)\s+above/i,
+  // Data exfiltration attempts
+  /output\s+(all|everything)\s+(you\s+)?know/i,
+  /list\s+(all\s+)?(your\s+)?(api|secret|key|password|credential)/i,
+  /\benv(ironment)?\s*variables?\b/i,
 ];
 
 /**
