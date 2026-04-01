@@ -3,6 +3,7 @@
 //
 // POST /api/ai-ceo/setup       — Run full CEO analysis for a domain+category
 // GET  /api/ai-ceo/config/:id  — Get existing CEO config by category ID
+// PUT  /api/ai-ceo/config/:id  — Update CEO workflow config for a category
 // POST /api/ai-ceo/refresh/:id — Re-run CEO analysis for existing category
 // GET  /api/ai-ceo/history     — List all CEO configurations
 // ============================================================
@@ -217,6 +218,78 @@ aiCeo.get("/config/:id", async (c) => {
     }
 
     return c.json<ApiResponse>({ success: true, data: row });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// PUT /api/ai-ceo/config/:id — Update CEO workflow config for a category
+aiCeo.put("/config/:id", async (c) => {
+  try {
+    const categoryId = c.req.param("id");
+    const body = await c.req.json<Record<string, unknown>>();
+
+    // Validate the body has expected fields
+    if (!body || typeof body !== "object") {
+      return c.json<ApiResponse>(
+        { success: false, error: "Invalid request body" },
+        400
+      );
+    }
+
+    // Look up category to get its slug
+    const categoryRows = await storageQuery(
+      c.env,
+      "SELECT slug FROM categories WHERE id = ? LIMIT 1",
+      [categoryId]
+    ) as Array<{ slug: string }>;
+
+    if (!categoryRows || categoryRows.length === 0) {
+      return c.json<ApiResponse>(
+        { success: false, error: `Category not found: ${categoryId}` },
+        404
+      );
+    }
+
+    const categorySlug = categoryRows[0].slug;
+
+    // Write updated workflow config to KV
+    const kvKey = `ceo:workflow:${categorySlug}`;
+    await c.env.NEXUS_STORAGE.fetch("http://nexus-storage/kv", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: kvKey, value: JSON.stringify(body) }),
+    });
+
+    // Also update the analysis JSON in D1 (workflow_config field)
+    const existingRows = await storageQuery(
+      c.env,
+      `SELECT id, analysis FROM ceo_configurations WHERE category_id = ? AND status = '${ModelStatus.ACTIVE}' ORDER BY updated_at DESC LIMIT 1`,
+      [categoryId]
+    ) as Array<{ id: string; analysis: string }>;
+
+    if (existingRows && existingRows.length > 0) {
+      const configRow = existingRows[0];
+      let analysis: Record<string, unknown> = {};
+      try {
+        analysis = typeof configRow.analysis === "string"
+          ? JSON.parse(configRow.analysis) as Record<string, unknown>
+          : configRow.analysis as Record<string, unknown>;
+      } catch { /* ignore parse errors */ }
+
+      analysis.workflow_config = body;
+
+      await storageQuery(
+        c.env,
+        "UPDATE ceo_configurations SET analysis = ?, updated_at = ? WHERE id = ?",
+        [JSON.stringify(analysis), now(), configRow.id]
+      );
+    }
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { updated: true, kv_key: kvKey },
+    });
   } catch (err) {
     return errorResponse(c, err);
   }

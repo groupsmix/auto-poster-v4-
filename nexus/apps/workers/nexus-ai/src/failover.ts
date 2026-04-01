@@ -67,7 +67,8 @@ async function persistModelState(modelId: string, state: ModelRuntimeState, env:
 export async function runWithFailover(
   taskType: string,
   prompt: string,
-  env: Env
+  env: Env,
+  preferredProvider?: string
 ): Promise<{ result: string; model: string; cached: boolean; tokens?: number }> {
   // ── Step 1: Check cache first ──────────────────────────────
   const cached = await checkCache(prompt, taskType, env);
@@ -81,9 +82,26 @@ export async function runWithFailover(
   }
 
   // ── Step 2: Get ordered model list from registry ───────────
-  const models = getModelsForTask(taskType);
+  let models = getModelsForTask(taskType);
   if (models.length === 0) {
     throw new Error(`No models registered for task type: ${taskType}`);
+  }
+
+  // ── Step 2.5: Re-prioritize models if CEO config specifies a preferred provider ──
+  if (preferredProvider) {
+    const preferred: AIModelConfig[] = [];
+    const rest: AIModelConfig[] = [];
+    for (const m of models) {
+      if (m.provider === preferredProvider || m.id.includes(preferredProvider)) {
+        preferred.push(m);
+      } else {
+        rest.push(m);
+      }
+    }
+    if (preferred.length > 0) {
+      models = [...preferred, ...rest];
+      console.log(`[FAILOVER] CEO preferred provider "${preferredProvider}" — reordered: [${models.map(m => m.name).join(", ")}]`);
+    }
   }
 
   // ── Step 3: Loop through models in order ───────────────────

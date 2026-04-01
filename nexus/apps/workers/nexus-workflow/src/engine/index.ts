@@ -15,7 +15,7 @@ import {
   type PromptTemplates,
 } from "../steps";
 
-import type { WorkflowInput, StepResult } from "./types";
+import type { WorkflowInput, StepResult, CEOWorkflowConfig } from "./types";
 import {
   generateAndStoreImages,
   callAI,
@@ -136,7 +136,20 @@ export class WorkflowEngine {
       await this.loadExistingOutputs(runId, priorOutputs);
     }
 
+    // Determine which steps to skip based on CEO workflow config
+    const skippableSteps = this.getSkippableSteps(input);
+
     for (const stepName of stepsToRun) {
+      // Skip steps the CEO config says are irrelevant for this niche
+      if (skippableSteps.has(stepName)) {
+        console.log(`[WORKFLOW] Run ${runId} — skipping step ${stepName} (CEO config: not needed for this niche)`);
+        await this.updateStepByName(runId, stepName, {
+          status: StepStatus.COMPLETED,
+          output: JSON.stringify({ skipped: true, reason: "CEO config: step not needed for this niche" }),
+          completed_at: now(),
+        });
+        continue;
+      }
       // Check if workflow was cancelled
       const cancelled = await this.isWorkflowCancelled(runId);
       if (cancelled) {
@@ -258,7 +271,8 @@ export class WorkflowEngine {
       ? (qualityOutput.overall_score as number | undefined) ?? (qualityOutput.score as number | undefined)
       : undefined;
 
-    const autoSettings = input.autoApproveSettings;
+    // Apply CEO quality threshold as fallback if no explicit auto-approve settings
+    const autoSettings = input.autoApproveSettings ?? this.buildAutoSettingsFromCEO(input.ceoWorkflowConfig);
     const autoRevisionAttempt = input.autoRevisionAttempt ?? 0;
 
     if (autoSettings && qualityScore !== undefined) {
@@ -330,13 +344,14 @@ export class WorkflowEngine {
       status: WorkflowRunStatus.RUNNING,
     });
 
-    // Build the layered prompt (A through I)
+    // Build the layered prompt (A through I) — includes CEO niche directives if available
     const prompt = buildPromptForStep(
       stepName,
       input.product,
       priorOutputs,
       input.promptTemplates,
-      input.revisionFeedback
+      input.revisionFeedback,
+      input.ceoWorkflowConfig
     );
 
     // Call the appropriate service
@@ -347,10 +362,13 @@ export class WorkflowEngine {
       tokens?: number;
     };
 
+    // Resolve preferred AI provider from CEO config (if available)
+    const preferredProvider = this.resolvePreferredProvider(stepName, input.ceoWorkflowConfig);
+
     // Execute with timeout and retry logic
     const callFn = config.usesVariationWorker
-      ? () => callVariation(this.env, config.taskType, prompt)
-      : () => callAI(this.env, config.taskType, prompt);
+      ? () => callVariation(this.env, config.taskType, prompt, preferredProvider)
+      : () => callAI(this.env, config.taskType, prompt, preferredProvider);
 
     for (let attempt = 0; attempt <= STEP_MAX_RETRIES; attempt++) {
       try {
@@ -538,8 +556,12 @@ export class WorkflowEngine {
       [PRODUCT_STATUS.IN_REVISION, now(), productId]
     );
 
-    // Load prompt templates from KV
-    const promptTemplates = await this.loadPromptTemplates();
+    // Load prompt templates and CEO config from KV in parallel
+    const categorySlug = (product.user_input as Record<string, unknown> | undefined)?.category_slug as string ?? "";
+    const [promptTemplates, ceoWorkflowConfig] = await Promise.all([
+      this.loadPromptTemplates(),
+      this.loadCEOWorkflowConfig(categorySlug),
+    ]);
 
     // Build product context from DB record
     const userInput = typeof product.user_input === "string"
@@ -566,6 +588,7 @@ export class WorkflowEngine {
       promptTemplates,
       revisionFeedback: feedback,
       revisionSteps: failedSteps,
+      ceoWorkflowConfig,
     };
 
     const revisionPromise = this.runPipeline(runId, input).catch(async (err) => {
@@ -722,6 +745,76 @@ export class WorkflowEngine {
     }
   }
 
+  // --- CEO workflow config helpers ---
+
+  /**
+   * Determine which steps to skip based on CEO workflow config.
+   * - Skip `social_content` if no social channels are recommended/set
+   * - Skip `platform_variants` if no platforms are set
+   */
+  private getSkippableSteps(input: WorkflowInput): Set<StepName> {
+    const skip = new Set<StepName>();
+
+    // Skip social_content if no social channels configured
+    if (input.product.social_channels.length === 0) {
+      skip.add("social_content");
+    }
+
+    // Skip platform_variants if no platforms configured
+    if (input.product.platforms.length === 0) {
+      skip.add("platform_variants");
+    }
+
+    return skip;
+  }
+
+  /**
+   * Build AutoApproveSettings from CEO workflow config when no explicit settings provided.
+   * Uses the CEO's quality_threshold as the auto-approve threshold.
+   */
+  private buildAutoSettingsFromCEO(
+    ceoConfig?: CEOWorkflowConfig
+  ): { auto_approve_threshold: number; auto_revise_min_score: number; max_auto_revisions: number } | undefined {
+    if (!ceoConfig?.quality_threshold) return undefined;
+
+    return {
+      auto_approve_threshold: ceoConfig.quality_threshold,
+      // Auto-revise if score is at least 50% of threshold (gives revision a chance)
+      auto_revise_min_score: Math.max(1, Math.floor(ceoConfig.quality_threshold * 0.5)),
+      max_auto_revisions: 2,
+    };
+  }
+
+  /**
+   * Map workflow step names to CEO preferred_models keys.
+   * CEO config uses broad categories (research, writing, seo, image, review)
+   * while workflow steps are more granular.
+   */
+  private static readonly STEP_TO_MODEL_KEY: Partial<Record<StepName, string>> = {
+    research: "research",
+    strategy: "writing",
+    content_generation: "writing",
+    seo_optimization: "seo",
+    image_generation: "image",
+    platform_variants: "writing",
+    social_content: "writing",
+    humanizer_pass: "writing",
+    quality_review: "review",
+  };
+
+  /**
+   * Resolve the preferred AI provider for a given step from CEO config.
+   */
+  private resolvePreferredProvider(
+    stepName: StepName,
+    ceoConfig?: CEOWorkflowConfig
+  ): string | undefined {
+    if (!ceoConfig?.preferred_models) return undefined;
+    const key = WorkflowEngine.STEP_TO_MODEL_KEY[stepName];
+    if (!key) return undefined;
+    return ceoConfig.preferred_models[key];
+  }
+
   // --- Private helpers ---
 
   /**
@@ -849,5 +942,30 @@ export class WorkflowEngine {
     }
 
     return templates;
+  }
+
+  /**
+   * Load CEO workflow config from KV for a given category.
+   * Returns undefined if no config exists (workflow runs with defaults).
+   */
+  private async loadCEOWorkflowConfig(
+    categorySlug: string
+  ): Promise<CEOWorkflowConfig | undefined> {
+    if (!categorySlug) return undefined;
+
+    try {
+      const resp = await this.env.NEXUS_STORAGE.fetch(
+        `http://nexus-storage/kv/ceo:workflow:${categorySlug}`
+      );
+      const json = (await resp.json()) as ApiResponse<string>;
+      if (json.success && json.data) {
+        const raw = typeof json.data === "string" ? json.data : JSON.stringify(json.data);
+        return JSON.parse(raw) as CEOWorkflowConfig;
+      }
+    } catch {
+      console.warn(`[WORKFLOW] No CEO workflow config found for category: ${categorySlug}`);
+    }
+
+    return undefined;
   }
 }

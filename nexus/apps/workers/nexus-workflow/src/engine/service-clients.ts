@@ -127,12 +127,13 @@ export async function generateAndStoreImages(
 export async function callAI(
   env: Env,
   taskType: string,
-  prompt: string
+  prompt: string,
+  preferredProvider?: string
 ): Promise<{ result: string; model: string; cached: boolean; tokens?: number }> {
   const response = await env.NEXUS_AI.fetch("http://nexus-ai/ai/run", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ taskType, prompt }),
+    body: JSON.stringify({ taskType, prompt, preferredProvider }),
   });
 
   const json = (await response.json()) as ApiResponse<{
@@ -154,14 +155,15 @@ export async function callAI(
 export async function callVariation(
   env: Env,
   taskType: string,
-  prompt: string
+  prompt: string,
+  preferredProvider?: string
 ): Promise<{ result: string; model: string; cached: boolean; tokens?: number }> {
   const response = await env.NEXUS_VARIATION.fetch(
     "http://nexus-variation/variation/run",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskType, prompt }),
+      body: JSON.stringify({ taskType, prompt, preferredProvider }),
     }
   );
 

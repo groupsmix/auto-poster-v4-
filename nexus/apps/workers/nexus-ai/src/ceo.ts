@@ -51,6 +51,8 @@ export interface CEOAnalysis {
     pricing_strategy: string;
     seo_focus_keywords: string[];
     quality_threshold: number;
+    /** Per-task-type AI model provider preferences for this niche */
+    preferred_models?: Record<string, string>;
   };
 }
 
@@ -121,7 +123,14 @@ You MUST return a JSON object with EXACTLY this structure:
     "content_style": "The writing style (e.g., 'Scannable with bullet points, benefit-led headlines, social proof heavy')",
     "pricing_strategy": "Specific pricing recommendation with justification",
     "seo_focus_keywords": ["keyword1", "keyword2", "...at least 10 high-intent keywords for this niche"],
-    "quality_threshold": 8
+    "quality_threshold": 8,
+    "preferred_models": {
+      "research": "provider slug that is strongest for research in this niche (e.g., perplexity, deepseek, google)",
+      "writing": "provider slug best for writing in this niche (e.g., anthropic for creative, deepseek for technical/educational, openai for general)",
+      "seo": "provider slug best for SEO in this niche",
+      "image": "provider slug best for image generation in this niche (e.g., together for realistic, @cf for fast/free)",
+      "review": "provider slug best for quality review in this niche"
+    }
   }
 }
 

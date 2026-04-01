@@ -234,6 +234,8 @@ export interface CEOWorkflowConfig {
   pricing_strategy: string;
   seo_focus_keywords: string[];
   quality_threshold: number;
+  /** Per-task-type AI model provider preferences for this niche */
+  preferred_models?: Record<string, string>;
 }
 
 export interface CEOAnalysis {

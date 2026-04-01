@@ -8,6 +8,7 @@ import { Hono } from "hono";
 import type { Env, ProductSetupInput, ApiResponse } from "@nexus/shared";
 import { generateId, slugify, now } from "@nexus/shared";
 import { WorkflowEngine, type WorkflowInput } from "./engine";
+import type { CEOWorkflowConfig } from "./engine/types";
 import { BatchOrchestrator, type BatchInput } from "./batch";
 import type { ProductContext, StepName } from "./steps";
 import { ProjectBuilderEngine } from "./project-builder";
@@ -118,6 +119,31 @@ async function loadPromptTemplates(
   return templates;
 }
 
+// --- Helper: load CEO workflow config from KV ---
+
+async function loadCEOWorkflowConfig(
+  env: Env,
+  categorySlug: string
+): Promise<CEOWorkflowConfig | undefined> {
+  if (!categorySlug) return undefined;
+
+  try {
+    const resp = await env.NEXUS_STORAGE.fetch(
+      `http://nexus-storage/kv/ceo:workflow:${categorySlug}`
+    );
+    const json = (await resp.json()) as ApiResponse<string>;
+    if (json.success && json.data) {
+      const raw = typeof json.data === "string" ? json.data : JSON.stringify(json.data);
+      return JSON.parse(raw) as CEOWorkflowConfig;
+    }
+  } catch {
+    // CEO config is optional — workflow runs fine without it
+    console.warn(`[WORKFLOW] No CEO workflow config found for category: ${categorySlug}`);
+  }
+
+  return undefined;
+}
+
 // ============================================================
 // POST /workflow/start — Create a new workflow (or batch)
 // Body: ProductSetupInput
@@ -215,10 +241,23 @@ app.post("/workflow/start", async (c) => {
       ]
     );
 
-    // Load prompt templates
-    const promptTemplates = await loadPromptTemplates(c.env);
+    // Load prompt templates and CEO workflow config in parallel
+    const [promptTemplates, ceoWorkflowConfig] = await Promise.all([
+      loadPromptTemplates(c.env),
+      loadCEOWorkflowConfig(c.env, body.category_id),
+    ]);
 
-    // Build product context
+    // Build product context — apply CEO recommendations as defaults
+    // If user didn't specify platforms/channels, use CEO recommendations
+    const userPlatforms = body.platforms ?? [];
+    const userSocialChannels = body.social_channels ?? [];
+    const effectivePlatforms = userPlatforms.length > 0
+      ? userPlatforms
+      : ceoWorkflowConfig?.recommended_platforms ?? [];
+    const effectiveSocialChannels = userSocialChannels.length > 0
+      ? userSocialChannels
+      : ceoWorkflowConfig?.recommended_social_channels ?? [];
+
     const productContext: ProductContext = {
       domain_id: body.domain_id,
       domain_slug: body.domain_id,
@@ -229,8 +268,8 @@ app.post("/workflow/start", async (c) => {
       description: body.description,
       keywords: body.keywords,
       language: body.language ?? "en",
-      platforms: body.platforms ?? [],
-      social_channels: body.social_channels ?? [],
+      platforms: effectivePlatforms,
+      social_channels: effectiveSocialChannels,
       user_input: {
         target_audience: body.target_audience,
         design_style: body.design_style,
@@ -242,6 +281,7 @@ app.post("/workflow/start", async (c) => {
       productId,
       product: productContext,
       promptTemplates,
+      ceoWorkflowConfig,
     };
 
     const { runId } = await engine.createWorkflow(productId, workflowInput);

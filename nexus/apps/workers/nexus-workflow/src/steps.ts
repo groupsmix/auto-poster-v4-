@@ -4,7 +4,7 @@
 // Domain-aware: POD vs Digital vs Content etc. may differ
 // ============================================================
 
-import type { TaskType } from "@nexus/shared";
+import type { TaskType, CEOWorkflowConfig } from "@nexus/shared";
 import { WORKFLOW_STEPS } from "@nexus/shared";
 
 // --- Step name type derived from shared constants ---
@@ -702,7 +702,8 @@ export function buildPromptForStep(
   product: ProductContext,
   priorOutputs: Partial<Record<StepName, Record<string, unknown>>>,
   promptTemplates: PromptTemplates,
-  revisionFeedback?: string
+  revisionFeedback?: string,
+  ceoConfig?: CEOWorkflowConfig
 ): string {
   const config = getStepConfig(stepName);
   const schema = getOutputSchema(stepName);
@@ -729,6 +730,26 @@ export function buildPromptForStep(
   const categoryPrompt = promptTemplates.categories?.[product.category_slug];
   if (categoryPrompt) {
     layers.push(`=== CATEGORY CONTEXT ===\n${categoryPrompt}`);
+  }
+
+  // Layer D.5: CEO niche directives (injected from AI CEO workflow config)
+  if (ceoConfig) {
+    const ceoParts: string[] = [];
+    if (ceoConfig.content_tone) {
+      ceoParts.push(`Content Tone: ${ceoConfig.content_tone}`);
+    }
+    if (ceoConfig.content_style) {
+      ceoParts.push(`Content Style: ${ceoConfig.content_style}`);
+    }
+    if (ceoConfig.pricing_strategy) {
+      ceoParts.push(`Pricing Strategy: ${ceoConfig.pricing_strategy}`);
+    }
+    if (ceoConfig.seo_focus_keywords && ceoConfig.seo_focus_keywords.length > 0) {
+      ceoParts.push(`SEO Focus Keywords: ${ceoConfig.seo_focus_keywords.join(", ")}`);
+    }
+    if (ceoParts.length > 0) {
+      layers.push(`=== CEO NICHE DIRECTIVES ===\nThe AI CEO has analyzed this niche and recommends the following directives. Follow them closely:\n${ceoParts.join("\n")}`);
+    }
   }
 
   // Layer E: Platform prompt (if applicable)
