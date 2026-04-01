@@ -22,20 +22,58 @@ function getServerSnapshot(): string | null {
   return null;
 }
 
+/** Verify a token against the backend auth endpoint */
+async function verifyToken(token: string): Promise<{ ok: boolean; error?: string }> {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "/api";
+  try {
+    const resp = await fetch(`${apiBase}/auth/verify`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    if (resp.ok) return { ok: true };
+    // Parse error message from the backend if available
+    try {
+      const body = await resp.json() as { error?: string };
+      return { ok: false, error: body.error ?? "Invalid secret" };
+    } catch {
+      return { ok: false, error: "Invalid secret" };
+    }
+  } catch {
+    return { ok: false, error: "Unable to reach the API. Check your connection." };
+  }
+}
+
 export default function LoginGate({ children }: { children: ReactNode }) {
   const token = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   if (token) return <>{children}</>;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = password.trim();
     if (!trimmed) {
       setError("Please enter the dashboard secret");
       return;
     }
+
+    setLoading(true);
+    setError("");
+
+    const result = await verifyToken(trimmed);
+    setLoading(false);
+
+    if (!result.ok) {
+      setError(result.error ?? "Invalid secret");
+      return;
+    }
+
+    // Token verified — persist and unlock
     localStorage.setItem("nexus_token", trimmed);
     window.dispatchEvent(new Event("nexus-token-change"));
   };
@@ -64,15 +102,17 @@ export default function LoginGate({ children }: { children: ReactNode }) {
               }}
               placeholder="Dashboard secret"
               autoFocus
-              className="w-full px-4 py-3 rounded-xl bg-card-bg border border-card-border text-foreground placeholder:text-muted focus:outline-none focus:border-accent text-sm"
+              disabled={loading}
+              className="w-full px-4 py-3 rounded-xl bg-card-bg border border-card-border text-foreground placeholder:text-muted focus:outline-none focus:border-accent text-sm disabled:opacity-50"
             />
             {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
           </div>
           <button
             type="submit"
-            className="w-full py-3 rounded-xl bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
+            disabled={loading}
+            className="w-full py-3 rounded-xl bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Unlock Dashboard
+            {loading ? "Verifying…" : "Unlock Dashboard"}
           </button>
         </form>
 

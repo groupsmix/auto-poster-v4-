@@ -200,6 +200,13 @@ app.get("/", (c) => {
 // Minimal health check — no internal service details exposed
 app.get("/health", (c) => c.json({ status: "ok" }));
 
+// Auth verification — validates the Bearer token against DASHBOARD_SECRET.
+// Used by the frontend LoginGate to verify the password before unlocking.
+// If the request reaches this handler, the auth middleware already passed.
+app.get("/api/auth/verify", (c) =>
+  c.json<ApiResponse>({ success: true, data: { authenticated: true } })
+);
+
 // Dashboard health endpoint — authenticated, returns extended system status
 app.get("/api/health", async (c) => {
   const checks = await Promise.allSettled([
