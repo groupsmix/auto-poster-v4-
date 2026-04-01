@@ -1,7 +1,6 @@
 // ============================================================
 // Publish Service — automatic platform publishing with queue & retry
-// Phase 1: Etsy auto-publish after approval
-// Extensible for Gumroad, Pinterest, etc. in future phases
+// Supports: Etsy, Gumroad, Shopify, Redbubble, Amazon KDP, Pinterest
 // ============================================================
 
 import { generateId, now } from "@nexus/shared";
@@ -10,6 +9,11 @@ import type { RouterEnv } from "../helpers";
 import { storageQuery } from "../helpers";
 import { createEtsyListing } from "./etsy-service";
 import type { EtsyPublishResult } from "./etsy-service";
+import { createGumroadProduct } from "./gumroad-service";
+import { createShopifyProduct } from "./shopify-service";
+import { createRedbubbleUpload } from "./redbubble-service";
+import { createAmazonKDPUpload } from "./amazon-kdp-service";
+import { createPinterestPin } from "./pinterest-service";
 
 /** Maximum retry attempts per publish job */
 const MAX_PUBLISH_ATTEMPTS = 3;
@@ -63,32 +67,32 @@ export async function autoPublishAfterApproval(
   const queued: string[] = [];
   const skipped: string[] = [];
 
-  // Check if auto-publish to Etsy is enabled
-  const etsyEnabled = await isAutoPublishEnabled(env, "etsy");
-  if (!etsyEnabled) {
-    return { queued, skipped };
-  }
+  // Check all supported platforms for auto-publish
+  const platforms = ["etsy", "gumroad", "shopify", "redbubble", "amazon_kdp", "pinterest"];
 
-  // Check if the product has an Etsy platform variant
-  const etsyVariant = await storageQuery<Array<{ id: string }>>(
-    env,
-    `SELECT pv.id FROM platform_variants pv
-     JOIN platforms pl ON pl.id = pv.platform_id
-     WHERE pv.product_id = ? AND pl.slug = 'etsy'
-     LIMIT 1`,
-    [productId]
-  );
+  for (const platform of platforms) {
+    const enabled = await isAutoPublishEnabled(env, platform);
+    if (!enabled) continue;
 
-  if (etsyVariant && etsyVariant.length > 0) {
-    const result = await enqueuePublish(productId, "etsy", env);
-    if (result.skipped) {
-      skipped.push("etsy");
-    } else {
-      queued.push("etsy");
+    // Check if the product has a variant for this platform
+    const variant = await storageQuery<Array<{ id: string }>>(
+      env,
+      `SELECT pv.id FROM platform_variants pv
+       JOIN platforms pl ON pl.id = pv.platform_id
+       WHERE pv.product_id = ? AND pl.slug = ?
+       LIMIT 1`,
+      [productId, platform]
+    );
+
+    if (variant && variant.length > 0) {
+      const result = await enqueuePublish(productId, platform, env);
+      if (result.skipped) {
+        skipped.push(platform);
+      } else {
+        queued.push(platform);
+      }
     }
   }
-
-  // Future phases: check gumroad, pinterest, etc. here
 
   return { queued, skipped };
 }
@@ -251,7 +255,41 @@ async function publishToPlatform(
         external_url: result.url,
       };
     }
-    // Future phases: gumroad, pinterest, etc.
+    case "gumroad": {
+      const result = await createGumroadProduct(env, productId);
+      return {
+        external_id: result.product_id,
+        external_url: result.url,
+      };
+    }
+    case "shopify": {
+      const result = await createShopifyProduct(env, productId);
+      return {
+        external_id: result.product_id,
+        external_url: result.url,
+      };
+    }
+    case "redbubble": {
+      const result = await createRedbubbleUpload(env, productId);
+      return {
+        external_id: result.product_id,
+        external_url: result.url,
+      };
+    }
+    case "amazon_kdp": {
+      const result = await createAmazonKDPUpload(env, productId);
+      return {
+        external_id: result.product_id,
+        external_url: result.url,
+      };
+    }
+    case "pinterest": {
+      const result = await createPinterestPin(env, productId);
+      return {
+        external_id: result.pin_id,
+        external_url: result.url,
+      };
+    }
     default:
       throw new Error(`Unsupported platform: ${platform}`);
   }
