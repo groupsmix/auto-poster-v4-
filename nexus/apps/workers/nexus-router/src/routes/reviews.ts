@@ -12,10 +12,11 @@ reviews.get("/pending", async (c) => {
   try {
     const data = await storageQuery(
       c.env,
-      `SELECT p.*, wr.id as run_id, wr.current_step, wr.total_steps,
-              wr.total_tokens, wr.total_cost, wr.cache_hits
+      `SELECT p.*, wr.id as run_id, wr.status as run_status,
+              wr.started_at as run_started_at, wr.finished_at as run_finished_at,
+              wr.provider_summary_json, wr.cost_summary_json
        FROM products p
-       JOIN workflow_runs wr ON wr.product_id = p.id
+       LEFT JOIN workflow_runs wr ON wr.product_id = p.id
        WHERE p.status = '${PRODUCT_STATUS.PENDING_REVIEW}'
        ORDER BY p.updated_at DESC`
     );
@@ -30,10 +31,11 @@ reviews.get("/in-revision", async (c) => {
   try {
     const data = await storageQuery(
       c.env,
-      `SELECT p.*, wr.id as run_id, wr.current_step, wr.total_steps,
-              wr.total_tokens, wr.total_cost, wr.cache_hits
+      `SELECT p.*, wr.id as run_id, wr.status as run_status,
+              wr.started_at as run_started_at, wr.finished_at as run_finished_at,
+              wr.provider_summary_json, wr.cost_summary_json
        FROM products p
-       JOIN workflow_runs wr ON wr.product_id = p.id
+       LEFT JOIN workflow_runs wr ON wr.product_id = p.id
        WHERE p.status = '${PRODUCT_STATUS.IN_REVISION}'
        ORDER BY p.updated_at DESC`
     );
@@ -48,10 +50,11 @@ reviews.get("/history", async (c) => {
   try {
     const data = await storageQuery(
       c.env,
-      `SELECT p.*, wr.id as run_id, wr.current_step, wr.total_steps,
-              wr.total_tokens, wr.total_cost, wr.cache_hits
+      `SELECT p.*, wr.id as run_id, wr.status as run_status,
+              wr.started_at as run_started_at, wr.finished_at as run_finished_at,
+              wr.provider_summary_json, wr.cost_summary_json
        FROM products p
-       JOIN workflow_runs wr ON wr.product_id = p.id
+       LEFT JOIN workflow_runs wr ON wr.product_id = p.id
        WHERE p.status IN ('${PRODUCT_STATUS.APPROVED}', '${PRODUCT_STATUS.REJECTED}', '${PRODUCT_STATUS.PUBLISHED}')
        ORDER BY p.updated_at DESC`
     );
