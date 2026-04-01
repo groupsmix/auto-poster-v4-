@@ -8,7 +8,7 @@ import AddDomainModal from "@/components/AddDomainModal";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { handleApiError } from "@/lib/handleApiError";
-import { DEFAULT_CATEGORIES } from "@/lib/domains";
+import { DEFAULT_DOMAINS, DEFAULT_CATEGORIES } from "@/lib/domains";
 import type { DomainData } from "@/lib/domains";
 import type { Domain } from "@nexus/shared";
 
@@ -33,11 +33,15 @@ export default function HomePage() {
 
   const domains: DomainData[] = useMemo(() => {
     if (hasLocalOverride) return localDomains;
-    return apiDomains.map((d) => ({
-      name: d.name,
-      slug: d.slug,
-      icon: d.icon || "\u{1F4E6}",
-    }));
+    // When API returns domains, use them; otherwise fall back to DEFAULT_DOMAINS
+    if (apiDomains.length > 0) {
+      return apiDomains.map((d) => ({
+        name: d.name,
+        slug: d.slug,
+        icon: d.icon || "\u{1F4E6}",
+      }));
+    }
+    return DEFAULT_DOMAINS;
   }, [apiDomains, localDomains, hasLocalOverride]);
 
   // Build subtitle for each domain card showing category & product counts

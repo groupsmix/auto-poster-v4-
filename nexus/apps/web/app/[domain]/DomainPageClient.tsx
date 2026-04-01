@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
 import { DEFAULT_DOMAINS, DEFAULT_CATEGORIES } from "@/lib/domains";
 import { ArrowLeftIcon } from "@/components/icons/Icons";
+import DomainIcon from "@/components/icons/DomainIcon";
 
 export default function DomainPageClient({ domain }: { domain: string }) {
   const router = useRouter();
@@ -52,9 +53,11 @@ export default function DomainPageClient({ domain }: { domain: string }) {
           <ArrowLeftIcon className="w-4 h-4" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             {domainData?.icon && (
-              <span className="mr-2">{domainData.icon}</span>
+              <span className="text-accent">
+                <DomainIcon slug={domainData.icon} className="w-7 h-7" />
+              </span>
             )}
             {displayName}
           </h1>
@@ -66,7 +69,7 @@ export default function DomainPageClient({ domain }: { domain: string }) {
 
       {loading ? (
         <LoadingState count={8} />
-      ) : error ? (
+      ) : categories.length === 0 && error ? (
         <ErrorState message={error} onRetry={() => window.location.reload()} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
