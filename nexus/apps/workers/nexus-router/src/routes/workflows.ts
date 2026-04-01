@@ -13,13 +13,12 @@ workflows.post("/start", async (c) => {
 
     const domainId = validateStringField(body, "domain_id");
     const categoryId = validateStringField(body, "category_id");
-    const niche = validateStringField(body, "niche");
 
-    if (!domainId || !categoryId || !niche) {
+    if (!domainId || !categoryId) {
       return c.json<ApiResponse>(
         {
           success: false,
-          error: "domain_id, category_id, and niche are required (non-empty strings)",
+          error: "domain_id and category_id are required (non-empty strings)",
         },
         400
       );
@@ -27,7 +26,12 @@ workflows.post("/start", async (c) => {
     // Replace raw values with sanitized ones
     body.domain_id = domainId;
     body.category_id = categoryId;
-    body.niche = niche;
+
+    // Sanitize niche if provided (optional field)
+    const niche = validateStringField(body, "niche");
+    if (niche) {
+      body.niche = niche;
+    }
 
     const result = await forwardToService(
       c.env.NEXUS_WORKFLOW,

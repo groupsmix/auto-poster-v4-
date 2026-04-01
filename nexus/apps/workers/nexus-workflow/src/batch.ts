@@ -21,7 +21,7 @@ export interface BatchInput {
   category_slug: string;
   /** Base product info */
   language: string;
-  niche: string;
+  niche?: string;
   name?: string;
   description?: string;
   keywords?: string;
@@ -149,15 +149,13 @@ export class BatchOrchestrator {
     }
 
     console.log(
-      `[BATCH] Creating batch ${batchId} with ${count} products for niche: ${input.niche}`
+      `[BATCH] Creating batch ${batchId} with ${count} products for niche: ${input.niche ?? "(AI decides)"}`
     );
 
     // Generate unique niche angles for each product
-    const nicheAngles = await generateNicheAngles(
-      this.env,
-      input.niche,
-      count
-    );
+    const nicheAngles = input.niche
+      ? await generateNicheAngles(this.env, input.niche, count)
+      : Array.from({ length: count }, (_, i) => `Variation ${i + 1}`);
 
     // Load prompt templates once for all products
     const promptTemplates = await this.loadPromptTemplates();

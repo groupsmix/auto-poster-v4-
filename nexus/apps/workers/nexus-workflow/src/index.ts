@@ -128,11 +128,11 @@ app.post("/workflow/start", async (c) => {
     const body = await c.req.json<ProductSetupInput>();
 
     // Validate required fields
-    if (!body.domain_id || !body.category_id || !body.niche) {
+    if (!body.domain_id || !body.category_id) {
       return c.json<ApiResponse>(
         {
           success: false,
-          error: "Missing required fields: domain_id, category_id, niche",
+          error: "Missing required fields: domain_id, category_id",
         },
         400
       );
@@ -150,7 +150,7 @@ app.post("/workflow/start", async (c) => {
         category_id: body.category_id,
         category_slug: body.category_id,
         language: body.language ?? "en",
-        niche: body.niche,
+        niche: body.niche,  // optional — AI decides if not provided
         name: body.name,
         description: body.description,
         keywords: body.keywords,
@@ -181,7 +181,7 @@ app.post("/workflow/start", async (c) => {
     // --- Single workflow mode ---
     const engine = new WorkflowEngine(c.env, getExecutionCtx(c));
     const productId = generateId();
-    const productName = body.name ?? body.niche;
+    const productName = body.name ?? body.niche ?? "Untitled";
     const slug = slugify(productName);
 
     // Create product record in D1
@@ -224,7 +224,7 @@ app.post("/workflow/start", async (c) => {
       domain_slug: body.domain_id,
       category_id: body.category_id,
       category_slug: body.category_id,
-      niche: body.niche,
+      niche: body.niche,  // optional — AI decides if not provided
       name: body.name,
       description: body.description,
       keywords: body.keywords,
