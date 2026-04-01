@@ -1165,6 +1165,184 @@ export interface BriefingSettings {
   updated_at: string;
 }
 
+// --- A/B Testing ---
+
+export type ABTestStatus = "active" | "completed" | "cancelled";
+
+export interface ABTest {
+  id: string;
+  product_id: string;
+  platform_id?: string;
+  status: ABTestStatus;
+  winning_variant?: string;
+  started_at: string;
+  ended_at?: string;
+  created_at: string;
+  product_name?: string;
+  platform_name?: string;
+  variants?: ABVariant[];
+}
+
+export interface ABVariant {
+  id: string;
+  test_id: string;
+  variant_label: string;
+  title: string;
+  description: string;
+  tags?: string[];
+  views: number;
+  clicks: number;
+  sales: number;
+  revenue: number;
+  conversion_rate: number;
+  is_active: boolean;
+  activated_at?: string;
+  deactivated_at?: string;
+  created_at: string;
+}
+
+// --- Competitor Price Monitoring ---
+
+export interface CompetitorPrice {
+  id: string;
+  niche: string;
+  platform: string;
+  competitor_name?: string;
+  product_title: string;
+  product_url?: string;
+  price: number;
+  currency: string;
+  scraped_at: string;
+}
+
+export interface PriceRule {
+  id: string;
+  niche: string;
+  platform: string;
+  strategy: "below_average" | "match_lowest" | "custom";
+  adjustment_pct: number;
+  min_price: number;
+  max_price: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompetitorPriceSummary {
+  niche: string;
+  platform: string;
+  avg_price: number;
+  min_price: number;
+  max_price: number;
+  count: number;
+  suggested_price: number;
+}
+
+// --- Seasonal Calendar ---
+
+export interface SeasonalEvent {
+  id: string;
+  name: string;
+  description?: string;
+  event_date: string;
+  recurring: boolean;
+  regions?: string[];
+  categories?: string[];
+  keywords?: string[];
+  prep_weeks: number;
+  priority: "high" | "medium" | "low";
+  is_active: boolean;
+  auto_trigger: boolean;
+  last_triggered?: string;
+  created_at: string;
+  days_until?: number;
+  prep_start?: string;
+}
+
+// --- Bundle Creator ---
+
+export type BundleStatus = "draft" | "active" | "archived";
+
+export interface Bundle {
+  id: string;
+  name: string;
+  description?: string;
+  domain_id?: string;
+  category_id?: string;
+  bundle_price?: number;
+  individual_total: number;
+  savings_pct: number;
+  status: BundleStatus;
+  created_at: string;
+  updated_at: string;
+  domain_name?: string;
+  category_name?: string;
+  items?: BundleItem[];
+  item_count?: number;
+}
+
+export interface BundleItem {
+  id: string;
+  bundle_id: string;
+  product_id: string;
+  sort_order: number;
+  product_name?: string;
+  product_niche?: string;
+}
+
+// --- Webhook Alerts ---
+
+export type WebhookEventType =
+  | "product_approved"
+  | "product_published"
+  | "publish_failed"
+  | "daily_summary";
+
+export interface WebhookConfig {
+  id: string;
+  name: string;
+  url: string;
+  type: "discord" | "telegram" | "custom";
+  events: WebhookEventType[];
+  is_active: boolean;
+  last_fired_at?: string;
+  total_sent: number;
+  total_failed: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WebhookLog {
+  id: string;
+  config_id: string;
+  event_type: string;
+  payload?: Record<string, unknown>;
+  status: "sent" | "failed";
+  response_code?: number;
+  error?: string;
+  sent_at: string;
+}
+
+// --- Health Dashboard ---
+
+export interface HealthDashboard {
+  api_credits: {
+    workers_requests: { used: number; limit: number };
+    kv_reads: { used: number; limit: number };
+    d1_reads: { used: number; limit: number };
+    r2_storage_gb: { used: number; limit: number };
+  };
+  workflow_success_rate: number;
+  workflow_total: number;
+  workflow_failed: number;
+  publish_success_rate: number;
+  publish_total: number;
+  publish_failed: number;
+  avg_quality_score: number;
+  quality_score_trend: Array<{ date: string; score: number }>;
+  top_niches: Array<{ niche: string; products: number; avg_score: number; revenue: number }>;
+}
+
 // --- Publish Queue ---
 
 export type PublishQueueStatus = "pending" | "publishing" | "published" | "failed";
