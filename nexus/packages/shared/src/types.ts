@@ -620,6 +620,7 @@ export interface Env {
   CLIPDROP_API_KEY?: string;
   UDIO_API_KEY?: string;
   MINIMAX_API_KEY?: string;
+  TOGETHER_API_KEY?: string;
 
   // Index signature for dynamic secret access
   [key: string]: unknown;

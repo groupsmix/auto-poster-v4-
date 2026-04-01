@@ -381,6 +381,39 @@ export interface LocalizationCandidate {
   total_orders: number;
 }
 
+// --- Product Images ---
+
+export interface ProductImage {
+  id: string;
+  product_id: string;
+  asset_type: string;
+  r2_key: string;
+  url: string;
+  metadata: {
+    prompt: string;
+    style?: string;
+    platform: string;
+    model: string;
+    width: number;
+    height: number;
+  };
+  created_at: string;
+}
+
+export interface ReadyToPostProduct {
+  id: string;
+  product_id: string;
+  product_name: string;
+  domain_name?: string;
+  category_name?: string;
+  ai_score: number;
+  status: ProductStatus;
+  platform_variants: PlatformVariantData[];
+  social_variants: SocialVariantData[];
+  images: ProductImage[];
+  posting_mode: "auto" | "manual";
+}
+
 // --- Daily Briefings ---
 
 export interface BriefingSectionItem {

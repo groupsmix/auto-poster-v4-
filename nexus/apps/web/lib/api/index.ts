@@ -48,6 +48,8 @@ export type {
   BriefingSectionData,
   BriefingResponse,
   BriefingSettingsData,
+  ProductImage,
+  ReadyToPostProduct,
 } from "./types";
 
 // Re-export shared types that were re-exported from the old api.ts

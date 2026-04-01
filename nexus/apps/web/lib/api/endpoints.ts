@@ -72,6 +72,8 @@ import type {
   LocalizationCandidate,
   BriefingResponse,
   BriefingSettingsData,
+  ProductImage,
+  ReadyToPostProduct,
 } from "./types";
 
 export const api = {
@@ -609,6 +611,24 @@ export const api = {
       request<{ shop_id: string }>("/etsy/callback", { method: "POST", body: { code, state } }),
     publish: (productId: string) =>
       request<{ listing_id: string; url: string; status: string }>(`/etsy/publish/${productId}`, { method: "POST", body: {} }),
+  },
+
+  // Product Images endpoints
+  images: {
+    /** Get all images for a product */
+    forProduct: (productId: string) =>
+      request<ProductImage[]>(`/assets?product_id=${productId}&asset_type=image`),
+    /** Delete an image */
+    delete: (assetId: string) =>
+      request<void>(`/assets/${assetId}`, { method: "DELETE" }),
+    /** Regenerate images for a product */
+    regenerate: (productId: string) =>
+      request<{ status: string }>(`/workflow/products/${productId}/regenerate-images`, { method: "POST", body: {} }),
+  },
+
+  // Ready to Post endpoints (approved products with images)
+  readyToPost: {
+    list: () => request<ReadyToPostProduct[]>("/publish/ready"),
   },
 
   // AI CEO / Auto-Orchestrator endpoints

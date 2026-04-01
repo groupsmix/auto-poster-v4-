@@ -7,6 +7,7 @@
 import { Hono } from "hono";
 import type { Env, ApiResponse } from "@nexus/shared";
 import { runWithFailover, getModelStates } from "./failover";
+import { runImageWithFailover } from "./image-failover";
 import { getHealthReport, shouldSuggestReorder } from "./health";
 import { getCacheStats } from "./cache";
 import {
@@ -41,6 +42,7 @@ app.get("/", (c) => {
       "GET  /ai/cache/stats",
       "POST /ai/ceo/setup",
       "GET  /ai/ceo/config/:categorySlug",
+      "POST /ai/image/generate",
     ],
   });
 });
@@ -81,6 +83,40 @@ app.post("/ai/run", async (c) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[FATAL] runWithFailover failed: ${message}`);
+    return c.json<ApiResponse>({ success: false, error: message }, 500);
+  }
+});
+
+// ── POST /ai/image/generate — image generation with failover ──
+
+app.post("/ai/image/generate", async (c) => {
+  const body = await c.req.json<{
+    prompt?: string;
+    width?: number;
+    height?: number;
+    steps?: number;
+  }>();
+
+  if (!body.prompt) {
+    return c.json<ApiResponse>(
+      { success: false, error: "Missing required field: prompt" },
+      400
+    );
+  }
+
+  try {
+    const result = await runImageWithFailover(body.prompt, c.env, {
+      width: body.width,
+      height: body.height,
+      steps: body.steps,
+    });
+    return c.json<ApiResponse>({
+      success: true,
+      data: result,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[FATAL] Image generation failed: ${message}`);
     return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });

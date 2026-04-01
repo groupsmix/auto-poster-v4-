@@ -7,62 +7,79 @@
 import type { Env, ApiResponse } from "@nexus/shared";
 import { generateId, now, parseAIJSON, AI_COST_PER_1K_TOKENS } from "@nexus/shared";
 
-// --- Helper: generate actual images via Workers AI and store in R2 ---
+// ============================================================
+// Platform-specific image dimensions for each target platform
+// ============================================================
+
+export const PLATFORM_IMAGE_SPECS: Record<string, { width: number; height: number; label: string; style: string }> = {
+  etsy: { width: 1024, height: 1024, label: "Etsy Thumbnail", style: "Clean product mockup on lifestyle background, warm lighting, professional product photography style" },
+  pinterest: { width: 1024, height: 1536, label: "Pinterest Pin", style: "Tall vertical composition, bold text overlay area at top, eye-catching colors, lifestyle context" },
+  instagram: { width: 1024, height: 1024, label: "Instagram Post", style: "Square lifestyle photo, trendy aesthetic, muted tones with pops of color, aspirational mood" },
+  twitter: { width: 1536, height: 864, label: "Twitter/X Card", style: "Wide landscape, bold composition, high contrast, clear subject visible at small size" },
+  facebook: { width: 1200, height: 628, label: "Facebook Post", style: "Landscape layout, warm and inviting, lifestyle context, clear product visibility" },
+  gumroad: { width: 1280, height: 720, label: "Gumroad Hero", style: "Wide banner, modern and clean, gradient background, product mockup front and center" },
+  shopify: { width: 1024, height: 1024, label: "Shopify Product", style: "Clean white or minimal background, professional product photography, well-lit" },
+  thumbnail: { width: 512, height: 512, label: "Universal Thumbnail", style: "High contrast, readable at 150x150px, clear subject, bold colors" },
+};
+
+// --- Helper: generate actual images via AI failover and store in R2 ---
 
 export async function generateAndStoreImages(
   env: Env,
   productId: string,
-  imagePrompts: Array<{ description: string; style?: string; dimensions?: { width: number; height: number } }>
-): Promise<Array<{ asset_id: string; r2_key: string; url: string }>> {
-  const results: Array<{ asset_id: string; r2_key: string; url: string }> = [];
+  imagePrompts: Array<{
+    description: string;
+    style?: string;
+    platform?: string;
+    dimensions?: { width: number; height: number };
+  }>
+): Promise<Array<{ asset_id: string; r2_key: string; url: string; platform: string; model: string }>> {
+  const results: Array<{ asset_id: string; r2_key: string; url: string; platform: string; model: string }> = [];
 
-  for (const prompt of imagePrompts.slice(0, 3)) {
+  for (const prompt of imagePrompts.slice(0, 8)) {
     try {
-      // Call Workers AI Stable Diffusion XL via the AI binding
-      const imageResult = (await env.AI.run(
-        "@cf/stabilityai/stable-diffusion-xl-base-1.0",
-        {
-          prompt: prompt.description,
-          num_steps: 20,
-          width: prompt.dimensions?.width ?? 1024,
-          height: prompt.dimensions?.height ?? 1024,
-        }
-      )) as ReadableStream | ArrayBuffer | Uint8Array;
+      const platform = prompt.platform ?? "thumbnail";
+      const spec = PLATFORM_IMAGE_SPECS[platform];
+      const width = prompt.dimensions?.width ?? spec?.width ?? 1024;
+      const height = prompt.dimensions?.height ?? spec?.height ?? 1024;
 
-      // Convert to Uint8Array
-      let imageBytes: Uint8Array;
-      if (imageResult instanceof Uint8Array) {
-        imageBytes = imageResult;
-      } else if (imageResult instanceof ArrayBuffer) {
-        imageBytes = new Uint8Array(imageResult);
-      } else {
-        // ReadableStream — collect chunks
-        const reader = (imageResult as ReadableStream).getReader();
-        const chunks: Uint8Array[] = [];
-        let done = false;
-        while (!done) {
-          const read = await reader.read();
-          done = read.done;
-          if (read.value) chunks.push(read.value as Uint8Array);
-        }
-        const totalLength = chunks.reduce((acc, c) => acc + c.length, 0);
-        imageBytes = new Uint8Array(totalLength);
-        let offset = 0;
-        for (const chunk of chunks) {
-          imageBytes.set(chunk, offset);
-          offset += chunk.length;
-        }
+      // Enhance prompt with platform-specific style
+      const styleHint = prompt.style ?? spec?.style ?? "";
+      const enhancedPrompt = styleHint
+        ? `${prompt.description}. Style: ${styleHint}`
+        : prompt.description;
+
+      // Call nexus-ai image generation endpoint (uses failover chain)
+      const aiResp = await env.NEXUS_AI.fetch("http://nexus-ai/ai/image/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: enhancedPrompt,
+          width,
+          height,
+        }),
+      });
+
+      const aiJson = (await aiResp.json()) as ApiResponse<{
+        imageBase64: string;
+        model: string;
+        width: number;
+        height: number;
+      }>;
+
+      if (!aiJson.success || !aiJson.data) {
+        console.error(`[IMAGE] AI generation failed for ${platform}: ${aiJson.error}`);
+        continue;
       }
 
-      // Convert to base64 for R2 upload via nexus-storage
-      const base64 = btoa(String.fromCharCode(...imageBytes));
-      const r2Key = `products/${productId}/images/${generateId()}.png`;
+      const { imageBase64, model } = aiJson.data;
+      const r2Key = `products/${productId}/images/${platform}-${generateId()}.png`;
 
       // Upload to R2 via nexus-storage
       const uploadResp = await env.NEXUS_STORAGE.fetch("http://nexus-storage/r2/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: r2Key, data: base64, contentType: "image/png" }),
+        body: JSON.stringify({ key: r2Key, data: imageBase64, contentType: "image/png" }),
       });
       const uploadJson = (await uploadResp.json()) as ApiResponse;
       if (!uploadJson.success) {
@@ -82,13 +99,20 @@ export async function generateAndStoreImages(
           productId,
           r2Key,
           assetUrl,
-          JSON.stringify({ prompt: prompt.description, style: prompt.style }),
+          JSON.stringify({
+            prompt: prompt.description,
+            style: prompt.style,
+            platform,
+            model,
+            width,
+            height,
+          }),
           now(),
         ]
       );
 
-      results.push({ asset_id: assetId, r2_key: r2Key, url: assetUrl });
-      console.log(`[IMAGE] Generated and stored image: ${r2Key}`);
+      results.push({ asset_id: assetId, r2_key: r2Key, url: assetUrl, platform, model });
+      console.log(`[IMAGE] Generated ${platform} image via ${model}: ${r2Key}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[IMAGE] Failed to generate image: ${message}`);
