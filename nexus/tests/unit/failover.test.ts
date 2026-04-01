@@ -42,8 +42,8 @@ describe("getModelsForTask", () => {
   });
 
   it("aliases resolve to their base chains", () => {
-    // image is aliased to copywriting
-    expect(getModelsForTask("image")).toBe(getModelsForTask("copywriting"));
+    // image is aliased to image_generation
+    expect(getModelsForTask("image")).toBe(getModelsForTask("image_generation"));
     // review is aliased to quality_review
     expect(getModelsForTask("review")).toBe(getModelsForTask("quality_review"));
     // variation is aliased to platform_variation

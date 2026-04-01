@@ -28,6 +28,16 @@ const WORKERS_AI_TEXT: AIModelConfig = {
   model: "@cf/meta/llama-3.1-8b-instruct",
 };
 
+const WORKERS_AI_IMAGE: AIModelConfig = {
+  id: "workers-ai-sdxl",
+  name: "Workers AI (Stable Diffusion XL)",
+  provider: "workers-ai",
+  apiKeyEnvName: "",
+  isWorkersAI: true,
+  isFree: true,
+  model: "@cf/stabilityai/stable-diffusion-xl-base-1.0",
+};
+
 // --- Premium AI entries (dormant until API key is added) ---
 // The failover engine automatically skips models without an API key.
 // Just set the secret on nexus-ai worker → model activates instantly.
@@ -175,8 +185,20 @@ export const TASK_MODEL_REGISTRY: Record<string, AIModelConfig[]> = {
   ],
 };
 
+// ----------------------------------------------------------
+// IMAGE GENERATION TASKS
+// ----------------------------------------------------------
+TASK_MODEL_REGISTRY.image_generation = [
+  // Premium (dormant until key added) — Together.ai Flux models
+  { id: "together-flux-pro", name: "Together.ai Flux Pro", provider: "together", apiKeyEnvName: "TOGETHER_API_KEY", isWorkersAI: false, isFree: false, model: "black-forest-labs/FLUX.1-pro" },
+  { id: "together-flux-dev", name: "Together.ai Flux Dev", provider: "together", apiKeyEnvName: "TOGETHER_API_KEY", isWorkersAI: false, isFree: false, model: "black-forest-labs/FLUX.1-dev" },
+  { id: "together-flux-schnell", name: "Together.ai Flux Schnell", provider: "together", apiKeyEnvName: "TOGETHER_API_KEY", isWorkersAI: false, isFree: false, model: "black-forest-labs/FLUX.1-schnell" },
+  // Free fallback — Workers AI (included in $5/month plan)
+  WORKERS_AI_IMAGE,
+];
+
 // --- Aliases: workflow steps use short TaskType names that must resolve here ---
-TASK_MODEL_REGISTRY.image = TASK_MODEL_REGISTRY.copywriting;
+TASK_MODEL_REGISTRY.image = TASK_MODEL_REGISTRY.image_generation;
 TASK_MODEL_REGISTRY.review = TASK_MODEL_REGISTRY.quality_review;
 TASK_MODEL_REGISTRY.variation = TASK_MODEL_REGISTRY.platform_variation;
 TASK_MODEL_REGISTRY.social = TASK_MODEL_REGISTRY.social_adaptation;

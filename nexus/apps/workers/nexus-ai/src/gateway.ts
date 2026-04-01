@@ -23,6 +23,7 @@ const PROVIDER_GATEWAY_MAP: Record<string, string> = {
   openai: "openai",
   google: "google-ai-studio",
   perplexity: "perplexity",
+  together: "together-ai",
 };
 
 /** Provider-to-base-URL mapping for API calls */
@@ -39,6 +40,7 @@ const PROVIDER_API_URL: Record<string, string> = {
   openai: "https://api.openai.com/v1/chat/completions",
   google: "https://generativelanguage.googleapis.com/v1beta/models",
   perplexity: "https://api.perplexity.ai/chat/completions",
+  together: "https://api.together.xyz/v1/images/generations",
 };
 
 /** Result from an AI Gateway call */
@@ -280,4 +282,91 @@ async function callAIviaGatewayInternal(
   );
 
   return { text, tokens };
+}
+
+// ============================================================
+// CALL IMAGE GENERATION VIA TOGETHER.AI
+// Returns base64 image data from Together.ai Flux models
+// ============================================================
+
+export async function callImageViaGateway(
+  model: AIModelConfig,
+  apiKey: string,
+  prompt: string,
+  options: { width?: number; height?: number; steps?: number } = {}
+): Promise<{ imageBase64: string; model: string }> {
+  const modelId = model.model ?? model.id;
+  const start = Date.now();
+
+  const apiUrl = PROVIDER_API_URL[model.provider];
+  if (!apiUrl) {
+    throw new Error(`Unknown provider for image generation: ${model.provider}`);
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for image gen
+
+  let response: Response;
+  try {
+    response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: modelId,
+        prompt,
+        width: options.width ?? 1024,
+        height: options.height ?? 1024,
+        steps: options.steps ?? 28,
+        n: 1,
+        response_format: "b64_json",
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      const err: Error & { status?: number } = new Error(
+        `Image generation timed out: ${model.provider}/${modelId} after 60s`
+      );
+      err.status = 408;
+      throw err;
+    }
+    throw e;
+  }
+
+  const latencyMs = Date.now() - start;
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    console.log(
+      `[IMAGE FAIL] ${model.provider}/${modelId} -- ${response.status} (${latencyMs}ms)`
+    );
+    const err: Error & { status?: number; code?: string } = new Error(
+      `Image generation failed: ${model.provider}/${modelId} -- ${response.status} ${errorText}`
+    );
+    err.status = response.status;
+    if (errorText.includes("QUOTA_EXCEEDED") || errorText.includes("quota")) {
+      err.code = "QUOTA_EXCEEDED";
+    }
+    throw err;
+  }
+
+  const data = (await response.json()) as {
+    data?: Array<{ b64_json?: string; url?: string }>;
+  };
+
+  const imageData = data.data?.[0]?.b64_json;
+  if (!imageData) {
+    throw new Error(`No image data returned from ${model.provider}/${modelId}`);
+  }
+
+  console.log(
+    `[IMAGE OK] ${model.provider}/${modelId} -- ${latencyMs}ms`
+  );
+
+  return { imageBase64: imageData, model: `${model.provider}/${modelId}` };
 }

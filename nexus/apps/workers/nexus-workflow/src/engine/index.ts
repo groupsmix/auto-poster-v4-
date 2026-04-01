@@ -172,21 +172,44 @@ export class WorkflowEngine {
           cache_hits: cacheHits,
         });
 
-        // Post-processing: after image_generation step, generate actual images
+        // Post-processing: after image_generation step, generate actual platform-specific images
         if (stepName === "image_generation" && result.output) {
           try {
             const output = result.output as Record<string, unknown>;
-            const imagePrompts = (output.image_prompts ?? output.images ?? []) as Array<{
+            const rawPrompts = (output.image_prompts ?? output.images ?? []) as Array<{
               description: string;
               style?: string;
+              purpose?: string;
               dimensions?: { width: number; height: number };
             }>;
-            if (imagePrompts.length > 0) {
-              console.log(`[WORKFLOW] Generating ${imagePrompts.length} actual images for product ${input.productId}`);
-              const assets = await generateAndStoreImages(this.env, input.productId, imagePrompts);
-              // Attach generated asset references to the step output
-              priorOutputs[stepName] = { ...output, generated_assets: assets };
-            }
+
+            // Get the hero/main prompt from AI output (first prompt is typically the hero image)
+            const heroPrompt = rawPrompts[0]?.description ?? `Professional product image for ${input.product.name ?? "product"}`;
+            const heroStyle = rawPrompts[0]?.style ?? "";
+
+            // Determine which platforms to generate images for
+            const targetPlatforms = input.product.platforms.length > 0
+              ? input.product.platforms
+              : ["etsy", "pinterest", "instagram", "twitter", "facebook"];
+
+            // Build platform-specific image prompts
+            const platformPrompts = targetPlatforms.map((platform: string) => ({
+              description: heroPrompt,
+              style: heroStyle,
+              platform,
+            }));
+
+            // Also add a universal thumbnail
+            platformPrompts.push({
+              description: heroPrompt,
+              style: "High contrast, bold, readable at small size",
+              platform: "thumbnail",
+            });
+
+            console.log(`[WORKFLOW] Generating ${platformPrompts.length} platform-specific images for product ${input.productId}`);
+            const assets = await generateAndStoreImages(this.env, input.productId, platformPrompts);
+            // Attach generated asset references to the step output
+            priorOutputs[stepName] = { ...output, generated_assets: assets };
           } catch (imgErr) {
             const imgMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
             console.error(`[WORKFLOW] Image generation post-processing failed (non-fatal): ${imgMsg}`);

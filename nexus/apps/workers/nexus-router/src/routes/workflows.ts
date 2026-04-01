@@ -232,4 +232,28 @@ workflows.post("/retry-from-step/:runId", async (c) => {
   }
 });
 
+// POST /api/workflow/products/:productId/regenerate-images — regenerate platform images
+workflows.post("/products/:productId/regenerate-images", async (c) => {
+  try {
+    const productId = c.req.param("productId");
+
+    if (!productId) {
+      return c.json<ApiResponse>(
+        { success: false, error: "productId is required" },
+        400
+      );
+    }
+
+    const result = await forwardToService(
+      c.env.NEXUS_WORKFLOW,
+      `/workflow/products/${productId}/regenerate-images`,
+      { method: "POST" }
+    );
+
+    return c.json<ApiResponse>(result, result.success ? 200 : 500);
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
 export default workflows;
