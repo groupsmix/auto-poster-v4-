@@ -44,6 +44,10 @@ export interface PlatformVariantData {
   tags: string[];
   price: number;
   scores: { seo: number; title: number; tags: number };
+  external_id?: string;
+  external_url?: string;
+  publish_error?: string;
+  published_via?: "manual" | "auto";
 }
 
 export interface SocialVariantData {
@@ -200,6 +204,7 @@ export type SettingsMap = Record<
   | "default_language"
   | "ceo_review_required"
   | "auto_publish_after_approval"
+  | "auto_publish_etsy"
   | "batch_max_products"
   | "cache_enabled"
   | "ai_gateway_enabled",
