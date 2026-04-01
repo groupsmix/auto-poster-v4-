@@ -8,6 +8,7 @@ const apiKeys = new Hono<{ Bindings: RouterEnv }>();
 
 // Known API key names and their display names
 const KNOWN_KEYS: Record<string, string> = {
+  TOGETHER_API_KEY: "Together.ai",
   DEEPSEEK_API_KEY: "DeepSeek",
   SILICONFLOW_API_KEY: "SiliconFlow",
   FIREWORKS_API_KEY: "Fireworks",
@@ -37,15 +38,22 @@ const KNOWN_KEYS: Record<string, string> = {
 // GET /api/api-keys — list all known API keys and their status
 apiKeys.get("/", async (c) => {
   try {
-    // Query ai_models to check which keys are configured
-    const models = await storageQuery<{ api_key_secret_name: string; status: string }[]>(
-      c.env,
-      "SELECT api_key_secret_name, status FROM ai_models WHERE api_key_secret_name IS NOT NULL"
-    );
-
-    const configuredKeys = new Set(
-      (models || []).map((m) => m.api_key_secret_name)
-    );
+    // Query ai_models to check which keys are configured.
+    // If the query fails (e.g. table empty or missing), fall back to
+    // returning all known keys as "not_set" so the UI always renders.
+    let configuredKeys = new Set<string>();
+    try {
+      const models = await storageQuery<{ api_key_secret_name: string; status: string }[]>(
+        c.env,
+        "SELECT api_key_secret_name, status FROM ai_models WHERE api_key_secret_name IS NOT NULL AND status = 'active'"
+      );
+      configuredKeys = new Set(
+        (models || []).map((m) => m.api_key_secret_name)
+      );
+    } catch {
+      // DB query failed — continue with empty set so keys still render
+      console.warn("[api-keys] Failed to query ai_models, showing all keys as not_set");
+    }
 
     const keys = Object.entries(KNOWN_KEYS).map(([key_name, display_name]) => ({
       key_name,
