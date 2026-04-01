@@ -468,3 +468,131 @@ export async function getTopSellers(
     [limit]
   );
 }
+
+// --- Auto-Recycle Top Sellers ---
+// Automatically identifies top-selling products and spawns 3-5 variations each.
+// One endpoint call → finds best sellers → creates recycler jobs → generates variations → triggers workflows.
+
+export async function autoRecycleTopSellers(
+  env: RouterEnv,
+  options?: {
+    max_products?: number;
+    variations_per_product?: number;
+    strategy?: string;
+    min_revenue?: number;
+    min_orders?: number;
+  }
+): Promise<{
+  products_processed: number;
+  jobs_created: Array<{ job_id: string; product_id: string; product_name: string; variations: number }>;
+  skipped: Array<{ product_id: string; product_name: string; reason: string }>;
+}> {
+  const maxProducts = options?.max_products ?? 5;
+  const variationsPerProduct = options?.variations_per_product ?? 5;
+  const strategy = options?.strategy ?? "all";
+  const minRevenue = options?.min_revenue ?? 0;
+  const minOrders = options?.min_orders ?? 1;
+
+  // Get top sellers that meet the threshold
+  const topResult = await storageQuery(
+    env,
+    `SELECT
+       p.id, p.name, p.niche, p.domain_id, p.category_id,
+       d.name as domain_name, c.name as category_name,
+       COALESCE(SUM(rr.revenue), 0) as total_revenue,
+       COUNT(DISTINCT rr.external_order_id) as total_orders,
+       COALESCE(SUM(rr.quantity), 0) as total_quantity
+     FROM products p
+     INNER JOIN revenue_records rr ON rr.product_id = p.id
+     LEFT JOIN domains d ON d.id = p.domain_id
+     LEFT JOIN categories c ON c.id = p.category_id
+     GROUP BY p.id
+     HAVING total_revenue >= ? AND total_orders >= ?
+     ORDER BY total_revenue DESC
+     LIMIT ?`,
+    [minRevenue, minOrders, maxProducts]
+  );
+  const topSellers = extractRows<{
+    id: string;
+    name: string;
+    niche: string | null;
+    domain_id: string;
+    category_id: string;
+    domain_name: string | null;
+    category_name: string | null;
+    total_revenue: number;
+    total_orders: number;
+    total_quantity: number;
+  }>(topResult);
+
+  if (topSellers.length === 0) {
+    return { products_processed: 0, jobs_created: [], skipped: [] };
+  }
+
+  const jobsCreated: Array<{ job_id: string; product_id: string; product_name: string; variations: number }> = [];
+  const skipped: Array<{ product_id: string; product_name: string; reason: string }> = [];
+
+  for (const seller of topSellers) {
+    // Check if this product already has an active recycler job
+    const existingResult = await storageQuery(
+      env,
+      `SELECT id FROM recycler_jobs WHERE source_product_id = ? AND status IN ('pending', 'running') LIMIT 1`,
+      [seller.id]
+    );
+    const existingJobs = extractRows<{ id: string }>(existingResult);
+
+    if (existingJobs.length > 0) {
+      skipped.push({
+        product_id: seller.id,
+        product_name: seller.name ?? "Unknown",
+        reason: `Already has active recycler job: ${existingJobs[0].id}`,
+      });
+      continue;
+    }
+
+    try {
+      // Create a recycler job for this top seller
+      const { id: jobId } = await createRecyclerJob(
+        {
+          source_product_id: seller.id,
+          strategy,
+          variations_requested: variationsPerProduct,
+          config: {
+            auto_recycled: true,
+            source_revenue: seller.total_revenue,
+            source_orders: seller.total_orders,
+          },
+        },
+        env
+      );
+
+      // Generate variations and trigger workflows
+      const { variations } = await generateVariations(jobId, env);
+
+      jobsCreated.push({
+        job_id: jobId,
+        product_id: seller.id,
+        product_name: seller.name ?? "Unknown",
+        variations: variations.length,
+      });
+
+      console.log(
+        `[RECYCLER] Auto-recycled "${seller.name}" (revenue: $${seller.total_revenue}) → ${variations.length} variations`
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      skipped.push({
+        product_id: seller.id,
+        product_name: seller.name ?? "Unknown",
+        reason: `Error: ${msg}`,
+      });
+      console.error(`[RECYCLER] Auto-recycle failed for "${seller.name}": ${msg}`);
+    }
+  }
+
+  return {
+    products_processed: topSellers.length,
+    jobs_created: jobsCreated,
+    skipped,
+  };
+}

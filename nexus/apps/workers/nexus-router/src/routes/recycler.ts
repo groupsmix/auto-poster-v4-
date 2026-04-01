@@ -15,6 +15,7 @@ import {
   generateVariations,
   listVariations,
   getTopSellers,
+  autoRecycleTopSellers,
 } from "../services/recycler-service";
 
 const recycler = new Hono<{ Bindings: RouterEnv }>();
@@ -135,6 +136,42 @@ recycler.get("/jobs/:id/variations", async (c) => {
   try {
     const id = c.req.param("id");
     const data = await listVariations(id, c.env);
+    return c.json<ApiResponse>({ success: true, data });
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
+// ============================================================
+// Auto-Recycle Top Sellers
+// ============================================================
+
+// POST /api/recycler/auto-recycle — automatically recycle top-selling products
+// Finds best sellers, creates recycler jobs, generates 3-5 variations each,
+// and triggers full workflow runs for every variation.
+recycler.post("/auto-recycle", async (c) => {
+  try {
+    const body = await c.req.json<{
+      max_products?: number;
+      variations_per_product?: number;
+      strategy?: string;
+      min_revenue?: number;
+      min_orders?: number;
+    }>().catch((): {
+      max_products?: number;
+      variations_per_product?: number;
+      strategy?: string;
+      min_revenue?: number;
+      min_orders?: number;
+    } => ({}));
+
+    const data = await autoRecycleTopSellers(c.env, {
+      max_products: body.max_products,
+      variations_per_product: body.variations_per_product,
+      strategy: body.strategy,
+      min_revenue: body.min_revenue,
+      min_orders: body.min_orders,
+    });
     return c.json<ApiResponse>({ success: true, data });
   } catch (err) {
     return errorResponse(c, err);
