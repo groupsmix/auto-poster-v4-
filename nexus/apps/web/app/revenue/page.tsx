@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
-import { handleApiError } from "@/lib/handleApiError";
 import type { RevenueDashboard } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
 import Modal from "@/components/Modal";
+import { toast } from "sonner";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -80,18 +80,24 @@ export default function RevenuePage() {
     if (!formShopName) return;
     setCreating(true);
     try {
-      await api.revenue.connections.create({
+      const res = await api.revenue.connections.create({
         platform: formPlatform,
         store_name: formShopName,
         api_key: formApiKey || undefined,
         is_active: true,
       });
+
+      if (!res.success) {
+        toast.error(res.error || "Failed to connect platform");
+        return;
+      }
+
       setShowConnect(false);
       setFormShopName("");
       setFormApiKey("");
       refetchConn();
     } catch (err) {
-      handleApiError(err, "Failed to connect platform");
+      toast.error(err instanceof Error ? err.message : "Failed to connect platform");
     } finally {
       setCreating(false);
     }
@@ -100,10 +106,13 @@ export default function RevenuePage() {
   async function handleSync(id: string) {
     setSyncing(id);
     try {
-      await api.revenue.connections.sync(id);
+      const res = await api.revenue.connections.sync(id);
+      if (!res.success) {
+        toast.error(res.error || "Failed to sync revenue data");
+      }
       refetchConn();
     } catch (err) {
-      handleApiError(err, "Failed to sync revenue data");
+      toast.error(err instanceof Error ? err.message : "Failed to sync revenue data");
     } finally {
       setSyncing(null);
     }
@@ -112,10 +121,13 @@ export default function RevenuePage() {
   async function handleDisconnect(id: string) {
     if (!confirm("Disconnect this platform?")) return;
     try {
-      await api.revenue.connections.delete(id);
+      const res = await api.revenue.connections.delete(id);
+      if (!res.success) {
+        toast.error(res.error || "Failed to disconnect platform");
+      }
       refetchConn();
     } catch (err) {
-      handleApiError(err, "Failed to disconnect platform");
+      toast.error(err instanceof Error ? err.message : "Failed to disconnect platform");
     }
   }
 

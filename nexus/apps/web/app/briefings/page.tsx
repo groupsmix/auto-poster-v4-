@@ -6,6 +6,7 @@ import { useApiQuery } from "@/lib/useApiQuery";
 import type { BriefingResponse, BriefingSectionData, BriefingSettingsData } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
 import Modal from "@/components/Modal";
+import { toast } from "sonner";
 
 // --- Section icon + color mapping ---
 
@@ -148,10 +149,13 @@ export default function BriefingsPage() {
   async function handleGenerate() {
     setGenerating(true);
     try {
-      await api.briefings.generate();
+      const res = await api.briefings.generate();
+      if (!res.success) {
+        toast.error(res.error || "Failed to generate briefing");
+      }
       refetch();
     } catch (err) {
-      console.error("Failed to generate briefing:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to generate briefing");
     } finally {
       setGenerating(false);
     }
@@ -165,16 +169,22 @@ export default function BriefingsPage() {
         .map((k) => k.trim())
         .filter(Boolean);
 
-      await api.briefings.settings.update({
+      const res = await api.briefings.settings.update({
         user_timezone: formTimezone,
         briefing_hour: formHour,
         briefing_enabled: formEnabled,
         focus_keywords: keywords,
       });
+
+      if (!res.success) {
+        toast.error(res.error || "Failed to save settings");
+        return;
+      }
+
       setShowSettings(false);
       refetchSettings();
     } catch (err) {
-      console.error("Failed to save settings:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to save settings");
     } finally {
       setSavingSettings(false);
     }
@@ -182,14 +192,17 @@ export default function BriefingsPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this briefing?")) return;
-    await api.briefings.delete(id);
+    const res = await api.briefings.delete(id);
+    if (!res.success) {
+      toast.error(res.error || "Failed to delete briefing");
+      return;
+    }
     if (selectedBriefing?.id === id) setSelectedBriefing(null);
     refetch();
   }
 
   // Get the latest briefing for the hero section
   const latestBriefing = briefings.length > 0 ? briefings[0] : null;
-  const olderBriefings = briefings.slice(1);
 
   // Parse sections if they come as string
   function parseSections(briefing: BriefingResponse): BriefingSectionData[] {

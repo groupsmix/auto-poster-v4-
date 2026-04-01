@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
-import { handleApiError } from "@/lib/handleApiError";
 import type { LocalizationJob, LanguageOption, LocalizationCandidate } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
 import Modal from "@/components/Modal";
+import { toast } from "sonner";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -76,6 +76,12 @@ export default function LocalizationPage() {
         source_product_id: selectedProduct,
         languages: selectedLanguages,
       });
+
+      if (!result.success) {
+        toast.error(result.error || "Failed to create localization job");
+        return;
+      }
+
       setShowCreate(false);
       setSelectedProduct("");
       setSelectedLanguages([]);
@@ -84,17 +90,15 @@ export default function LocalizationPage() {
       // Auto-execute localization
       if (result.data) {
         setExecuting(result.data.id);
-        try {
-          await api.localization.jobs.execute(result.data.id);
-        } catch (err) {
-          handleApiError(err, "Failed to execute localization");
-        } finally {
-          setExecuting(null);
-          refetchJobs();
+        const execRes = await api.localization.jobs.execute(result.data.id);
+        if (!execRes.success) {
+          toast.error(execRes.error || "Failed to execute localization");
         }
+        setExecuting(null);
+        refetchJobs();
       }
     } catch (err) {
-      handleApiError(err, "Failed to create localization job");
+      toast.error(err instanceof Error ? err.message : "Failed to create localization job");
     } finally {
       setCreating(false);
     }
@@ -103,10 +107,13 @@ export default function LocalizationPage() {
   async function handleExecute(jobId: string) {
     setExecuting(jobId);
     try {
-      await api.localization.jobs.execute(jobId);
+      const res = await api.localization.jobs.execute(jobId);
+      if (!res.success) {
+        toast.error(res.error || "Failed to execute localization");
+      }
       refetchJobs();
     } catch (err) {
-      handleApiError(err, "Failed to execute localization");
+      toast.error(err instanceof Error ? err.message : "Failed to execute localization");
     } finally {
       setExecuting(null);
     }
@@ -115,10 +122,13 @@ export default function LocalizationPage() {
   async function handleDelete(jobId: string) {
     if (!confirm("Delete this localization job?")) return;
     try {
-      await api.localization.jobs.delete(jobId);
+      const res = await api.localization.jobs.delete(jobId);
+      if (!res.success) {
+        toast.error(res.error || "Failed to delete localization job");
+      }
       refetchJobs();
     } catch (err) {
-      handleApiError(err, "Failed to delete localization job");
+      toast.error(err instanceof Error ? err.message : "Failed to delete localization job");
     }
   }
 

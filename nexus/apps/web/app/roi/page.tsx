@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
-import { handleApiError } from "@/lib/handleApiError";
 import type { ROIDashboard } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
 import Modal from "@/components/Modal";
+import { toast } from "sonner";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -59,13 +59,19 @@ export default function ROIPage() {
     if (!formDomainId || !formAmount) return;
     setAdding(true);
     try {
-      await api.roi.costs.add({
+      const res = await api.roi.costs.add({
         domain_id: formDomainId,
         niche: formNiche || undefined,
         cost_type: formCostType,
         amount: parseFloat(formAmount),
         description: formDescription || undefined,
       });
+
+      if (!res.success) {
+        toast.error(res.error || "Failed to add cost");
+        return;
+      }
+
       setShowAddCost(false);
       setFormDomainId("");
       setFormNiche("");
@@ -73,7 +79,7 @@ export default function ROIPage() {
       setFormDescription("");
       refetch();
     } catch (err) {
-      handleApiError(err, "Failed to add cost");
+      toast.error(err instanceof Error ? err.message : "Failed to add cost");
     } finally {
       setAdding(false);
     }

@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Modal from "@/components/Modal";
 import DomainIcon, { DOMAIN_ICON_OPTIONS } from "@/components/icons/DomainIcon";
+import { toast } from "sonner";
 
 interface AddDomainModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string; icon: string }) => void;
+  onSubmit: (data: { name: string; icon: string }) => Promise<void>;
 }
 
 export default function AddDomainModal({
@@ -17,14 +18,24 @@ export default function AddDomainModal({
 }: AddDomainModalProps) {
   const [name, setName] = useState("");
   const [selectedIcon, setSelectedIcon] = useState(DOMAIN_ICON_OPTIONS[0]);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
-    onSubmit({ name: name.trim(), icon: selectedIcon });
-    setName("");
-    setSelectedIcon(DOMAIN_ICON_OPTIONS[0]);
-    onClose();
+    if (!name.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit({ name: name.trim(), icon: selectedIcon });
+      setName("");
+      setSelectedIcon(DOMAIN_ICON_OPTIONS[0]);
+      onClose();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create domain"
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -83,10 +94,10 @@ export default function AddDomainModal({
           </button>
           <button
             type="submit"
-            disabled={!name.trim()}
+            disabled={!name.trim() || submitting}
             className="flex-1 px-4 py-2.5 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Create Domain
+            {submitting ? "Creating\u2026" : "Create Domain"}
           </button>
         </div>
       </form>

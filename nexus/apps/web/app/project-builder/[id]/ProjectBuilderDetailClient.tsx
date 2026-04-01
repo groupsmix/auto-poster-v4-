@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import type { ProjectBuildProgress as BuildProgress, ProjectBuildFile } from "@/lib/api";
+import { toast } from "sonner";
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -68,19 +69,6 @@ function QualityBar({ score, large }: { score?: number; large?: boolean }) {
       <span className={`${large ? "text-lg font-semibold" : "text-xs"} font-medium text-muted`}>
         {score}/10
       </span>
-    </div>
-  );
-}
-
-function ProgressBar({ current, total, label }: { current: number; total: number; label: string }) {
-  const pct = total > 0 ? Math.round((current / total) * 100) : 0;
-  return (
-    <div className="flex items-center gap-3 text-sm">
-      <span className="text-muted w-32 shrink-0">{label}</span>
-      <div className="flex-1 h-2 bg-card-border rounded-full overflow-hidden">
-        <div className="h-full bg-accent rounded-full transition-all" style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-xs text-muted w-12 text-right">{current}/{total}</span>
     </div>
   );
 }
@@ -159,7 +147,10 @@ export default function ProjectBuilderDetailClient({ id }: { id: string }) {
   async function handleCancel() {
     setCancelling(true);
     try {
-      await api.projectBuilder.cancel(buildId);
+      const res = await api.projectBuilder.cancel(buildId);
+      if (!res.success) {
+        toast.error(res.error || "Failed to cancel build");
+      }
       fetchProgress();
     } finally {
       setCancelling(false);
@@ -170,8 +161,12 @@ export default function ProjectBuilderDetailClient({ id }: { id: string }) {
     if (!feedback.trim()) return;
     setRebuilding(true);
     try {
-      await api.projectBuilder.rebuild(buildId, feedback.trim());
-      setFeedback("");
+      const res = await api.projectBuilder.rebuild(buildId, feedback.trim());
+      if (!res.success) {
+        toast.error(res.error || "Failed to rebuild");
+      } else {
+        setFeedback("");
+      }
       fetchProgress();
     } finally {
       setRebuilding(false);

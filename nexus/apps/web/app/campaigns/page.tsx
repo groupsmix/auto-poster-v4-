@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
-import { handleApiError } from "@/lib/handleApiError";
 import type { Domain } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
 import Modal from "@/components/Modal";
+import { toast } from "sonner";
 
 function CampaignStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -63,13 +63,19 @@ export default function CampaignsPage() {
     if (!formName || !formDomain) return;
     setCreating(true);
     try {
-      await api.campaigns.create({
+      const res = await api.campaigns.create({
         name: formName,
         domain_id: formDomain,
         target_count: formTarget,
         deadline: formDeadline || undefined,
         status: "active",
       });
+
+      if (!res.success) {
+        toast.error(res.error || "Failed to create campaign");
+        return;
+      }
+
       setShowCreate(false);
       setFormName("");
       setFormDomain("");
@@ -77,7 +83,7 @@ export default function CampaignsPage() {
       setFormDeadline("");
       refetch();
     } catch (err) {
-      handleApiError(err, "Failed to create campaign");
+      toast.error(err instanceof Error ? err.message : "Failed to create campaign");
     } finally {
       setCreating(false);
     }
@@ -86,10 +92,13 @@ export default function CampaignsPage() {
   async function handleDelete(id: string) {
     if (!confirm("Delete this campaign?")) return;
     try {
-      await api.campaigns.delete(id);
+      const res = await api.campaigns.delete(id);
+      if (!res.success) {
+        toast.error(res.error || "Failed to delete campaign");
+      }
       refetch();
     } catch (err) {
-      handleApiError(err, "Failed to delete campaign");
+      toast.error(err instanceof Error ? err.message : "Failed to delete campaign");
     }
   }
 

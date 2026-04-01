@@ -124,13 +124,18 @@ export default function WorkflowProgress({ workflowId }: WorkflowProgressProps) 
       cancelled = true;
       if (timerRef.current) clearTimeout(timerRef.current);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- workflow is intentionally excluded to avoid refetch loops
   }, [workflowId, router, manualRefresh]);
 
   const handleCancel = async () => {
     setCancelling(true);
     try {
-      await api.post(`/workflow/${workflowId}/cancel`, {});
-      setWorkflow((prev) => prev ? { ...prev, status: "cancelled" } : prev);
+      const res = await api.post(`/workflow/${workflowId}/cancel`, {});
+      if (!res.success) {
+        toast.error(res.error || "Failed to cancel workflow");
+      } else {
+        setWorkflow((prev) => prev ? { ...prev, status: "cancelled" } : prev);
+      }
     } catch {
       toast.error("Failed to cancel workflow");
     } finally {

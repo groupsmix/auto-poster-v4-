@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
-import { handleApiError } from "@/lib/handleApiError";
 import type { RecyclerJob, TopSellerProduct } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
 import Modal from "@/components/Modal";
+import { toast } from "sonner";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -73,6 +73,12 @@ export default function RecyclerPage() {
         strategy: selectedStrategy,
         variations_requested: parseInt(variationsCount, 10),
       });
+
+      if (!result.success) {
+        toast.error(result.error || "Failed to create recycler job");
+        return;
+      }
+
       setShowCreate(false);
       setSelectedProduct("");
       refetchJobs();
@@ -80,17 +86,15 @@ export default function RecyclerPage() {
       // Auto-generate variations
       if (result.data) {
         setGenerating(result.data.id);
-        try {
-          await api.recycler.jobs.generate(result.data.id);
-        } catch (err) {
-          handleApiError(err, "Failed to generate variations");
-        } finally {
-          setGenerating(null);
-          refetchJobs();
+        const genRes = await api.recycler.jobs.generate(result.data.id);
+        if (!genRes.success) {
+          toast.error(genRes.error || "Failed to generate variations");
         }
+        setGenerating(null);
+        refetchJobs();
       }
     } catch (err) {
-      handleApiError(err, "Failed to create recycler job");
+      toast.error(err instanceof Error ? err.message : "Failed to create recycler job");
     } finally {
       setCreating(false);
     }
@@ -99,10 +103,13 @@ export default function RecyclerPage() {
   async function handleGenerate(jobId: string) {
     setGenerating(jobId);
     try {
-      await api.recycler.jobs.generate(jobId);
+      const res = await api.recycler.jobs.generate(jobId);
+      if (!res.success) {
+        toast.error(res.error || "Failed to generate variations");
+      }
       refetchJobs();
     } catch (err) {
-      handleApiError(err, "Failed to generate variations");
+      toast.error(err instanceof Error ? err.message : "Failed to generate variations");
     } finally {
       setGenerating(null);
     }
@@ -111,10 +118,13 @@ export default function RecyclerPage() {
   async function handleDelete(jobId: string) {
     if (!confirm("Delete this recycler job?")) return;
     try {
-      await api.recycler.jobs.delete(jobId);
+      const res = await api.recycler.jobs.delete(jobId);
+      if (!res.success) {
+        toast.error(res.error || "Failed to delete recycler job");
+      }
       refetchJobs();
     } catch (err) {
-      handleApiError(err, "Failed to delete recycler job");
+      toast.error(err instanceof Error ? err.message : "Failed to delete recycler job");
     }
   }
 
