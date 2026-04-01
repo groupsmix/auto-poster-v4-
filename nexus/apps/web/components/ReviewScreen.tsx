@@ -91,10 +91,14 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
   const handleApprove = async () => {
     setSubmitting(true);
     try {
-      await api.post(`/reviews/${productId}/approve`, {});
-      toast.success("Product approved — sending to publish");
-      refreshCounts();
-      router.push("/publish");
+      const response = await api.post(`/reviews/${productId}/approve`, {});
+      if (response.success) {
+        toast.success("Product approved — sending to publish");
+        refreshCounts();
+        router.push("/publish");
+      } else {
+        toast.error(response.error || "Failed to approve — please try again");
+      }
     } catch {
       toast.error("Failed to approve — please try again");
     } finally {
@@ -106,10 +110,14 @@ export default function ReviewScreen({ productId }: ReviewScreenProps) {
     if (!feedback.trim()) return;
     setSubmitting(true);
     try {
-      await api.post(`/reviews/${productId}/reject`, { feedback });
-      toast.success("Rejected — sending back to AI with feedback");
-      refreshCounts();
-      router.push(`/workflow/${productId}`);
+      const response = await api.post(`/reviews/${productId}/reject`, { feedback });
+      if (response.success) {
+        toast.success("Rejected — sending back to AI with feedback");
+        refreshCounts();
+        router.push(`/workflow/${productId}`);
+      } else {
+        toast.error(response.error || "Failed to reject — please try again");
+      }
     } catch {
       toast.error("Failed to reject — please try again");
     } finally {

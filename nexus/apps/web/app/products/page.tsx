@@ -48,11 +48,15 @@ export default function ProductsPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      await api.products.delete(id);
+      const response = await api.products.delete(id);
+      if (response.success) {
+        setLocalProducts((prev) => (prev ?? products).filter((p) => p.id !== id));
+      } else {
+        toast.error(response.error || "Failed to delete product");
+      }
     } catch {
       toast.error("Failed to delete product");
     }
-    setLocalProducts((prev) => (prev ?? products).filter((p) => p.id !== id));
     setDeleteConfirm(null);
   };
 
@@ -144,11 +148,21 @@ export default function ProductsPage() {
 
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds);
+    const deletedIds = new Set<string>();
     for (const id of ids) {
-      try { await api.products.delete(id); } catch { toast.error(`Failed to delete product ${id}`); }
+      try {
+        const response = await api.products.delete(id);
+        if (response.success) {
+          deletedIds.add(id);
+        } else {
+          toast.error(response.error || `Failed to delete product ${id}`);
+        }
+      } catch { toast.error(`Failed to delete product ${id}`); }
     }
-    setLocalProducts((prev) => (prev ?? products).filter((p) => !selectedIds.has(p.id)));
-    toast.success(`Deleted ${ids.length} product${ids.length > 1 ? "s" : ""}`);
+    if (deletedIds.size > 0) {
+      setLocalProducts((prev) => (prev ?? products).filter((p) => !deletedIds.has(p.id)));
+      toast.success(`Deleted ${deletedIds.size} product${deletedIds.size > 1 ? "s" : ""}`);
+    }
     setSelectedIds(new Set());
     setBulkDeleteConfirm(false);
   };
@@ -181,10 +195,20 @@ export default function ProductsPage() {
 
   const handleBulkRetry = async () => {
     const ids = Array.from(selectedIds);
+    let successCount = 0;
     for (const id of ids) {
-      try { await api.post(`/workflow/retry/${id}`, {}); } catch { toast.error(`Failed to retry product ${id}`); }
+      try {
+        const response = await api.post(`/workflow/retry/${id}`, {});
+        if (response.success) {
+          successCount++;
+        } else {
+          toast.error(response.error || `Failed to retry product ${id}`);
+        }
+      } catch { toast.error(`Failed to retry product ${id}`); }
     }
-    toast.success(`Retried ${ids.length} product${ids.length > 1 ? "s" : ""}`);
+    if (successCount > 0) {
+      toast.success(`Retried ${successCount} product${successCount > 1 ? "s" : ""}`);
+    }
     setSelectedIds(new Set());
   };
 

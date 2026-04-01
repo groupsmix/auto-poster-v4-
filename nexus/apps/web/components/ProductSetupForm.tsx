@@ -146,8 +146,12 @@ export default function ProductSetupForm({
     setSubmitting(true);
     try {
       const payload = buildPayload();
-      await api.post("/products", { ...payload, status: "draft" });
-      router.push("/products");
+      const response = await api.post("/products", { ...payload, status: "draft" });
+      if (response.success) {
+        router.push("/products");
+      } else {
+        toast.error(response.error || "Failed to save draft — please try again");
+      }
     } catch {
       toast.error("Failed to save draft — please try again");
     } finally {

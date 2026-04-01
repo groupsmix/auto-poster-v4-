@@ -47,12 +47,16 @@ export default function ProductDetailPageClient({ id }: { id: string }) {
 
   const handleDelete = async () => {
     try {
-      await api.products.delete(id);
-      toast.success("Product deleted");
+      const response = await api.products.delete(id);
+      if (response.success) {
+        toast.success("Product deleted");
+        router.push("/products");
+      } else {
+        toast.error(response.error || "Failed to delete product. Please try again.");
+      }
     } catch {
       toast.error("Failed to delete product. Please try again.");
     }
-    router.push("/products");
   };
 
 
