@@ -348,7 +348,7 @@ function AIModelPrioritySection() {
 }
 
 export default function SettingsClient() {
-  const { data: fetchedKeys, loading } = useApiQuery(
+  const { data: fetchedKeys, loading, error: apiKeysError, refetch: refetchKeys } = useApiQuery(
     () => api.apiKeys.list(),
     [],
   );
@@ -716,6 +716,23 @@ export default function SettingsClient() {
             Add a key to activate an AI model. Remove to put it to sleep.
           </p>
           <div className="space-y-2">
+            {apiKeysError && apiKeys.length === 0 && (
+              <div className="rounded-lg bg-card-hover border border-card-border p-6 text-center">
+                <p className="text-sm text-red-400 mb-2">Failed to load API keys</p>
+                <p className="text-xs text-muted mb-3">{apiKeysError}</p>
+                <button
+                  onClick={refetchKeys}
+                  className="text-xs text-accent hover:text-accent-hover transition-colors px-3 py-1.5 rounded-lg border border-card-border hover:bg-card-hover"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            {!apiKeysError && apiKeys.length === 0 && !loading && (
+              <div className="rounded-lg bg-card-hover border border-card-border p-6 text-center">
+                <p className="text-sm text-muted">No API keys available.</p>
+              </div>
+            )}
             {apiKeys.map((key) => (
               <div
                 key={key.key_name}
