@@ -1,21 +1,28 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import CategoryCard, { AddCategoryCard } from "@/components/CategoryCard";
+import AddCategoryModal from "@/components/AddCategoryModal";
 import LoadingState from "@/components/LoadingState";
 import { api } from "@/lib/api";
 import { useApiQuery } from "@/lib/useApiQuery";
+import { handleApiError } from "@/lib/handleApiError";
 import { DEFAULT_DOMAINS, DEFAULT_CATEGORIES } from "@/lib/domains";
+import type { CategoryData } from "@/lib/domains";
 import { ArrowLeftIcon } from "@/components/icons/Icons";
 
 export default function DomainPageClient({ domain }: { domain: string }) {
   const router = useRouter();
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [localCategories, setLocalCategories] = useState<CategoryData[]>([]);
+  const [hasLocalOverride, setHasLocalOverride] = useState(false);
 
   const domainData = DEFAULT_DOMAINS.find((d) => d.slug === domain);
   const displayName = domainData?.name || domain.replace(/-/g, " ");
 
-  const { data: categories, loading, error } = useApiQuery(
+  const { data: apiCategories, loading, error, refetch } = useApiQuery(
     () => api.categories.list(domain).then((response) => ({
       success: response.success,
       data: response.success && response.data
@@ -27,9 +34,33 @@ export default function DomainPageClient({ domain }: { domain: string }) {
     [domain],
   );
 
+  const categories = hasLocalOverride ? localCategories : apiCategories;
+
   const handleCategoryClick = (slug: string) => {
     router.push(`/${domain}/${slug}`);
   };
+
+  const handleAddCategory = useCallback(
+    (data: { name: string }) => {
+      const slug = data.name
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, "")
+        .replace(/[\s_]+/g, "-")
+        .replace(/-+/g, "-")
+        .trim();
+
+      const updated = [...categories, { name: data.name, slug }];
+      setLocalCategories(updated);
+      setHasLocalOverride(true);
+
+      api.categories.create(domain, { name: data.name }).catch((err) => {
+        handleApiError(err, "Failed to create category");
+        setLocalCategories((prev) => prev.filter((c) => c.slug !== slug));
+        refetch();
+      });
+    },
+    [categories, domain, refetch],
+  );
 
   return (
     <div>
@@ -84,9 +115,15 @@ export default function DomainPageClient({ domain }: { domain: string }) {
               onClick={() => handleCategoryClick(cat.slug)}
             />
           ))}
-          <AddCategoryCard />
+          <AddCategoryCard onClick={() => setShowAddModal(true)} />
         </div>
       )}
+
+      <AddCategoryModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSubmit={handleAddCategory}
+      />
     </div>
   );
 }
