@@ -77,7 +77,11 @@ export default function SocialClient() {
     const next = postingMode === "auto" ? "manual" : "auto";
     setPostingMode(next);
     try {
-      await api.settings.update("posting_mode", next);
+      const res = await api.settings.update("posting_mode", next);
+      if (!res.success) {
+        toast.error(res.error || "Failed to update posting mode");
+        setPostingMode(postingMode);
+      }
     } catch {
       toast.error("Failed to update posting mode");
       setPostingMode(postingMode);
@@ -121,7 +125,11 @@ export default function SocialClient() {
     const updated = { ...channel, is_active: !channel.is_active };
     setChannels((prev) => prev.map((c) => (c.id === channel.id ? updated : c)));
     try {
-      await api.socialChannels.update(channel.id, { is_active: !channel.is_active });
+      const res = await api.socialChannels.update(channel.id, { is_active: !channel.is_active });
+      if (!res.success) {
+        toast.error(res.error || "Failed to toggle channel status");
+        setChannels((prev) => prev.map((c) => (c.id === channel.id ? channel : c)));
+      }
     } catch {
       toast.error("Failed to toggle channel status");
       setChannels((prev) => prev.map((c) => (c.id === channel.id ? channel : c)));

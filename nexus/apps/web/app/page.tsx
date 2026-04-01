@@ -37,7 +37,7 @@ export default function HomePage() {
     created_at: "",
   }));
 
-  const { data: apiDomains, loading, refetch } = useApiQuery(
+  const { data: apiDomains, loading } = useApiQuery(
     () => api.domains.list(),
     fallbackDomains,
   );
@@ -71,7 +71,7 @@ export default function HomePage() {
   );
 
   const handleAddDomain = useCallback(
-    (data: { name: string; icon: string }) => {
+    async (data: { name: string; icon: string }) => {
       const slug = data.name
         .toLowerCase()
         .replace(/[^\w\s-]/g, "")
@@ -79,17 +79,19 @@ export default function HomePage() {
         .replace(/-+/g, "-")
         .trim();
 
+      const res = await api.domains.create({ name: data.name, icon: data.icon });
+
+      if (!res.success) {
+        const message = res.error || "Failed to create domain";
+        handleApiError(new Error(message), message);
+        throw new Error(message);
+      }
+
       const updated = [...domains, { name: data.name, slug, icon: data.icon }];
       setLocalDomains(updated);
       setHasLocalOverride(true);
-
-      api.domains.create({ name: data.name, icon: data.icon }).catch((err) => {
-        handleApiError(err, "Failed to create domain");
-        setLocalDomains((prev) => prev.filter((d) => d.slug !== slug));
-        refetch();
-      });
     },
-    [domains, refetch],
+    [domains],
   );
 
   if (loading) {

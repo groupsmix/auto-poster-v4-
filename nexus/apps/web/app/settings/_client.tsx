@@ -159,15 +159,19 @@ export default function SettingsClient() {
     setSaving(true);
     setSaved(false);
     try {
-      await api.settings.bulkUpdate(serializeSettings(settings));
+      const res = await api.settings.bulkUpdate(serializeSettings(settings));
+      if (!res.success) {
+        toast.error(res.error || "Failed to save settings");
+        return;
+      }
+      savedSettingsRef.current = { ...settings };
       toast.success("Settings saved");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
     } catch {
       toast.error("Failed to save settings");
     } finally {
-      savedSettingsRef.current = { ...settings };
       setSaving(false);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
     }
   };
 
@@ -175,20 +179,19 @@ export default function SettingsClient() {
     if (!addKeyModal || !newKeyValue.trim()) return;
     setAddingKey(true);
     try {
-      await api.apiKeys.add(addKeyModal, newKeyValue.trim());
-      setApiKeys((prev) =>
-        prev.map((k) =>
-          k.key_name === addKeyModal ? { ...k, status: "active" as const } : k
-        )
-      );
-      toast.success("API key saved");
+      const res = await api.apiKeys.add(addKeyModal, newKeyValue.trim());
+      if (!res.success) {
+        toast.error(res.error || "Failed to save API key");
+      } else {
+        setApiKeys((prev) =>
+          prev.map((k) =>
+            k.key_name === addKeyModal ? { ...k, status: "active" as const } : k
+          )
+        );
+        toast.success("API key saved");
+      }
     } catch {
       toast.error("Failed to save API key");
-      setApiKeys((prev) =>
-        prev.map((k) =>
-          k.key_name === addKeyModal ? { ...k, status: "active" as const } : k
-        )
-      );
     } finally {
       setAddingKey(false);
       setAddKeyModal(null);
@@ -198,16 +201,20 @@ export default function SettingsClient() {
 
   const handleRemoveKey = async (keyName: string) => {
     try {
-      await api.apiKeys.remove(keyName);
-      toast.success("API key removed");
+      const res = await api.apiKeys.remove(keyName);
+      if (!res.success) {
+        toast.error(res.error || "Failed to remove API key");
+      } else {
+        setApiKeys((prev) =>
+          prev.map((k) =>
+            k.key_name === keyName ? { ...k, status: "not_set" as const } : k
+          )
+        );
+        toast.success("API key removed");
+      }
     } catch {
       toast.error("Failed to remove API key");
     }
-    setApiKeys((prev) =>
-      prev.map((k) =>
-        k.key_name === keyName ? { ...k, status: "not_set" as const } : k
-      )
-    );
     setRemoveConfirm(null);
   };
 

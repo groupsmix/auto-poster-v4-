@@ -22,13 +22,17 @@ async function fetchWithRetry(
   options: RequestInit,
   retries = 2
 ): Promise<Response> {
-  for (let i = 0; i <= retries; i++) {
+  // Never retry mutations — only GET (and HEAD) are safe to retry
+  const method = (options.method ?? "GET").toUpperCase();
+  const effectiveRetries = method === "GET" || method === "HEAD" ? retries : 0;
+
+  for (let i = 0; i <= effectiveRetries; i++) {
     try {
       const response = await fetch(url, options);
       if (response.ok || response.status < 500) return response;
-      if (i < retries) await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+      if (i < effectiveRetries) await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
     } catch (e) {
-      if (i === retries) throw e;
+      if (i === effectiveRetries) throw e;
       await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
     }
   }
