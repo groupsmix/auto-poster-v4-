@@ -34,6 +34,15 @@ import type {
   ProjectBuild,
   ProjectBuildProgress,
   ProjectBuildFile,
+  HealthDashboard,
+  ABTest,
+  WebhookConfig,
+  WebhookLog,
+  CompetitorPrice,
+  PriceRule,
+  CompetitorPriceSummary,
+  SeasonalEvent,
+  Bundle,
 } from "@nexus/shared";
 
 import { request } from "./client";
@@ -630,6 +639,89 @@ export const api = {
   // Ready to Post endpoints (approved products with images)
   readyToPost: {
     list: () => request<ReadyToPostProduct[]>("/publish/ready"),
+  },
+
+  // Health Dashboard
+  healthDashboard: {
+    get: () => request<HealthDashboard>("/health-dashboard"),
+  },
+
+  // Webhook Alerts
+  webhooks: {
+    list: () => request<WebhookConfig[]>("/webhooks"),
+    create: (data: { name: string; url: string; type?: string; events?: string[] }) =>
+      request<{ id: string }>("/webhooks", { method: "POST", body: data }),
+    update: (id: string, data: Partial<WebhookConfig>) =>
+      request<{ id: string }>(`/webhooks/${id}`, { method: "PUT", body: data }),
+    delete: (id: string) =>
+      request<{ id: string }>(`/webhooks/${id}`, { method: "DELETE" }),
+    test: (id: string) =>
+      request<{ success: boolean; status: number }>(`/webhooks/${id}/test`, { method: "POST", body: {} }),
+    logs: (limit?: number) =>
+      request<WebhookLog[]>(`/webhooks/logs${limit ? `?limit=${limit}` : ""}`),
+    fire: (event: string, data: Record<string, unknown>) =>
+      request<Array<{ config_id: string; success: boolean }>>("/webhooks/fire", { method: "POST", body: { event, data } }),
+  },
+
+  // A/B Testing
+  abTesting: {
+    list: () => request<ABTest[]>("/ab-testing"),
+    get: (id: string) => request<ABTest>(`/ab-testing/${id}`),
+    create: (data: { product_id: string; platform_id?: string; variants: Array<{ title: string; description: string; tags?: string[] }> }) =>
+      request<{ id: string }>("/ab-testing", { method: "POST", body: data }),
+    updateMetrics: (testId: string, variantId: string, metrics: { views?: number; clicks?: number; sales?: number; revenue?: number }) =>
+      request<{ id: string }>(`/ab-testing/${testId}/variant/${variantId}/metrics`, { method: "PUT", body: metrics }),
+    complete: (id: string, winningVariant?: string) =>
+      request<{ id: string; winning_variant: string }>(`/ab-testing/${id}/complete`, { method: "POST", body: { winning_variant: winningVariant } }),
+    delete: (id: string) =>
+      request<{ id: string }>(`/ab-testing/${id}`, { method: "DELETE" }),
+  },
+
+  // Competitor Price Monitoring
+  competitorPricing: {
+    summaries: () => request<CompetitorPriceSummary[]>("/competitor-pricing"),
+    prices: (niche?: string) =>
+      request<CompetitorPrice[]>(`/competitor-pricing/prices${niche ? `?niche=${niche}` : ""}`),
+    addPrices: (prices: Array<{ niche: string; platform: string; competitor_name?: string; product_title: string; product_url?: string; price: number; currency?: string }>) =>
+      request<{ inserted: number }>("/competitor-pricing/prices", { method: "POST", body: { prices } }),
+    rules: () => request<PriceRule[]>("/competitor-pricing/rules"),
+    createRule: (data: { niche: string; platform: string; strategy?: string; adjustment_pct?: number; min_price?: number; max_price?: number }) =>
+      request<{ id: string }>("/competitor-pricing/rules", { method: "POST", body: data }),
+    updateRule: (id: string, data: Partial<PriceRule>) =>
+      request<{ id: string }>(`/competitor-pricing/rules/${id}`, { method: "PUT", body: data }),
+    deleteRule: (id: string) =>
+      request<{ id: string }>(`/competitor-pricing/rules/${id}`, { method: "DELETE" }),
+  },
+
+  // Seasonal Calendar
+  seasonalCalendar: {
+    list: () => request<SeasonalEvent[]>("/seasonal-calendar"),
+    upcoming: () => request<SeasonalEvent[]>("/seasonal-calendar/upcoming"),
+    seed: () => request<{ seeded?: number; message?: string; count?: number }>("/seasonal-calendar/seed", { method: "POST", body: {} }),
+    create: (data: Partial<SeasonalEvent>) =>
+      request<{ id: string }>("/seasonal-calendar", { method: "POST", body: data }),
+    update: (id: string, data: Partial<SeasonalEvent>) =>
+      request<{ id: string }>(`/seasonal-calendar/${id}`, { method: "PUT", body: data }),
+    delete: (id: string) =>
+      request<{ id: string }>(`/seasonal-calendar/${id}`, { method: "DELETE" }),
+  },
+
+  // Bundle Creator
+  bundles: {
+    list: () => request<Bundle[]>("/bundles"),
+    get: (id: string) => request<Bundle>(`/bundles/${id}`),
+    create: (data: { name: string; description?: string; domain_id?: string; category_id?: string; bundle_price?: number; product_ids?: string[] }) =>
+      request<{ id: string }>("/bundles", { method: "POST", body: data }),
+    update: (id: string, data: Partial<Bundle>) =>
+      request<{ id: string }>(`/bundles/${id}`, { method: "PUT", body: data }),
+    delete: (id: string) =>
+      request<{ id: string }>(`/bundles/${id}`, { method: "DELETE" }),
+    addItem: (bundleId: string, productId: string) =>
+      request<{ id: string }>(`/bundles/${bundleId}/items`, { method: "POST", body: { product_id: productId } }),
+    removeItem: (bundleId: string, itemId: string) =>
+      request<{ id: string }>(`/bundles/${bundleId}/items/${itemId}`, { method: "DELETE" }),
+    autoGroup: (data?: { domain_id?: string; category_id?: string; min_items?: number; price_multiplier?: number }) =>
+      request<{ bundles_created: number }>("/bundles/auto-group", { method: "POST", body: data ?? {} }),
   },
 
   // AI CEO / Auto-Orchestrator endpoints

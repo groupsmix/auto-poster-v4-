@@ -44,6 +44,12 @@ import projectBuilder from "./routes/project-builder";
 import briefingsRoutes from "./routes/briefings";
 import etsyRoutes from "./routes/etsy";
 import publishQueueRoutes from "./routes/publish-queue";
+import healthDashboardRoutes from "./routes/health-dashboard";
+import webhookRoutes from "./routes/webhooks";
+import abTestingRoutes from "./routes/ab-testing";
+import competitorPricingRoutes from "./routes/competitor-pricing";
+import seasonalCalendarRoutes from "./routes/seasonal-calendar";
+import bundleRoutes from "./routes/bundles";
 import { executeCampaignBatch } from "./services/campaign-service";
 import { processPublishQueue } from "./services/publish-service";
 
@@ -314,6 +320,12 @@ app.route("/api/project-builder", projectBuilder);
 app.route("/api/briefings", briefingsRoutes);
 app.route("/api/etsy", etsyRoutes);
 app.route("/api/publish-queue", publishQueueRoutes);
+app.route("/api/health-dashboard", healthDashboardRoutes);
+app.route("/api/webhooks", webhookRoutes);
+app.route("/api/ab-testing", abTestingRoutes);
+app.route("/api/competitor-pricing", competitorPricingRoutes);
+app.route("/api/seasonal-calendar", seasonalCalendarRoutes);
+app.route("/api/bundles", bundleRoutes);
 
 // ============================================================
 // 404 catch-all
