@@ -58,6 +58,7 @@ import type {
   RunListParams,
   RevisionEntry,
   APIKeyEntry,
+  CEOWorkflowConfig,
   CEOSetupResponse,
   CEOConfigResponse,
   CEOConfigSummary,
