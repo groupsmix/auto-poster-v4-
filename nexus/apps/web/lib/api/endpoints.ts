@@ -141,7 +141,44 @@ export const api = {
 
   // AI model endpoints
   aiModels: {
-    list: () => request<AIModel[]>("/ai/models"),
+    list: async (): Promise<{ success: boolean; data?: AIModel[]; error?: string }> => {
+      // The API returns { taskTypes, registry } object — transform into flat AIModel[]
+      const res = await request<{
+        taskTypes: string[];
+        registry: Record<string, Array<{
+          id: string;
+          name: string;
+          provider: string;
+          apiKeyEnvName?: string;
+          isWorkersAI: boolean;
+          isFree: boolean;
+          model?: string;
+        }>>;
+      }>("/ai/models");
+      if (!res.success || !res.data) return { success: res.success, error: res.error };
+      const models: AIModel[] = [];
+      const registry = res.data.registry ?? {};
+      for (const [taskType, taskModels] of Object.entries(registry)) {
+        (taskModels ?? []).forEach((m, idx) => {
+          models.push({
+            id: m.id,
+            name: m.name,
+            provider: m.provider || "unknown",
+            task_type: taskType as AIModel["task_type"],
+            rank: idx + 1,
+            api_key_secret_name: m.apiKeyEnvName,
+            is_workers_ai: m.isWorkersAI ?? false,
+            status: m.isWorkersAI ? "active" : "sleeping",
+            is_free_tier: m.isFree ?? m.isWorkersAI ?? false,
+            health_score: m.isWorkersAI ? 100 : 0,
+            total_calls: 0,
+            total_failures: 0,
+            avg_latency_ms: 0,
+          });
+        });
+      }
+      return { success: true, data: models };
+    },
     get: (id: string) => request<AIModel>(`/ai/models/${id}`),
     addKey: (id: string, apiKey: string) =>
       request<AIModel>(`/ai/models/${id}/key`, {
@@ -212,7 +249,40 @@ export const api = {
 
   // Platform endpoints
   platforms: {
-    list: () => request<PlatformFull[]>("/platforms"),
+    list: async (): Promise<{ success: boolean; data?: PlatformFull[]; error?: string }> => {
+      // The API returns D1 columns — transform into PlatformFull shape
+      const res = await request<Array<{
+        id: string;
+        name: string;
+        type?: string;
+        title_limit?: number;
+        description_rules?: string | null;
+        tag_rules?: string | null;
+        seo_rules?: string | null;
+        audience_profile?: string | null;
+        tone_profile?: string | null;
+        cta_style?: string | null;
+        sort_order?: number;
+        is_active?: number | boolean;
+      }>>("/platforms");
+      if (!res.success || !res.data) return { success: res.success, error: res.error };
+      const platforms: PlatformFull[] = (res.data ?? []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        slug: p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+        title_max_chars: p.title_limit,
+        tag_count: undefined,
+        tag_max_chars: undefined,
+        audience: p.audience_profile || "",
+        tone: p.tone_profile || "",
+        seo_style: p.seo_rules || "",
+        description_style: p.description_rules || "",
+        cta_style: p.cta_style || "",
+        forbidden_words: "",
+        is_active: p.is_active === 1 || p.is_active === true,
+      }));
+      return { success: true, data: platforms };
+    },
     get: (id: string) => request<PlatformFull>(`/platforms/${id}`),
     create: (data: Omit<PlatformFull, "id">) =>
       request<PlatformFull>("/platforms", { method: "POST", body: data }),
@@ -224,7 +294,33 @@ export const api = {
 
   // Social channel endpoints
   socialChannels: {
-    list: () => request<SocialChannelFull[]>("/social-channels"),
+    list: async (): Promise<{ success: boolean; data?: SocialChannelFull[]; error?: string }> => {
+      // The API returns D1 columns — transform into SocialChannelFull shape
+      const res = await request<Array<{
+        id: string;
+        name: string;
+        caption_rules?: string | null;
+        hashtag_rules?: string | null;
+        length_rules?: string | null;
+        audience_style?: string | null;
+        tone_profile?: string | null;
+        sort_order?: number;
+        is_active?: number | boolean;
+      }>>("/social-channels");
+      if (!res.success || !res.data) return { success: res.success, error: res.error };
+      const channels: SocialChannelFull[] = (res.data ?? []).map((c) => ({
+        id: c.id,
+        name: c.name,
+        slug: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+        caption_max_chars: undefined,
+        hashtag_count: undefined,
+        tone: c.tone_profile || "",
+        format: c.length_rules || "",
+        content_types: [],
+        is_active: c.is_active === 1 || c.is_active === true,
+      }));
+      return { success: true, data: channels };
+    },
     get: (id: string) => request<SocialChannelFull>(`/social-channels/${id}`),
     create: (data: Omit<SocialChannelFull, "id">) =>
       request<SocialChannelFull>("/social-channels", { method: "POST", body: data }),

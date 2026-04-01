@@ -69,6 +69,9 @@ jobs:
 
       - name: Ensure _migrations tracking table exists
         run: npx wrangler d1 execute nexus-db --file=migrations/000_migrations_tracker.sql --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Run all D1 migrations
         run: |
