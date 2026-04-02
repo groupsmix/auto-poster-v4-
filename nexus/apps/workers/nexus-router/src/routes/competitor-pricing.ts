@@ -280,6 +280,8 @@ function buildSearchUrl(platform: string, niche: string): string | null {
       return `https://www.etsy.com/search?q=${query}&ref=search_bar`;
     case "amazon":
       return `https://www.amazon.com/s?k=${query}`;
+    case "gumroad":
+      return `https://gumroad.com/discover?query=${query}`;
     default:
       return null;
   }
@@ -362,6 +364,47 @@ function parseSearchResults(
           price,
           currency: "USD",
         });
+      }
+    }
+  } else if (platform === "gumroad") {
+    // Parse Gumroad discover results
+    const productPattern =
+      /class="[^"]*product-card[^"]*"[\s\S]*?<h3[^>]*>([\s\S]*?)<\/h3>[\s\S]*?\$\s*([\d,.]+)/g;
+    let match;
+    while ((match = productPattern.exec(html)) !== null && prices.length < maxResults) {
+      const title = match[1].replace(/<[^>]+>/g, "").trim();
+      const priceStr = match[2].replace(/,/g, "");
+      const price = parseFloat(priceStr);
+      if (title && !isNaN(price) && price > 0) {
+        prices.push({
+          niche,
+          platform,
+          competitor_name: "gumroad_seller",
+          product_title: title.slice(0, 200),
+          product_url: "",
+          price,
+          currency: "USD",
+        });
+      }
+    }
+
+    // Fallback: try JSON data embedded in page
+    if (prices.length === 0) {
+      const jsonPattern = /"price_cents"\s*:\s*(\d+)[\s\S]*?"name"\s*:\s*"([^"]+)"/g;
+      while ((match = jsonPattern.exec(html)) !== null && prices.length < maxResults) {
+        const price = parseInt(match[1], 10) / 100;
+        const title = match[2];
+        if (title && price > 0) {
+          prices.push({
+            niche,
+            platform,
+            competitor_name: "gumroad_seller",
+            product_title: title.slice(0, 200),
+            product_url: "",
+            price,
+            currency: "USD",
+          });
+        }
       }
     }
   }
