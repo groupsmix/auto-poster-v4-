@@ -50,8 +50,20 @@ import abTestingRoutes from "./routes/ab-testing";
 import competitorPricingRoutes from "./routes/competitor-pricing";
 import seasonalCalendarRoutes from "./routes/seasonal-calendar";
 import bundleRoutes from "./routes/bundles";
+import smartSchedulingRoutes from "./routes/smart-scheduling";
+import notificationRoutes from "./routes/notifications";
+import salesFeedbackRoutes from "./routes/sales-feedback";
+import platformRulesRoutes from "./routes/platform-rules-verification";
+import socialMediaRoutes from "./routes/social-media";
+import nicheDiscoveryRoutes from "./routes/niche-discovery";
+import podRoutes from "./routes/pod";
 import { executeCampaignBatch } from "./services/campaign-service";
 import { processPublishQueue } from "./services/publish-service";
+import { checkSeasonalTriggers } from "./services/seasonal-trigger-service";
+import { checkAutoWinners } from "./services/ab-testing-service";
+import { detectPriceChanges } from "./services/competitor-alerts-service";
+import { sendDailyDigest } from "./services/notification-service";
+import { runSalesFeedbackLoop } from "./services/sales-feedback-service";
 
 const app = new Hono<{ Bindings: RouterEnv; Variables: { requestId: string } }>();
 
@@ -326,6 +338,13 @@ app.route("/api/ab-testing", abTestingRoutes);
 app.route("/api/competitor-pricing", competitorPricingRoutes);
 app.route("/api/seasonal-calendar", seasonalCalendarRoutes);
 app.route("/api/bundles", bundleRoutes);
+app.route("/api/smart-scheduling", smartSchedulingRoutes);
+app.route("/api/notifications", notificationRoutes);
+app.route("/api/sales-feedback", salesFeedbackRoutes);
+app.route("/api/platform-rules", platformRulesRoutes);
+app.route("/api/social-media", socialMediaRoutes);
+app.route("/api/niche-discovery", nicheDiscoveryRoutes);
+app.route("/api/pod", podRoutes);
 
 // ============================================================
 // 404 catch-all
@@ -656,6 +675,81 @@ export default {
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             console.error(`[CRON] Campaign execution failed: ${msg}`);
+          }
+        })()
+      );
+
+      // --- Seasonal Calendar Auto-Trigger: check for events in prep window ---
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const result = await checkSeasonalTriggers(env);
+            if (result.triggered > 0) {
+              console.log(`[CRON] Seasonal triggers: ${result.triggered} event(s) triggered`);
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`[CRON] Seasonal trigger check failed: ${msg}`);
+          }
+        })()
+      );
+
+      // --- A/B Testing: auto-winner selection ---
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const result = await checkAutoWinners(env);
+            if (result.winners_selected > 0) {
+              console.log(`[CRON] A/B testing: ${result.winners_selected} winner(s) selected from ${result.tests_checked} test(s)`);
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`[CRON] A/B auto-winner check failed: ${msg}`);
+          }
+        })()
+      );
+
+      // --- Competitor Price Alerts: detect price changes ---
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const result = await detectPriceChanges(env);
+            if (result.changes_detected > 0) {
+              console.log(`[CRON] Price alerts: ${result.changes_detected} change(s) detected, ${result.alerts_fired} alert(s) fired`);
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`[CRON] Price change detection failed: ${msg}`);
+          }
+        })()
+      );
+
+      // --- Daily digest notification (runs alongside briefing) ---
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const result = await sendDailyDigest(env);
+            if (result.sent > 0) {
+              console.log(`[CRON] Daily digest: ${result.sent} sent, ${result.failed} failed`);
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`[CRON] Daily digest failed: ${msg}`);
+          }
+        })()
+      );
+
+      // --- Sales Feedback Loop: weekly AI learning (runs on Sundays) ---
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const dayOfWeek = new Date().getUTCDay();
+            if (dayOfWeek !== 0) return; // Only run on Sundays
+            const result = await runSalesFeedbackLoop(env);
+            console.log(`[CRON] Sales feedback: ${result.top_sellers_analyzed} top sellers analyzed, ${result.prompt_updates} prompt update(s)`);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`[CRON] Sales feedback loop failed: ${msg}`);
           }
         })()
       );
