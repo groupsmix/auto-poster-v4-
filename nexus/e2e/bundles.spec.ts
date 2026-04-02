@@ -15,7 +15,7 @@ test.describe("Bundle Creator", () => {
   });
 
   test("shows action buttons", async ({ authedPage: page }) => {
-    await expect(page.getByText("Auto-Group")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Auto-Group" })).toBeVisible();
     await expect(page.getByText("+ New Bundle")).toBeVisible();
   });
 

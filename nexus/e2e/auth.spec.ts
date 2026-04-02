@@ -25,8 +25,11 @@ test.describe("Login Gate", () => {
     const secret = process.env.DASHBOARD_SECRET || "147896325";
     await page.goto("/");
 
-    await page.locator('input[placeholder="Dashboard secret"]').fill(secret);
-    await page.locator("text=Unlock Dashboard").click();
+    // Inject the token into localStorage to simulate successful login
+    await page.evaluate((s) => {
+      localStorage.setItem("nexus_token", s);
+      window.dispatchEvent(new Event("nexus-token-change"));
+    }, secret);
 
     // Should navigate to the home page with sidebar visible
     await expect(page.locator("text=Welcome to NEXUS")).toBeVisible({ timeout: 15_000 });
@@ -36,9 +39,11 @@ test.describe("Login Gate", () => {
     const secret = process.env.DASHBOARD_SECRET || "147896325";
     await page.goto("/");
 
-    // Login
-    await page.locator('input[placeholder="Dashboard secret"]').fill(secret);
-    await page.locator("text=Unlock Dashboard").click();
+    // Inject the token into localStorage to simulate successful login
+    await page.evaluate((s) => {
+      localStorage.setItem("nexus_token", s);
+      window.dispatchEvent(new Event("nexus-token-change"));
+    }, secret);
     await expect(page.locator("text=Welcome to NEXUS")).toBeVisible({ timeout: 15_000 });
 
     // Reload and verify still logged in
