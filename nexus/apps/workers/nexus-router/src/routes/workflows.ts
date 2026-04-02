@@ -256,4 +256,28 @@ workflows.post("/products/:productId/regenerate-images", async (c) => {
   }
 });
 
+// GET /api/workflow/:runId — get workflow status (used by frontend WorkflowProgress)
+// NOTE: This catch-all route MUST be last to avoid matching named routes like /status, /batch, etc.
+workflows.get("/:runId", async (c) => {
+  try {
+    const runId = c.req.param("runId");
+
+    if (!runId) {
+      return c.json<ApiResponse>(
+        { success: false, error: "runId is required" },
+        400
+      );
+    }
+
+    const result = await forwardToService(
+      c.env.NEXUS_WORKFLOW,
+      `/workflow/status/${runId}`
+    );
+
+    return c.json<ApiResponse>(result, result.success ? 200 : 404);
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
 export default workflows;

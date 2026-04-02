@@ -332,6 +332,7 @@ app.post("/workflow/start", async (c) => {
     return c.json<ApiResponse>({
       success: true,
       data: {
+        id: runId,
         product_id: productId,
         run_id: runId,
         status: "running",
