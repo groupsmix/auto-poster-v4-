@@ -8,7 +8,7 @@ import { executeUpdate } from "./base";
 
 export async function getProducts(db: D1Database, limit = DEFAULT_PAGE_SIZE, offset = 0): Promise<Product[]> {
   const result = await db
-    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products ORDER BY created_at DESC LIMIT ? OFFSET ?")
+    .prepare("SELECT id, domain_id, category_id, name, slug, niche, language, batch_id, status, created_at, updated_at FROM products ORDER BY created_at DESC LIMIT ? OFFSET ?")
     .bind(limit, offset)
     .all<Product>();
   return result.results;
@@ -23,7 +23,7 @@ export async function getProductById(db: D1Database, id: string): Promise<Produc
 
 export async function getProductsByDomain(db: D1Database, domainId: string, limit = DEFAULT_PAGE_SIZE, offset = 0): Promise<Product[]> {
   const result = await db
-    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products WHERE domain_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?")
+    .prepare("SELECT id, domain_id, category_id, name, slug, niche, language, batch_id, status, created_at, updated_at FROM products WHERE domain_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?")
     .bind(domainId, limit, offset)
     .all<Product>();
   return result.results;
@@ -31,7 +31,7 @@ export async function getProductsByDomain(db: D1Database, domainId: string, limi
 
 export async function getProductsByCategory(db: D1Database, categoryId: string, limit = DEFAULT_PAGE_SIZE, offset = 0): Promise<Product[]> {
   const result = await db
-    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products WHERE category_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?")
+    .prepare("SELECT id, domain_id, category_id, name, slug, niche, language, batch_id, status, created_at, updated_at FROM products WHERE category_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?")
     .bind(categoryId, limit, offset)
     .all<Product>();
   return result.results;
@@ -39,7 +39,7 @@ export async function getProductsByCategory(db: D1Database, categoryId: string, 
 
 export async function getProductsByBatch(db: D1Database, batchId: string): Promise<Product[]> {
   const result = await db
-    .prepare("SELECT id, domain_id, category_id, name, niche, language, batch_id, status, created_at, updated_at FROM products WHERE batch_id = ? ORDER BY created_at ASC")
+    .prepare("SELECT id, domain_id, category_id, name, slug, niche, language, batch_id, status, created_at, updated_at FROM products WHERE batch_id = ? ORDER BY created_at ASC")
     .bind(batchId)
     .all<Product>();
   return result.results;
@@ -52,22 +52,24 @@ export async function createProduct(
   const created_at = now();
   await db
     .prepare(
-      "INSERT INTO products (id, domain_id, category_id, name, niche, language, user_input, batch_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO products (id, domain_id, category_id, name, slug, niche, language, user_input, batch_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
     .bind(
       product.id,
       product.domain_id,
       product.category_id,
       product.name ?? null,
+      product.slug ?? null,
       product.niche ?? null,
       product.language,
       product.user_input ? JSON.stringify(product.user_input) : null,
       product.batch_id ?? null,
       product.status,
+      created_at,
       created_at
     )
     .run();
-  return { ...product, created_at, updated_at: undefined };
+  return { ...product, created_at, updated_at: created_at };
 }
 
 export async function updateProduct(
@@ -79,6 +81,7 @@ export async function updateProduct(
     { column: "domain_id" },
     { column: "category_id" },
     { column: "name" },
+    { column: "slug" },
     { column: "niche" },
     { column: "language" },
     { column: "user_input", transform: (v) => JSON.stringify(v) },

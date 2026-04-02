@@ -17,9 +17,10 @@ export default function HomePage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [localDomains, setLocalDomains] = useState<DomainData[]>([]);
   const [hasLocalOverride, setHasLocalOverride] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(() =>
-    typeof window !== "undefined" ? !localStorage.getItem("nexus_onboarding_dismissed") : false
-  );
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try { return !localStorage.getItem("nexus_onboarding_dismissed"); } catch { return false; }
+  });
 
   const dismissOnboarding = () => {
     setShowOnboarding(false);
