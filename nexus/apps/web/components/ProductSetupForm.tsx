@@ -41,9 +41,10 @@ export default function ProductSetupForm({
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Load saved defaults from localStorage (5.6)
-  const savedDefaults = typeof window !== "undefined"
-    ? (() => { try { return JSON.parse(localStorage.getItem("nexus_form_defaults") ?? "null"); } catch { return null; } })()
-    : null;
+  const [savedDefaults] = useState(() => {
+    if (typeof window === "undefined") return null;
+    try { return JSON.parse(localStorage.getItem("nexus_form_defaults") ?? "null"); } catch { return null; }
+  });
 
   // Form state
   const [language, setLanguage] = useState(savedDefaults?.language ?? "English");

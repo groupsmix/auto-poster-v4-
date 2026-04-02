@@ -148,6 +148,7 @@ export interface Product {
   domain_id: string;
   category_id: string;
   name?: string;
+  slug?: string;
   niche?: string;
   language: string;
   user_input?: Record<string, unknown>;
