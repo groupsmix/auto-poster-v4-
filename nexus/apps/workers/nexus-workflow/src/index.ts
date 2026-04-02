@@ -195,29 +195,17 @@ app.post("/workflow/start", async (c) => {
       );
     }
 
-    // Resolve slugs to actual DB IDs (frontend sends slugs, DB expects UUIDs)
+    // Resolve slugs to actual DB IDs (frontend sends slugs, DB expects UUIDs).
+    // Falls back to the original value if resolution fails (e.g. value is already an ID).
     const [resolvedDomain, resolvedCategory] = await Promise.all([
       resolveDomainId(c.env, body.domain_id),
       resolveCategoryId(c.env, body.category_id),
     ]);
 
-    if (!resolvedDomain) {
-      return c.json<ApiResponse>(
-        { success: false, error: `Domain not found: ${body.domain_id}` },
-        404
-      );
-    }
-    if (!resolvedCategory) {
-      return c.json<ApiResponse>(
-        { success: false, error: `Category not found: ${body.category_id}` },
-        404
-      );
-    }
-
-    const domainId = resolvedDomain.id;
-    const domainSlug = resolvedDomain.slug;
-    const categoryId = resolvedCategory.id;
-    const categorySlug = resolvedCategory.slug;
+    const domainId = resolvedDomain?.id ?? body.domain_id;
+    const domainSlug = resolvedDomain?.slug ?? body.domain_id;
+    const categoryId = resolvedCategory?.id ?? body.category_id;
+    const categorySlug = resolvedCategory?.slug ?? body.category_id;
 
     const batchCount = body.batch_count ?? 1;
 
