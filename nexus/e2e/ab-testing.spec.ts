@@ -21,6 +21,6 @@ test.describe("A/B Testing", () => {
   });
 
   test("shows empty state when no tests exist", async ({ authedPage: page }) => {
-    await expect(page.getByText(/No A\/B tests yet|A\/B tests are created automatically/)).toBeVisible();
+    await expect(page.getByText(/No A\/B tests yet|A\/B tests are created automatically/).first()).toBeVisible();
   });
 });
