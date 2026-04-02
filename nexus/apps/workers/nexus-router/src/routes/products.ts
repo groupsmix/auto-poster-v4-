@@ -137,6 +137,21 @@ products.post("/", async (c) => {
     body.domain_id = domainId;
     body.category_id = categoryId;
 
+    // Resolve slugs to actual DB IDs (frontend may send slugs, DB expects UUIDs)
+    const domainRows = await storageQuery<Array<{ id: string }>>(
+      c.env,
+      "SELECT id FROM domains WHERE id = ? OR slug = ? LIMIT 1",
+      [domainId, domainId]
+    );
+    const categoryRows = await storageQuery<Array<{ id: string }>>(
+      c.env,
+      "SELECT id FROM categories WHERE id = ? OR slug = ? LIMIT 1",
+      [categoryId, categoryId]
+    );
+
+    const resolvedDomainId = domainRows?.[0]?.id ?? domainId;
+    const resolvedCategoryId = categoryRows?.[0]?.id ?? categoryId;
+
     // Sanitize user-facing text fields
     if (body.name) body.name = sanitizeInput(body.name);
     if (body.niche) body.niche = sanitizeInput(body.niche);
@@ -154,8 +169,8 @@ products.post("/", async (c) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, '${PRODUCT_STATUS.DRAFT}', ?, ?, ?)`,
       [
         id,
-        body.domain_id,
-        body.category_id,
+        resolvedDomainId,
+        resolvedCategoryId,
         productName,
         slug,
         body.niche ?? null,

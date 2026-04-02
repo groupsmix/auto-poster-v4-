@@ -144,6 +144,37 @@ async function loadCEOWorkflowConfig(
   return undefined;
 }
 
+// --- Helper: resolve domain/category slug to actual DB id ---
+
+async function resolveDomainId(
+  env: Env,
+  slugOrId: string
+): Promise<{ id: string; slug: string } | null> {
+  // Try matching by id first, then by slug
+  const result = (await storageQuery(
+    env,
+    "SELECT id, slug FROM domains WHERE id = ? OR slug = ? LIMIT 1",
+    [slugOrId, slugOrId]
+  )) as { results?: Array<{ id: string; slug: string }> };
+  const rows = result?.results;
+  if (rows && rows.length > 0) return rows[0];
+  return null;
+}
+
+async function resolveCategoryId(
+  env: Env,
+  slugOrId: string
+): Promise<{ id: string; slug: string } | null> {
+  const result = (await storageQuery(
+    env,
+    "SELECT id, slug FROM categories WHERE id = ? OR slug = ? LIMIT 1",
+    [slugOrId, slugOrId]
+  )) as { results?: Array<{ id: string; slug: string }> };
+  const rows = result?.results;
+  if (rows && rows.length > 0) return rows[0];
+  return null;
+}
+
 // ============================================================
 // POST /workflow/start — Create a new workflow (or batch)
 // Body: ProductSetupInput
@@ -164,6 +195,30 @@ app.post("/workflow/start", async (c) => {
       );
     }
 
+    // Resolve slugs to actual DB IDs (frontend sends slugs, DB expects UUIDs)
+    const [resolvedDomain, resolvedCategory] = await Promise.all([
+      resolveDomainId(c.env, body.domain_id),
+      resolveCategoryId(c.env, body.category_id),
+    ]);
+
+    if (!resolvedDomain) {
+      return c.json<ApiResponse>(
+        { success: false, error: `Domain not found: ${body.domain_id}` },
+        404
+      );
+    }
+    if (!resolvedCategory) {
+      return c.json<ApiResponse>(
+        { success: false, error: `Category not found: ${body.category_id}` },
+        404
+      );
+    }
+
+    const domainId = resolvedDomain.id;
+    const domainSlug = resolvedDomain.slug;
+    const categoryId = resolvedCategory.id;
+    const categorySlug = resolvedCategory.slug;
+
     const batchCount = body.batch_count ?? 1;
 
     // --- Batch mode (2+ products) ---
@@ -171,10 +226,10 @@ app.post("/workflow/start", async (c) => {
       const batchOrchestrator = new BatchOrchestrator(c.env);
 
       const batchInput: BatchInput = {
-        domain_id: body.domain_id,
-        domain_slug: body.domain_id, // Will resolve slug from domain ID
-        category_id: body.category_id,
-        category_slug: body.category_id,
+        domain_id: domainId,
+        domain_slug: domainSlug,
+        category_id: categoryId,
+        category_slug: categorySlug,
         language: body.language ?? "en",
         niche: body.niche,  // optional — AI decides if not provided
         name: body.name,
@@ -217,15 +272,15 @@ app.post("/workflow/start", async (c) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?, ?, ?)`,
       [
         productId,
-        body.domain_id,
-        body.category_id,
+        domainId,
+        categoryId,
         productName,
         slug,
         body.niche,
         body.language ?? "en",
         JSON.stringify({
-          domain_slug: body.domain_id,
-          category_slug: body.category_id,
+          domain_slug: domainSlug,
+          category_slug: categorySlug,
           platforms: body.platforms ?? [],
           social_channels: body.social_channels ?? [],
           keywords: body.keywords,
@@ -244,7 +299,7 @@ app.post("/workflow/start", async (c) => {
     // Load prompt templates and CEO workflow config in parallel
     const [promptTemplates, ceoWorkflowConfig] = await Promise.all([
       loadPromptTemplates(c.env),
-      loadCEOWorkflowConfig(c.env, body.category_id),
+      loadCEOWorkflowConfig(c.env, categorySlug),
     ]);
 
     // Build product context — apply CEO recommendations as defaults
@@ -259,10 +314,10 @@ app.post("/workflow/start", async (c) => {
       : ceoWorkflowConfig?.recommended_social_channels ?? [];
 
     const productContext: ProductContext = {
-      domain_id: body.domain_id,
-      domain_slug: body.domain_id,
-      category_id: body.category_id,
-      category_slug: body.category_id,
+      domain_id: domainId,
+      domain_slug: domainSlug,
+      category_id: categoryId,
+      category_slug: categorySlug,
       niche: body.niche,  // optional — AI decides if not provided
       name: body.name,
       description: body.description,
