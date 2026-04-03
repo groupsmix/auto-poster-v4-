@@ -22,9 +22,12 @@
     "setup": "bash scripts/setup.sh"
   },
   "devDependencies": {
-    "turbo": "^1.11.0",
-    "typescript": "^5.3.0",
-    "@cloudflare/workers-types": "^4.20231218.0"
+    "@cloudflare/workers-types": "^4.20241230.0",
+    "@playwright/test": "^1.59.0",
+    "hono": "^4.6.0",
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.2"
   },
   "engines": {
     "node": ">=20.0.0"
