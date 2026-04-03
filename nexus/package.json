@@ -1,23 +1,33 @@
 {
-  "name": "nexus",
-  "version": "0.1.0",
+  "name": "nexus-v5",
+  "version": "5.0.0",
+  "description": "NEXUS V5 — Ship or Die Refactor. 3-worker architecture, D1 state machine, niche isolation.",
   "private": true,
-  "description": "NEXUS — Personal AI Business Engine",
+  "workspaces": [
+    "apps/workers/*",
+    "packages/*"
+  ],
   "scripts": {
-    "build": "turbo run build",
     "dev": "turbo run dev",
-    "lint": "turbo run lint",
+    "build": "turbo run build",
+    "deploy": "turbo run deploy",
     "typecheck": "turbo run typecheck",
-    "clean": "turbo run clean",
-    "test": "turbo run test"
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:migrate": "wrangler d1 migrations apply nexus-db",
+    "db:generate": "drizzle-kit generate",
+    "local:up": "docker-compose up -d",
+    "local:down": "docker-compose down",
+    "local:logs": "docker-compose logs -f",
+    "setup": "bash scripts/setup.sh"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241230.0",
-    "@playwright/test": "^1.59.0",
-    "hono": "^4.6.0",
-    "turbo": "^2.4.0",
-    "typescript": "^5.7.0",
-    "vitest": "^4.1.2"
+    "turbo": "^1.11.0",
+    "typescript": "^5.3.0",
+    "@cloudflare/workers-types": "^4.20231218.0"
   },
-  "packageManager": "pnpm@9.15.0"
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
 }

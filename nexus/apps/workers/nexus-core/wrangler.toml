@@ -1,0 +1,57 @@
+# ============================================================
+# nexus-core Worker Configuration
+# Consolidated: API Router + Storage + AI Gateway
+# ============================================================
+
+name = "nexus-core"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "nexus-db"
+database_id = "your-database-id-here"
+
+# KV Namespace
+[[kv_namespaces]]
+binding = "NEXUS_KV"
+id = "your-kv-namespace-id-here"
+
+# R2 Bucket
+[[r2_buckets]]
+binding = "NEXUS_R2"
+bucket_name = "nexus-storage"
+
+# Service Bindings (to other workers)
+[[services]]
+binding = "NEXUS_DISPATCH"
+service = "nexus-dispatch"
+
+[[services]]
+binding = "NEXUS_SCHEDULER"
+service = "nexus-scheduler"
+
+# Environment Variables
+[vars]
+API_KEYS = "your-api-key-1,your-api-key-2"
+UTM_SOURCE = "nexus"
+UTM_MEDIUM = "organic"
+
+# Secrets (set via wrangler secret put)
+# AI_GATEWAY_URL
+# AI_GATEWAY_TOKEN
+# IP_WHITELIST
+
+# Cron Triggers (handled by scheduler, but core can also process)
+[[triggers]]
+crons = []
+
+# Logpush (structured logging)
+[logpush]
+enabled = true
+
+# Observability
+[observability]
+enabled = true
