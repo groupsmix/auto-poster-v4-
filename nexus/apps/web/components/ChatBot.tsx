@@ -26,6 +26,9 @@ export default function ChatBot() {
   const [executingActions, setExecutingActions] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Rate limiting: track last send time to prevent rapid-fire submissions (code-review #17)
+  const lastSendRef = useRef<number>(0);
+  const CHAT_RATE_LIMIT_MS = 2000; // 2 seconds between messages
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -43,6 +46,11 @@ export default function ChatBot() {
   const sendMessage = useCallback(async () => {
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
+
+    // Rate limit: prevent rapid-fire submissions
+    const now = Date.now();
+    if (now - lastSendRef.current < CHAT_RATE_LIMIT_MS) return;
+    lastSendRef.current = now;
 
     const userMsg: LocalMessage = {
       id: `temp-${Date.now()}`,

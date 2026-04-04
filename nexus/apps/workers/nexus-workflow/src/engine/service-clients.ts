@@ -257,8 +257,8 @@ export const parseAIResponse = parseAIJSON;
 
 /** Step-level timeout in milliseconds (5 minutes per step) */
 export const STEP_TIMEOUT_MS = 5 * 60 * 1000;
-/** Maximum retries per step */
-export const STEP_MAX_RETRIES = 1;
+/** Maximum retries per step (2 retries = 3 total attempts) */
+export const STEP_MAX_RETRIES = 2;
 
 /**
  * Estimate token cost for quota tracking.

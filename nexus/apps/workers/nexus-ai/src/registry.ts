@@ -213,6 +213,72 @@ export function getModelsForTask(taskType: string): AIModelConfig[] {
   return TASK_MODEL_REGISTRY[taskType] ?? [];
 }
 
+/**
+ * Load the AI model registry from D1 first, falling back to the hardcoded
+ * TASK_MODEL_REGISTRY if D1 is empty or unreachable (code-review issue #18).
+ * This makes the registry dynamic — models can be added/removed via D1
+ * without redeploying the worker.
+ */
+export async function loadRegistryFromD1(env: Env): Promise<void> {
+  try {
+    const resp = await env.NEXUS_STORAGE.fetch("http://nexus-storage/d1/read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sql: "SELECT task_type, model_id, name, provider, api_key_env, is_workers_ai, is_free, model_identifier, priority FROM ai_model_registry ORDER BY task_type, priority ASC",
+      }),
+    });
+
+    if (!resp.ok) return; // Fall back to hardcoded
+
+    const json = await resp.json() as {
+      success: boolean;
+      data?: { results?: Array<{
+        task_type: string;
+        model_id: string;
+        name: string;
+        provider: string;
+        api_key_env: string;
+        is_workers_ai: number;
+        is_free: number;
+        model_identifier?: string;
+        priority: number;
+      }> };
+    };
+
+    if (!json.success || !json.data?.results || json.data.results.length === 0) {
+      return; // No D1 data — keep hardcoded defaults
+    }
+
+    // Group by task_type and build model configs
+    const d1Registry: Record<string, AIModelConfig[]> = {};
+    for (const row of json.data.results) {
+      if (!d1Registry[row.task_type]) {
+        d1Registry[row.task_type] = [];
+      }
+      d1Registry[row.task_type].push({
+        id: row.model_id,
+        name: row.name,
+        provider: row.provider,
+        apiKeyEnvName: row.api_key_env,
+        isWorkersAI: row.is_workers_ai === 1,
+        isFree: row.is_free === 1,
+        model: row.model_identifier,
+      });
+    }
+
+    // Override hardcoded registry with D1 data for task types that exist in D1
+    for (const [taskType, models] of Object.entries(d1Registry)) {
+      TASK_MODEL_REGISTRY[taskType] = models;
+    }
+
+    console.log(`[REGISTRY] Loaded ${json.data.results.length} models from D1 across ${Object.keys(d1Registry).length} task types`);
+  } catch {
+    // D1 unavailable — silently keep hardcoded defaults
+    console.log("[REGISTRY] D1 registry load failed, using hardcoded defaults");
+  }
+}
+
 /** Find a specific model by ID across all registries */
 export function getModelById(modelId: string): AIModelConfig | null {
   for (const models of Object.values(TASK_MODEL_REGISTRY)) {

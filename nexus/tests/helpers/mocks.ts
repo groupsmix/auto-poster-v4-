@@ -215,10 +215,7 @@ export function createMockEnv(overrides: Partial<Record<string, unknown>> = {}) 
     NEXUS_WORKFLOW: createMockFetcher(),
     NEXUS_VARIATION: createMockFetcher(),
     NEXUS_STORAGE: createMockFetcher(),
-    AI_SERVICE: createMockFetcher(),
-    WORKFLOW_SERVICE: createMockFetcher(),
-    VARIATION_SERVICE: createMockFetcher(),
-    STORAGE_SERVICE: createMockFetcher(),
+    // *_SERVICE aliases removed (code-review issue #8) — all workers use NEXUS_* bindings
     DASHBOARD_SECRET: "test-secret-123",
     DEEPSEEK_API_KEY: "test-deepseek-key",
     SILICONFLOW_API_KEY: "test-siliconflow-key",

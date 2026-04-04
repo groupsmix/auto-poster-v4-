@@ -53,8 +53,8 @@ export interface GatewayCallResult {
   success: boolean;
 }
 
-/** Retry configuration */
-const RETRY_MAX_ATTEMPTS = 1;
+/** Retry configuration — increased from 1 to 2 for better resilience (code-review #20) */
+const RETRY_MAX_ATTEMPTS = 2;
 const RETRY_BASE_DELAY_MS = 1000;
 
 /** Retryable HTTP status codes */

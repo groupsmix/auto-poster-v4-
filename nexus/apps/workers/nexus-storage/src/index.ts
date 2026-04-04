@@ -6,11 +6,15 @@
 
 import { Hono } from "hono";
 import type { ApiResponse } from "@nexus/shared";
+import { StructuredLogger } from "@nexus/shared";
 import { D1Queries } from "./d1";
 import { KVCache } from "./kv";
 import { R2Storage } from "./r2";
 import { CFImages } from "./images";
 import { CleanupService } from "./cleanup";
+
+// Structured logger instance for this worker (code-review #21)
+const logger = new StructuredLogger("nexus-storage");
 
 // --- Env type for this worker's bindings ---
 interface StorageEnv {
@@ -92,7 +96,7 @@ app.post("/d1/query", async (c) => {
 
     // Block dangerous queries (DROP, ALTER, TRUNCATE, etc.)
     if (isDangerousQuery(sql)) {
-      console.log(`[D1] BLOCKED dangerous query: ${sql.slice(0, 100)}`);
+      logger.warn(`BLOCKED dangerous query: ${sql.slice(0, 100)}`);
       return c.json<ApiResponse>(
         { success: false, error: "This query type is not allowed via the API" },
         403
@@ -101,12 +105,58 @@ app.post("/d1/query", async (c) => {
 
     // Log mutating queries for audit trail
     if (!isReadOnlyQuery(sql)) {
-      console.log(`[D1] Mutating query: ${sql.slice(0, 200)}`);
+      logger.info(`Mutating query: ${sql.slice(0, 200)}`);
     }
 
     const { d1 } = getServices(c.env);
     const result = await d1.query(sql, params ?? []);
     return c.json<ApiResponse>({ success: true, data: result });
+  } catch (e) {
+    return c.json<ApiResponse>(
+      { success: false, error: e instanceof Error ? e.message : String(e) },
+      500
+    );
+  }
+});
+
+/** POST /d1/batch — execute multiple D1 statements in a single call (code-review #11).
+ *  Accepts an array of { sql, params } objects. All statements run inside
+ *  an implicit D1 batch (single round-trip). Useful for analytics inserts
+ *  where the workflow engine writes many rows at once. */
+app.post("/d1/batch", async (c) => {
+  try {
+    const { statements } = await c.req.json<{
+      statements: Array<{ sql: string; params?: unknown[] }>;
+    }>();
+
+    if (!statements || !Array.isArray(statements) || statements.length === 0) {
+      return c.json<ApiResponse>(
+        { success: false, error: "statements array is required and must not be empty" },
+        400
+      );
+    }
+
+    // Validate all statements before executing
+    for (const stmt of statements) {
+      if (!stmt.sql) {
+        return c.json<ApiResponse>({ success: false, error: "Each statement must have a sql field" }, 400);
+      }
+      if (isDangerousQuery(stmt.sql)) {
+        return c.json<ApiResponse>(
+          { success: false, error: `Dangerous query blocked: ${stmt.sql.slice(0, 100)}` },
+          403
+        );
+      }
+    }
+
+    const { d1 } = getServices(c.env);
+    const results = [];
+    for (const stmt of statements) {
+      const result = await d1.query(stmt.sql, stmt.params ?? []);
+      results.push(result);
+    }
+
+    return c.json<ApiResponse>({ success: true, data: { results, count: statements.length } });
   } catch (e) {
     return c.json<ApiResponse>(
       { success: false, error: e instanceof Error ? e.message : String(e) },
@@ -145,6 +195,9 @@ app.post("/d1/read", async (c) => {
 // R2 ROUTES
 // ============================================================
 
+/** Maximum upload size: 25 MB (code-review issue #16) */
+const R2_MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+
 /** POST /r2/upload — upload file to R2 */
 app.post("/r2/upload", async (c) => {
   try {
@@ -165,6 +218,15 @@ app.post("/r2/upload", async (c) => {
 
       const fileBlob = file as unknown as File;
       const data = await fileBlob.arrayBuffer();
+
+      // Size validation
+      if (data.byteLength > R2_MAX_UPLOAD_BYTES) {
+        return c.json<ApiResponse>(
+          { success: false, error: `File too large: ${(data.byteLength / 1024 / 1024).toFixed(1)}MB exceeds ${R2_MAX_UPLOAD_BYTES / 1024 / 1024}MB limit` },
+          413
+        );
+      }
+
       const result = await r2.uploadFile(key, data, fileBlob.type);
       return c.json<ApiResponse>({ success: true, data: result });
     }
@@ -185,6 +247,15 @@ app.post("/r2/upload", async (c) => {
 
     // Decode base64 data
     const binaryData = Uint8Array.from(atob(body.data), (ch) => ch.charCodeAt(0));
+
+    // Size validation
+    if (binaryData.byteLength > R2_MAX_UPLOAD_BYTES) {
+      return c.json<ApiResponse>(
+        { success: false, error: `File too large: ${(binaryData.byteLength / 1024 / 1024).toFixed(1)}MB exceeds ${R2_MAX_UPLOAD_BYTES / 1024 / 1024}MB limit` },
+        413
+      );
+    }
+
     const result = await r2.uploadFile(
       body.key,
       binaryData.buffer,
@@ -465,7 +536,7 @@ async function runRetentionCleanup(env: StorageEnv): Promise<void> {
       Object.assign(retention, custom);
     }
   } catch {
-    console.log("[CLEANUP] Could not load custom retention periods, using defaults");
+    logger.info("Could not load custom retention periods, using defaults");
   }
 
   // Run cleanup for each table with a retention period
@@ -485,10 +556,10 @@ async function runRetentionCleanup(env: StorageEnv): Promise<void> {
       );
       const deleted = (result as { meta?: { changes?: number } }).meta?.changes ?? 0;
       if (deleted > 0) {
-        console.log(`[CLEANUP] ${table}: deleted ${deleted} rows older than ${days} days`);
+        logger.info(`Retention cleanup: ${table}: deleted ${deleted} rows older than ${days} days`);
       }
     } catch (e) {
-      console.log(`[CLEANUP] Error cleaning ${table}: ${e instanceof Error ? e.message : String(e)}`);
+      logger.error(`Retention cleanup error for ${table}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 }
@@ -496,8 +567,8 @@ async function runRetentionCleanup(env: StorageEnv): Promise<void> {
 export default {
   fetch: app.fetch,
   async scheduled(_event: ScheduledEvent, env: StorageEnv, _ctx: ExecutionContext): Promise<void> {
-    console.log("[SCHEDULED] Running retention cleanup...");
+    logger.info("Running retention cleanup...");
     await runRetentionCleanup(env);
-    console.log("[SCHEDULED] Retention cleanup complete");
+    logger.info("Retention cleanup complete");
   },
 };

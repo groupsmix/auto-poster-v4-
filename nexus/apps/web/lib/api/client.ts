@@ -12,6 +12,16 @@
  */
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
 
+// Warn at startup if API_BASE is the fallback — this means NEXT_PUBLIC_API_URL
+// is not configured and cross-origin requests to the router worker will fail.
+if (typeof window !== "undefined" && API_BASE === "/api") {
+  console.warn(
+    "[NEXUS] NEXT_PUBLIC_API_URL is not set — API requests will use relative path '/api'. " +
+    "This only works if the frontend is served from the same origin as nexus-router. " +
+    "Set NEXT_PUBLIC_API_URL to your nexus-router worker URL for production deployments."
+  );
+}
+
 /**
  * Retry wrapper for fetch: retries up to `retries` times with exponential
  * backoff for network errors and 5xx responses.

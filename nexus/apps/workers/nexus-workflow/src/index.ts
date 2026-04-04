@@ -211,7 +211,7 @@ app.post("/workflow/start", async (c) => {
 
     // --- Batch mode (2+ products) ---
     if (batchCount > 1) {
-      const batchOrchestrator = new BatchOrchestrator(c.env);
+      const batchOrchestrator = new BatchOrchestrator(c.env, getExecutionCtx(c));
 
       const batchInput: BatchInput = {
         domain_id: domainId,
@@ -434,7 +434,7 @@ app.get("/workflow/batch/:batchId", async (c) => {
       );
     }
 
-    const orchestrator = new BatchOrchestrator(c.env);
+    const orchestrator = new BatchOrchestrator(c.env, getExecutionCtx(c));
     const progress = await orchestrator.getBatchProgress(batchId);
 
     if (!progress) {
@@ -602,7 +602,7 @@ app.post("/workflow/batch/:batchId/retry-failed", async (c) => {
       );
     }
 
-    const orchestrator = new BatchOrchestrator(c.env);
+    const orchestrator = new BatchOrchestrator(c.env, getExecutionCtx(c));
     const progress = await orchestrator.getBatchProgress(batchId);
 
     if (!progress) {

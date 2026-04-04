@@ -121,11 +121,13 @@ Example output: ["angle 1", "angle 2", "angle 3"]`;
 
 export class BatchOrchestrator {
   private env: Env;
+  private ctx?: ExecutionContext;
   private engine: WorkflowEngine;
 
-  constructor(env: Env) {
+  constructor(env: Env, ctx?: ExecutionContext) {
     this.env = env;
-    this.engine = new WorkflowEngine(env);
+    this.ctx = ctx;
+    this.engine = new WorkflowEngine(env, ctx);
   }
 
   /**
@@ -212,7 +214,8 @@ export class BatchOrchestrator {
     );
 
     // Start sequential execution (non-blocking)
-    this.runBatchSequentially(batchId, products, input, promptTemplates).catch(
+    // Use ctx.waitUntil to keep the worker alive during batch processing
+    const batchPromise = this.runBatchSequentially(batchId, products, input, promptTemplates).catch(
       async (err) => {
         console.error(`[BATCH] Batch ${batchId} failed:`, err);
         // Mark any queued/running products in this batch as failed
@@ -227,6 +230,11 @@ export class BatchOrchestrator {
         }
       }
     );
+
+    // Keep the worker alive during batch processing
+    if (this.ctx?.waitUntil) {
+      this.ctx.waitUntil(batchPromise);
+    }
 
     return { batchId, products };
   }
