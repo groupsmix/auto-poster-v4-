@@ -5,6 +5,7 @@
 // ============================================================
 
 import { Hono } from "hono";
+import { WorkflowEntrypoint, WorkflowStep, WorkflowEvent } from "cloudflare:workers";
 import type { Env, ProductSetupInput, ApiResponse } from "@nexus/shared";
 import { generateId, slugify, now } from "@nexus/shared";
 import { WorkflowEngine, type WorkflowInput } from "./engine";
@@ -1068,5 +1069,24 @@ app.delete("/workflow/project-builder/:buildId", async (c) => {
     return c.json<ApiResponse>({ success: false, error: message }, 500);
   }
 });
+
+// ============================================================
+// NexusProductWorkflow — CF Workflows Entrypoint
+// Wraps the existing WorkflowEngine pipeline as a durable,
+// automatically-retryable Cloudflare Workflow.
+// ============================================================
+
+export class NexusProductWorkflow extends WorkflowEntrypoint<Env, WorkflowInput> {
+  async run(event: WorkflowEvent<WorkflowInput>, step: WorkflowStep) {
+    const input = event.payload;
+    const engine = new WorkflowEngine(this.env);
+
+    const { runId } = await step.do("create-workflow-run", async () => {
+      return engine.createWorkflow(input.productId, input);
+    });
+
+    return { runId };
+  }
+}
 
 export default app;

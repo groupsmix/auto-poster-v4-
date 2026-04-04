@@ -12,6 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@nexus/shared": path.resolve(__dirname, "packages/shared/src"),
+      "cloudflare:workers": path.resolve(__dirname, "tests/helpers/cloudflare-workers-mock.ts"),
     },
   },
 });
