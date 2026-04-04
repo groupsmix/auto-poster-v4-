@@ -282,14 +282,27 @@ export class WorkflowEngine {
         return;
       }
 
-      // Auto-revise: score >= min but below threshold, and under max revision attempts
+      // Auto-revise: score >= min but below threshold, under max revision attempts,
+      // AND score improved since last attempt (prevents infinite revision loops —
+      // code-review issue #13).
+      const previousScore = input.previousQualityScore;
+      const scoreImproved = previousScore === undefined || qualityScore > previousScore;
+
       if (
         qualityScore >= autoSettings.auto_revise_min_score &&
         qualityScore < autoSettings.auto_approve_threshold &&
-        autoRevisionAttempt < autoSettings.max_auto_revisions
+        autoRevisionAttempt < autoSettings.max_auto_revisions &&
+        scoreImproved
       ) {
         await this.handleAutoRevise(runId, input, totalTokens, totalCost, cacheHits, qualityScore, qualityOutput!, autoRevisionAttempt);
         return;
+      }
+
+      // Score didn't improve — stop revising to prevent infinite loop
+      if (!scoreImproved) {
+        console.warn(
+          `[WORKFLOW] Run ${runId} auto-revision stopped: score did not improve (${previousScore} → ${qualityScore})`
+        );
       }
 
       // Below min score or max revisions exhausted — flag for manual review
@@ -381,7 +394,10 @@ export class WorkflowEngine {
               retryErr instanceof Error ? retryErr.message : String(retryErr)
             }`
           );
-          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          // Exponential backoff with jitter: 1-2s, 2-4s, 4-8s...
+          const baseDelay = 1000 * Math.pow(2, attempt);
+          const jitter = Math.random() * baseDelay;
+          await new Promise((r) => setTimeout(r, baseDelay + jitter));
         } else {
           throw retryErr;
         }

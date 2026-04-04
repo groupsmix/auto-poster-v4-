@@ -18,6 +18,8 @@ export interface WorkflowInput {
   autoApproveSettings?: AutoApproveSettings;
   /** Track auto-revision attempts to prevent infinite loops */
   autoRevisionAttempt?: number;
+  /** Previous quality score — used to detect stalled revisions (code-review #13) */
+  previousQualityScore?: number;
   /** CEO workflow recommendations for this category (loaded from KV) */
   ceoWorkflowConfig?: CEOWorkflowConfig;
 }

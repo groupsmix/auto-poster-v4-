@@ -606,14 +606,13 @@ STEP 4 — FIXES: For any score below 8, provide:
 - EXACTLY what should change (with the corrected version ready to use)
 
 Set approved=true ONLY if ALL individual scores are >= 8. One score of 7 means the whole package needs revision.`,
+    // Reduced from 8 to 4 most-relevant keys to lower prompt token count
+    // (code-review issue #15). The quality reviewer mainly needs the final
+    // content outputs, not early research/strategy context.
     contextKeys: [
-      "research",
-      "strategy",
       "content_generation",
       "seo_optimization",
-      "image_generation",
       "platform_variants",
-      "social_content",
       "humanizer_pass",
     ],
     revisable: false,

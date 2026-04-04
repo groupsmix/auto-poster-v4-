@@ -580,17 +580,14 @@ export interface Env {
   CF_ACCOUNT_ID?: string;
   AI_GATEWAY_ID?: string;
 
-  // Service Bindings (used by nexus-workflow, nexus-variation)
+  // Service Bindings — canonical names used across all workers.
+  // Previously there were *_SERVICE aliases (AI_SERVICE, etc.) but they
+  // were never wired in any wrangler.toml and caused confusion. Removed
+  // per code-review issue #8.
   NEXUS_AI: Fetcher;
   NEXUS_WORKFLOW: Fetcher;
   NEXUS_VARIATION: Fetcher;
   NEXUS_STORAGE: Fetcher;
-
-  // Service Bindings (used by nexus-router)
-  AI_SERVICE: Fetcher;
-  WORKFLOW_SERVICE: Fetcher;
-  VARIATION_SERVICE: Fetcher;
-  STORAGE_SERVICE: Fetcher;
 
   // Secrets (AI API keys — optional, model sleeps if missing)
   TAVILY_API_KEY?: string;
@@ -626,6 +623,40 @@ export interface Env {
 
   // Index signature for dynamic secret access
   [key: string]: unknown;
+}
+
+// --- Worker-specific Env narrowings (code-review #22) ───────────────
+// Each worker only needs a subset of the full Env. These interfaces
+// document which bindings each worker actually uses, while remaining
+// backward-compatible with code that imports the base `Env`.
+
+/** nexus-ai: needs KV, DB, AI, AI_GATEWAY, NEXUS_STORAGE, and all API key secrets */
+export interface AIWorkerEnv extends Env {
+  AI: Fetcher & { run(model: string, inputs: Record<string, unknown>): Promise<unknown> };
+  NEXUS_STORAGE: Fetcher;
+}
+
+/** nexus-workflow: needs KV, DB, AI, service bindings, and the PRODUCT_WORKFLOW Durable Object */
+export interface WorkflowWorkerEnv extends Env {
+  NEXUS_AI: Fetcher;
+  NEXUS_STORAGE: Fetcher;
+  NEXUS_VARIATION: Fetcher;
+  PRODUCT_WORKFLOW?: unknown; // CF Workflows binding (Durable Object)
+}
+
+/** nexus-router: needs service bindings + DASHBOARD_SECRET (defined in RouterEnv locally) */
+export type RouterWorkerEnv = Omit<Env, "AI" | "AI_GATEWAY"> & {
+  NEXUS_AI: Fetcher;
+  NEXUS_WORKFLOW: Fetcher;
+  NEXUS_VARIATION: Fetcher;
+  NEXUS_STORAGE: Fetcher;
+  DASHBOARD_SECRET?: string;
+};
+
+/** nexus-variation: needs KV, NEXUS_AI, NEXUS_STORAGE */
+export interface VariationWorkerEnv extends Env {
+  NEXUS_AI: Fetcher;
+  NEXUS_STORAGE: Fetcher;
 }
 
 // --- Chatbot Types ---

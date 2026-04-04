@@ -34,8 +34,7 @@ id = "4b1067e47d0e4cbd8c7c91592ba5238c"
 # Replace placeholder-kv-id after running: wrangler kv namespace create CACHE
 
 # ── CF Workflows ──
-# Uncomment after defining and exporting a Workflow class from the worker:
-# [[workflows]]
-# name = "nexus-product-workflow"
-# binding = "PRODUCT_WORKFLOW"
-# class_name = "NexusProductWorkflow"
+[[workflows]]
+name = "nexus-product-workflow"
+binding = "PRODUCT_WORKFLOW"
+class_name = "NexusProductWorkflow"

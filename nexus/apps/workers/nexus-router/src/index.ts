@@ -13,7 +13,11 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { ApiResponse } from "@nexus/shared";
+import { StructuredLogger } from "@nexus/shared";
 import type { RouterEnv } from "./helpers";
+
+// Structured logger instance for this worker (code-review #21)
+const logger = new StructuredLogger("nexus-router");
 
 // ── Route modules ───────────────────────────────────────────
 import domains from "./routes/domains";
@@ -114,9 +118,7 @@ app.use("/api/*", async (c, next) => {
   const requestId = c.get("requestId") ?? "-";
   await next();
   const duration = Date.now() - start;
-  console.log(
-    `[${requestId}] ${c.req.method} ${c.req.path} ${c.res.status} ${duration}ms`
-  );
+  logger.info(`${c.req.method} ${c.req.path} ${c.res.status} ${duration}ms`, { requestId });
 });
 
 // Rate limiting middleware (7.3)
@@ -347,6 +349,108 @@ app.route("/api/niche-discovery", nicheDiscoveryRoutes);
 app.route("/api/pod", podRoutes);
 
 // ============================================================
+// SSE — Server-Sent Events for real-time workflow updates (code-review #19)
+// Replaces aggressive polling with an event stream. The client
+// opens GET /api/workflow/events?runId=xxx and receives status
+// updates as they happen. Falls back to polling if SSE is not used.
+// ============================================================
+
+app.get("/api/workflow/events", async (c) => {
+  const runId = c.req.query("runId");
+  if (!runId) {
+    return c.json<ApiResponse>(
+      { success: false, error: "runId query parameter is required" },
+      400
+    );
+  }
+
+  const encoder = new TextEncoder();
+  let cancelled = false;
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (event: string, data: unknown) => {
+        if (cancelled) return;
+        try {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          cancelled = true;
+        }
+      };
+
+      // Poll the workflow run status every 2 seconds and push updates via SSE.
+      // This is more efficient than the client polling because:
+      //   1. Only one HTTP connection is held open instead of many short-lived ones.
+      //   2. The server controls the poll cadence (2s) and can send updates instantly.
+      //   3. Reduces request count and rate-limiter pressure.
+      let lastStatus = "";
+      let lastStepCount = -1;
+      const MAX_DURATION_MS = 5 * 60 * 1000; // 5 minute max SSE session
+      const startTime = Date.now();
+
+      while (!cancelled && Date.now() - startTime < MAX_DURATION_MS) {
+        try {
+          const resp = await c.env.NEXUS_STORAGE.fetch(
+            "http://nexus-storage/d1/read",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sql: "SELECT id, status, current_step, total_steps, updated_at FROM workflow_runs WHERE id = ?",
+                params: [runId],
+              }),
+            }
+          );
+          const json = (await resp.json()) as {
+            success: boolean;
+            data?: { results?: Array<{ id: string; status: string; current_step: number; total_steps: number; updated_at: string }> };
+          };
+
+          if (json.success && json.data?.results?.[0]) {
+            const run = json.data.results[0];
+            // Only send if something changed
+            if (run.status !== lastStatus || run.current_step !== lastStepCount) {
+              lastStatus = run.status;
+              lastStepCount = run.current_step;
+              send("workflow_update", run);
+            }
+            // Close stream when workflow reaches a terminal state
+            if (["completed", "failed", "cancelled"].includes(run.status)) {
+              send("done", { runId, finalStatus: run.status });
+              controller.close();
+              return;
+            }
+          }
+        } catch {
+          // Swallow fetch errors — keep the stream alive
+        }
+
+        // Wait 2 seconds before next poll
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+
+      // Max duration reached — close gracefully
+      if (!cancelled) {
+        send("timeout", { runId, message: "SSE session timed out after 5 minutes" });
+        controller.close();
+      }
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Request-ID": c.get("requestId") ?? "",
+    },
+  });
+});
+
+// ============================================================
 // 404 catch-all
 // ============================================================
 
@@ -365,7 +469,7 @@ app.notFound((c) => {
 // ============================================================
 
 app.onError((err, c) => {
-  console.error("[ROUTER] Unhandled error:", err.message);
+  logger.error(`Unhandled error: ${err.message}`, { stack: err.stack });
   return c.json<ApiResponse>(
     { success: false, error: "Internal server error" },
     500

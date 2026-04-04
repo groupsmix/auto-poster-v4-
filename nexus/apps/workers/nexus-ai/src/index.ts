@@ -16,6 +16,7 @@ import {
   getTaskTypes,
   persistRegistryReorder,
   loadPersistedReorders,
+  loadRegistryFromD1,
 } from "./registry";
 import { runCEOSetup, getCEOConfig } from "./ceo";
 import type { CEOSetupInput } from "./ceo";
@@ -47,9 +48,11 @@ app.get("/", (c) => {
   });
 });
 
-// ── Middleware: load persisted registry reorders on first request ──
+// ── Middleware: load registry from D1 + persisted reorders on first request ──
 
 app.use("*", async (c, next) => {
+  // D1-first: try to load dynamic registry from D1, fall back to hardcoded (code-review #18)
+  await loadRegistryFromD1(c.env);
   await loadPersistedReorders(c.env);
   await next();
 });

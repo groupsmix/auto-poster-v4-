@@ -14,9 +14,9 @@ binding = "DB"
 database_name = "nexus-db"
 database_id = "your-database-id-here"
 
-# KV Namespace
+# KV Namespace — standardised to "KV" to match shared Env type (code-review #9)
 [[kv_namespaces]]
-binding = "NEXUS_KV"
+binding = "KV"
 id = "your-kv-namespace-id-here"
 
 # R2 Bucket

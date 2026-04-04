@@ -83,6 +83,8 @@ export function useApiQuery<T>(
   const isFetchingRef = useRef(false);
   // Cooldown after errors to prevent rapid-fire retry loops
   const errorCooldownRef = useRef(0);
+  // Consecutive failure counter — surfaces persistent API issues (code-review #10)
+  const consecutiveFailuresRef = useRef(0);
 
   const doFetch = useCallback(async () => {
     // Skip if a fetch is already in-flight to prevent request pile-up
@@ -105,8 +107,9 @@ export function useApiQuery<T>(
         setData(response.data);
         setIsUsingMock(false);
         setError(null);
-        // Clear cooldown on success
+        // Clear cooldown and failure counter on success
         errorCooldownRef.current = 0;
+        consecutiveFailuresRef.current = 0;
       } else {
         // API returned an unsuccessful response — keep existing data if we have it,
         // otherwise use fallback
@@ -117,6 +120,13 @@ export function useApiQuery<T>(
         setIsUsingMock(true);
         // Set cooldown: 5s after error to prevent rapid retry loops
         errorCooldownRef.current = Date.now() + 5000;
+        consecutiveFailuresRef.current++;
+        if (consecutiveFailuresRef.current >= 3) {
+          console.warn(
+            `[NEXUS] API unreachable after ${consecutiveFailuresRef.current} consecutive failures. ` +
+            `Check that nexus-router is deployed and NEXT_PUBLIC_API_URL is correct.`
+          );
+        }
       }
     } catch (e) {
       // Network / parse error — keep existing data if we have it
@@ -127,6 +137,13 @@ export function useApiQuery<T>(
       setIsUsingMock(true);
       // Set cooldown: 5s after error
       errorCooldownRef.current = Date.now() + 5000;
+      consecutiveFailuresRef.current++;
+      if (consecutiveFailuresRef.current >= 3) {
+        console.warn(
+          `[NEXUS] API unreachable after ${consecutiveFailuresRef.current} consecutive failures. ` +
+          `Check that nexus-router is deployed and NEXT_PUBLIC_API_URL is correct.`
+        );
+      }
     } finally {
       setLoading(false);
       hasLoadedRef.current = true;

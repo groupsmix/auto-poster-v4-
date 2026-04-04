@@ -38,8 +38,8 @@ export const CACHE_TTL_MAP: Record<TaskType, number> = {
 
 // --- Runtime Constants ---
 
-/** Rate limit sleep duration (1 hour) */
-export const RATE_LIMIT_SLEEP_MS = 3_600_000;
+/** Rate limit sleep duration (5 minutes — was 1 hour, reduced per code-review issue #14) */
+export const RATE_LIMIT_SLEEP_MS = 300_000;
 
 /** Maximum time to wait for a single workflow to complete (10 minutes) */
 export const WORKFLOW_TIMEOUT_MS = 600_000;
