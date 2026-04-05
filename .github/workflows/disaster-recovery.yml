@@ -218,11 +218,14 @@ jobs:
           echo "Checking for existing D1 database 'nexus-db'..."
           EXISTING=$(npx wrangler d1 list --json 2>/dev/null | python3 -c "
           import sys, json
-          data = json.load(sys.stdin)
-          for db in data:
-              if db.get('name') == 'nexus-db':
-                  print(db['uuid'])
-                  break
+          try:
+              raw = sys.stdin.read()
+              data = json.loads(raw[raw.find('['):])
+              for db in data:
+                  if db.get('name') == 'nexus-db':
+                      print(db['uuid'])
+                      break
+          except: pass
           " 2>/dev/null || true)
 
           if [ -n "$EXISTING" ]; then
@@ -244,11 +247,14 @@ jobs:
           echo "Checking for existing KV namespace..."
           EXISTING=$(cd apps/workers/nexus-storage && npx wrangler kv namespace list --json 2>/dev/null | python3 -c "
           import sys, json
-          data = json.load(sys.stdin)
-          for ns in data:
-              if 'CACHE' in ns.get('title', ''):
-                  print(ns['id'])
-                  break
+          try:
+              raw = sys.stdin.read()
+              data = json.loads(raw[raw.find('['):])
+              for ns in data:
+                  if 'CACHE' in ns.get('title', ''):
+                      print(ns['id'])
+                      break
+          except: pass
           " 2>/dev/null || true)
 
           if [ -n "$EXISTING" ]; then
@@ -256,10 +262,13 @@ jobs:
             echo "id=$EXISTING" >> $GITHUB_OUTPUT
           else
             echo "Creating KV namespace 'CACHE'..."
-            OUTPUT=$(cd apps/workers/nexus-storage && npx wrangler kv namespace create CACHE 2>&1)
+            OUTPUT=$(cd apps/workers/nexus-storage && npx wrangler kv namespace create CACHE 2>&1 || true)
             echo "$OUTPUT"
-            KV_ID=$(echo "$OUTPUT" | grep -oP 'id\s*=\s*"\K[^"]+' || echo "$OUTPUT" | grep -oP '[0-9a-f]{32}' | head -1)
-            echo "KV namespace created: $KV_ID"
+            KV_ID=$(echo "$OUTPUT" | grep -oP 'id\s*=\s*"\K[^"]+' | head -1 || true)
+            if [ -z "$KV_ID" ]; then
+              KV_ID=$(echo "$OUTPUT" | grep -oP '[0-9a-f]{32}' | head -1 || true)
+            fi
+            echo "KV namespace created/found ID: $KV_ID"
             echo "id=$KV_ID" >> $GITHUB_OUTPUT
           fi
 
