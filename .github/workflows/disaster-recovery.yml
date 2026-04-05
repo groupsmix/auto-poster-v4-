@@ -324,15 +324,7 @@ jobs:
           for file in apps/workers/nexus-ai/wrangler.toml apps/workers/nexus-storage/wrangler.toml apps/workers/nexus-workflow/wrangler.toml apps/workers/nexus-variation/wrangler.toml; do
             if [ -f "$file" ]; then
               sed -i "s/placeholder-kv-id/$KV_ID/g" "$file"
-              FILE_PATH="$file" KV_NS_ID="$KV_ID" python3 -c '
-              import sys, re, os
-              file_path = os.environ.get("FILE_PATH")
-              kv_id = os.environ.get("KV_NS_ID")
-              if not file_path or not kv_id: sys.exit(0)
-              with open(file_path) as f: content = f.read()
-              content = re.sub(r"(binding\s*=\s*\"(?:CACHE|KV)\"[^]]*?id\s*=\s*\")[^\"]*\"", r"\g<1>" + kv_id + "\"", content, flags=re.DOTALL)
-              with open(file_path, "w") as f: f.write(content)
-              '
+              FILE_PATH="$file" KV_NS_ID="$KV_ID" python3 -c 'import sys, re, os; fp=os.environ.get("FILE_PATH"); kv=os.environ.get("KV_NS_ID"); [sys.exit(0) if not fp or not kv else None]; c=open(fp).read(); open(fp,"w").write(re.sub(r"(binding\s*=\s*\"(?:CACHE|KV)\"[^]]*?id\s*=\s*\")[^\"]*\"", r"\g<1>"+kv+"\"", c, flags=re.DOTALL))'
               echo "  Updated KV ID in $file"
             fi
           done
