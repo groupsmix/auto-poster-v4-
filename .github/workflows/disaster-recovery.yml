@@ -59,6 +59,7 @@ jobs:
     steps:
       # -- Validate -----------------------------------------------
       - name: "\U0001F512 Validate recovery request"
+        working-directory: .
         run: |
           if [ "${{ inputs.confirm }}" != "RECOVER" ]; then
             echo "You must type RECOVER to confirm. Got: '${{ inputs.confirm }}'"
@@ -68,6 +69,7 @@ jobs:
 
       - name: "\U0001F512 Check Cloudflare credentials"
         id: auth
+        working-directory: .
         env:
           CF_KEY: ${{ secrets.CF_GLOBAL_API_KEY }}
           CF_MAIL: ${{ secrets.CF_EMAIL }}
