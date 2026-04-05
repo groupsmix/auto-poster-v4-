@@ -268,6 +268,9 @@ jobs:
             if [ -z "$KV_ID" ]; then
               KV_ID=$(echo "$OUTPUT" | grep -oP '[0-9a-f]{32}' | head -1 || true)
             fi
+            if [ -z "$KV_ID" ]; then
+              KV_ID=$(cd apps/workers/nexus-storage && npx wrangler kv namespace list --json 2>/dev/null | python3 -c "import sys, json; raw=sys.stdin.read(); data=json.loads(raw[raw.find('['):]); print(next((n['id'] for n in data if 'CACHE' in n.get('title','')), ''))" 2>/dev/null || true)
+            fi
             echo "KV namespace created/found ID: $KV_ID"
             echo "id=$KV_ID" >> $GITHUB_OUTPUT
           fi
@@ -321,12 +324,15 @@ jobs:
           for file in apps/workers/nexus-ai/wrangler.toml apps/workers/nexus-storage/wrangler.toml apps/workers/nexus-workflow/wrangler.toml apps/workers/nexus-variation/wrangler.toml; do
             if [ -f "$file" ]; then
               sed -i "s/placeholder-kv-id/$KV_ID/g" "$file"
-              python3 << 'PYEOF'
-          import re
-          with open("'"$file"'") as f: content = f.read()
-          content = re.sub(r'(binding\s*=\s*"(?:CACHE|KV)"[^]]*?id\s*=\s*")[^"]*"', r'\g<1>'"$KV_ID"'"', content, flags=re.DOTALL)
-          with open("'"$file"'", "w") as f: f.write(content)
-          PYEOF
+              FILE_PATH="$file" KV_NS_ID="$KV_ID" python3 -c '
+import sys, re, os
+file_path = os.environ.get("FILE_PATH")
+kv_id = os.environ.get("KV_NS_ID")
+if not file_path or not kv_id: sys.exit(0)
+with open(file_path) as f: content = f.read()
+content = re.sub(r"(binding\s*=\s*\"(?:CACHE|KV)\"[^]]*?id\s*=\s*\")[^\"]*\"", r"\g<1>" + kv_id + "\"", content, flags=re.DOTALL)
+with open(file_path, "w") as f: f.write(content)
+'
               echo "  Updated KV ID in $file"
             fi
           done
