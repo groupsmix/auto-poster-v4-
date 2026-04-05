@@ -242,7 +242,7 @@ jobs:
         id: kv
         run: |
           echo "Checking for existing KV namespace..."
-          EXISTING=$(npx wrangler kv namespace list --json 2>/dev/null | python3 -c "
+          EXISTING=$(cd apps/workers/nexus-storage && npx wrangler kv namespace list --json 2>/dev/null | python3 -c "
           import sys, json
           data = json.load(sys.stdin)
           for ns in data:
@@ -256,7 +256,7 @@ jobs:
             echo "id=$EXISTING" >> $GITHUB_OUTPUT
           else
             echo "Creating KV namespace 'CACHE'..."
-            OUTPUT=$(npx wrangler kv namespace create CACHE 2>&1)
+            OUTPUT=$(cd apps/workers/nexus-storage && npx wrangler kv namespace create CACHE 2>&1)
             echo "$OUTPUT"
             KV_ID=$(echo "$OUTPUT" | grep -oP 'id\s*=\s*"\K[^"]+' || echo "$OUTPUT" | grep -oP '[0-9a-f]{32}' | head -1)
             echo "KV namespace created: $KV_ID"
