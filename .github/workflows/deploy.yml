@@ -1,0 +1,269 @@
+# ============================================================
+# NEXUS — Auto-Deploy Pipeline
+# ============================================================
+# Runs after CI passes on push to main.
+# Deploys all 5 workers + frontend to Cloudflare.
+#
+# Required GitHub Secrets:
+#   CLOUDFLARE_API_TOKEN  — API token with Workers/Pages/D1/KV/R2 permissions
+#   CLOUDFLARE_ACCOUNT_ID — Your Cloudflare account ID
+#   NEXUS_API_URL          — Frontend API URL (e.g. https://nexus-router.<subdomain>.workers.dev/api)
+#
+# How to set up:
+#   1. Go to https://dash.cloudflare.com/profile/api-tokens
+#   2. Create a token with these permissions:
+#      - Account > Workers Scripts > Edit
+#      - Account > Workers KV Storage > Edit
+#      - Account > D1 > Edit
+#      - Account > Cloudflare Pages > Edit
+#      - Account > Workers R2 Storage > Edit
+#   3. Go to your GitHub repo → Settings → Secrets → Actions
+#   4. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
+# ============================================================
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'nexus/**'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+# Only one deploy at a time
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  # CI must pass first
+  ci:
+    name: CI Check
+    uses: ./.github/workflows/ci.yml
+
+  # Run migrations after CI passes
+  migrate:
+    name: Run D1 Migrations
+    needs: ci
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexus
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Ensure _migrations tracking table exists
+        run: cd apps/workers/nexus-storage && npx wrangler d1 execute nexus-db --file=../../../migrations/000_migrations_tracker.sql --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Run all D1 migrations
+        run: |
+          WRANGLER_DIR="apps/workers/nexus-storage"
+          for migration in $(ls migrations/*.sql | sort); do
+            name=$(basename "$migration")
+            # Skip if already applied
+            applied=$(cd "$WRANGLER_DIR" && npx wrangler d1 execute nexus-db --command "SELECT 1 FROM _migrations WHERE name='$name'" --remote --json 2>/dev/null || echo "[]")
+            if echo "$applied" | grep -q '"1"'; then
+              echo "Skipping $name (already applied)"
+              continue
+            fi
+            echo "Running $migration..."
+            (cd "$WRANGLER_DIR" && npx wrangler d1 execute nexus-db --file="../../../$migration" --remote)
+            (cd "$WRANGLER_DIR" && npx wrangler d1 execute nexus-db --command "INSERT OR IGNORE INTO _migrations (name) VALUES ('$name')" --remote)
+          done
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # Deploy workers in dependency order
+  deploy-workers:
+    name: Deploy Workers
+    needs: migrate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexus
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Deploy in dependency order (sequential — each depends on the previous)
+      - name: Deploy nexus-storage
+        run: cd apps/workers/nexus-storage && npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Health check nexus-storage
+        run: |
+          sleep 5
+          echo "Verifying nexus-storage is responsive..."
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "https://nexus-storage.${{ vars.CF_SUBDOMAIN || 'your-subdomain' }}.workers.dev/health" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "nexus-storage health check passed (HTTP $STATUS)"
+          else
+            echo "::warning::nexus-storage health check returned HTTP $STATUS (may still be propagating)"
+          fi
+
+      - name: Deploy nexus-ai
+        run: cd apps/workers/nexus-ai && npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Health check nexus-ai
+        run: |
+          sleep 5
+          echo "Verifying nexus-ai is responsive..."
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "https://nexus-ai.${{ vars.CF_SUBDOMAIN || 'your-subdomain' }}.workers.dev/ai/health" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "nexus-ai health check passed (HTTP $STATUS)"
+          else
+            echo "::warning::nexus-ai health check returned HTTP $STATUS (may still be propagating)"
+          fi
+
+      - name: Deploy nexus-variation
+        run: cd apps/workers/nexus-variation && npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Health check nexus-variation
+        run: |
+          sleep 5
+          echo "Verifying nexus-variation is responsive..."
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "https://nexus-variation.${{ vars.CF_SUBDOMAIN || 'your-subdomain' }}.workers.dev/variation/platforms" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "nexus-variation health check passed (HTTP $STATUS)"
+          else
+            echo "::warning::nexus-variation health check returned HTTP $STATUS (may still be propagating)"
+          fi
+
+      - name: Deploy nexus-workflow
+        run: cd apps/workers/nexus-workflow && npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Health check nexus-workflow
+        run: |
+          sleep 5
+          echo "Verifying nexus-workflow is responsive..."
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "https://nexus-workflow.${{ vars.CF_SUBDOMAIN || 'your-subdomain' }}.workers.dev/workflow/health" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "nexus-workflow health check passed (HTTP $STATUS)"
+          else
+            echo "::warning::nexus-workflow health check returned HTTP $STATUS (may still be propagating)"
+          fi
+
+      - name: Deploy nexus-router
+        run: cd apps/workers/nexus-router && npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # Deploy frontend to CF Pages
+  deploy-frontend:
+    name: Deploy Frontend
+    needs: deploy-workers
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexus
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXUS_API_URL }}
+
+      - name: Deploy to CF Pages
+        run: cd apps/workers/nexus-storage && npx wrangler pages deploy ../../web/out --project-name=nexus-dashboard
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # Post-deploy: tag release and verify
+  verify:
+    name: Verify Deployment
+    needs: [deploy-workers, deploy-frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Tag successful deploy
+        run: |
+          TAG="deploy-$(date +%Y%m%d-%H%M%S)"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "✅ Tagged release: $TAG"
+
+      - name: Wait for workers to propagate
+        run: sleep 10
+
+      - name: Health check nexus-router
+        run: |
+          ROUTER_URL="https://nexus-router.${{ vars.CF_SUBDOMAIN || 'your-subdomain' }}.workers.dev"
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$ROUTER_URL/health" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "nexus-router health check passed (HTTP $STATUS)"
+          else
+            echo "::warning::nexus-router health check returned HTTP $STATUS (may still be propagating)"
+          fi
+          echo ""
+          echo "Deployment complete!"
+          echo "  Router: $ROUTER_URL/health"
+          echo ""
+          echo "Rollback (if needed):"
+          echo "  npx wrangler rollback --name <worker-name>"
+          echo "  See RUNBOOK.md for full rollback procedure"

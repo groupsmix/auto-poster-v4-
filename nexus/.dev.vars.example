@@ -1,0 +1,90 @@
+# ============================================================
+# NEXUS — Local Development Environment Variables
+# ============================================================
+# Copy this file to .dev.vars in each worker directory you want to run locally.
+# wrangler dev reads .dev.vars automatically for secrets/vars.
+#
+# Usage:
+#   cp .dev.vars.example apps/workers/nexus-ai/.dev.vars
+#   cp .dev.vars.example apps/workers/nexus-storage/.dev.vars
+#   etc.
+#
+# WORKER MAPPING — Which worker needs which variables:
+#   nexus-router:    DASHBOARD_SECRET
+#   nexus-ai:        AI_GATEWAY_ID, all AI API keys below
+#   nexus-storage:   CF_ACCOUNT_ID, CF_IMAGES_TOKEN
+#   nexus-workflow:  (no secrets — uses service bindings)
+#   nexus-variation: (no secrets — uses service bindings)
+# ============================================================
+
+# === nexus-router ===
+DASHBOARD_SECRET=your-dashboard-secret-here
+
+# === nexus-storage ===
+CF_ACCOUNT_ID=your-cloudflare-account-id
+CF_IMAGES_TOKEN=your-cf-images-api-token
+
+# === nexus-ai ===
+AI_GATEWAY_ID=nexus-gateway
+
+# ============================================================
+# AI API Keys (set on nexus-ai worker)
+# Add key → AI activates. Remove → sleeps. No code change.
+# ============================================================
+
+# Research APIs
+TAVILY_API_KEY=
+EXA_API_KEY=
+SERPAPI_KEY=
+DATAFORSEO_KEY=
+
+# Text AI — Free Tier Providers
+DEEPSEEK_API_KEY=
+DASHSCOPE_API_KEY=
+SILICONFLOW_API_KEY=
+FIREWORKS_API_KEY=
+GROQ_API_KEY=
+HF_TOKEN=
+OPENROUTER_API_KEY=
+MOONSHOT_API_KEY=
+
+# Image AI
+FAL_API_KEY=
+
+# POD/Mockup APIs
+PRINTFUL_API_KEY=
+PRINTIFY_API_KEY=
+
+# Audio AI
+SUNO_API_KEY=
+
+# ============================================================
+# Premium AI — Add When Ready (dormant until key added)
+# These models are already in the failover registry positioned
+# first for their strengths. Just add the key to activate.
+# ============================================================
+
+# Text & Reasoning — Claude is #1 for writing, humanizer, social, quality review
+ANTHROPIC_API_KEY=
+# Text & Reasoning — GPT-4o is #1 for research, SEO, reasoning
+OPENAI_API_KEY=
+# Text & Research — Gemini is strong at research, SEO, platform variations
+GOOGLE_API_KEY=
+# Research — Perplexity Sonar is #1 for research tasks
+PERPLEXITY_API_KEY=
+
+# Image & Media — not yet in registry, add when needed
+# MIDJOURNEY_API_KEY=
+# IDEOGRAM_API_KEY=
+# ELEVENLABS_API_KEY=
+# CARTESIA_API_KEY=
+# PLACEIT_API_KEY=
+
+# ============================================================
+# No Key Needed (included in CF $5/month plan):
+#   Workers AI  — @cf/meta/llama-3.1-8b-instruct (text)
+#   Workers AI  — @cf/stabilityai/stable-diffusion-xl-base-1.0 (images)
+#   Workers AI  — @cf/openai/whisper (speech)
+#   AI Gateway  — logging, caching, rate limiting
+#   CF Images   — image CDN + transform
+# ============================================================

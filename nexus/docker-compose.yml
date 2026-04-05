@@ -1,0 +1,203 @@
+# ============================================================
+# NEXUS Local Fallback Mode
+# Runs 100% offline: Postgres + Ollama + MinIO
+# Cloud independence = sovereignty
+# ============================================================
+
+version: '3.8'
+
+services:
+  # PostgreSQL (replaces D1 locally)
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexus-postgres
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexus_local_dev
+      POSTGRES_DB: nexus
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Ollama (local AI inference)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: nexus-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Pull models on first run
+    entrypoint: >
+      sh -c "
+        ollama serve &
+        sleep 5
+        ollama pull llama3.1:8b
+        ollama pull nomic-embed-text
+        wait
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # MinIO (replaces R2 locally)
+  minio:
+    image: minio/minio:latest
+    container_name: nexus-minio
+    environment:
+      MINIO_ROOT_USER: nexus
+      MINIO_ROOT_PASSWORD: nexus_local_dev
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Valkey/Redis (replaces KV locally)
+  valkey:
+    image: valkey/valkey:latest
+    container_name: nexus-valkey
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data
+    command: valkey-server --appendonly yes
+
+  # NEXUS Core Worker (local mode)
+  nexus-core:
+    build:
+      context: ./apps/workers/nexus-core
+      dockerfile: Dockerfile
+    container_name: nexus-core
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://nexus:nexus_local_dev@postgres:5432/nexus
+      - REDIS_URL=redis://valkey:6379
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=nexus
+      - S3_SECRET_KEY=nexus_local_dev
+      - S3_BUCKET=nexus
+      - OLLAMA_URL=http://ollama:11434
+      - API_KEYS=local-dev-key-12345
+      - PORT=8787
+    ports:
+      - "8787:8787"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_started
+      minio:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ./apps/workers/nexus-core:/app
+      - /app/node_modules
+
+  # NEXUS Dispatch Worker (local mode)
+  nexus-dispatch:
+    build:
+      context: ./apps/workers/nexus-dispatch
+      dockerfile: Dockerfile
+    container_name: nexus-dispatch
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://nexus:nexus_local_dev@postgres:5432/nexus
+      - REDIS_URL=redis://valkey:6379
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=nexus
+      - S3_SECRET_KEY=nexus_local_dev
+      - S3_BUCKET=nexus
+      - CORE_URL=http://nexus-core:8787
+      - PORT=8788
+    ports:
+      - "8788:8788"
+    depends_on:
+      - nexus-core
+    volumes:
+      - ./apps/workers/nexus-dispatch:/app
+      - /app/node_modules
+
+  # NEXUS Scheduler Worker (local mode)
+  nexus-scheduler:
+    build:
+      context: ./apps/workers/nexus-scheduler
+      dockerfile: Dockerfile
+    container_name: nexus-scheduler
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://nexus:nexus_local_dev@postgres:5432/nexus
+      - REDIS_URL=redis://valkey:6379
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=nexus
+      - S3_SECRET_KEY=nexus_local_dev
+      - S3_BUCKET=nexus
+      - CORE_URL=http://nexus-core:8787
+      - DISPATCH_URL=http://nexus-dispatch:8788
+      - PORT=8789
+    ports:
+      - "8789:8789"
+    depends_on:
+      - nexus-core
+      - nexus-dispatch
+    volumes:
+      - ./apps/workers/nexus-scheduler:/app
+      - /app/node_modules
+
+  # Frontend (lightweight HTML+HTMX)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nexus-frontend
+    environment:
+      - API_URL=http://nexus-core:8787
+    ports:
+      - "3000:3000"
+    depends_on:
+      - nexus-core
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  # Playwright (for browser automation fallback)
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.40.0-jammy
+    container_name: nexus-playwright
+    environment:
+      - DISPLAY=:99
+    ports:
+      - "9222:9222"
+    command: >
+      sh -c "
+        npx playwright install chromium
+        npx playwright run-server --port 9222
+      "
+    profiles:
+      - with-playwright
+
+volumes:
+  postgres_data:
+  ollama_data:
+  minio_data:
+  valkey_data:
+
+networks:
+  default:
+    name: nexus-network

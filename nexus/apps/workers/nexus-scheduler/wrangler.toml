@@ -1,0 +1,54 @@
+# ============================================================
+# nexus-scheduler Worker Configuration
+# Cron Jobs + Content Recycling + Telegram Bot + Git Mirror
+# ============================================================
+
+name = "nexus-scheduler"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "nexus-db"
+database_id = "your-database-id-here"
+
+# KV Namespace — standardised to "KV" to match shared Env type (code-review #9)
+[[kv_namespaces]]
+binding = "KV"
+id = "your-kv-namespace-id-here"
+
+# R2 Bucket
+[[r2_buckets]]
+binding = "NEXUS_R2"
+bucket_name = "nexus-storage"
+
+# Service Bindings
+[[services]]
+binding = "NEXUS_CORE"
+service = "nexus-core"
+
+[[services]]
+binding = "NEXUS_DISPATCH"
+service = "nexus-dispatch"
+
+# Cron Triggers
+[[triggers]]
+crons = [
+  "* * * * *",      # Every minute: Process job queue
+  "*/5 * * * *",    # Every 5 minutes: Check scheduled jobs
+  "0 * * * *",      # Hourly: Content recycling
+  "0 0 * * *",      # Daily at midnight: Git mirror export
+  "0 6 * * *",      # Daily at 6 AM: Daily briefing
+  "0 0 * * 0",      # Weekly: Cleanup expired data
+]
+
+# Secrets (set via wrangler secret put)
+# TELEGRAM_BOT_TOKEN
+# GIT_MIRROR_REPO (format: owner/repo)
+# GIT_MIRROR_TOKEN
+
+# Observability
+[observability]
+enabled = true

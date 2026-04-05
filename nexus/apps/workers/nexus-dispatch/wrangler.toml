@@ -1,0 +1,53 @@
+# ============================================================
+# nexus-dispatch Worker Configuration
+# Platform Publishing + Playwright Fallback
+# ============================================================
+
+name = "nexus-dispatch"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database (read-only for dispatch)
+[[d1_databases]]
+binding = "DB"
+database_name = "nexus-db"
+database_id = "your-database-id-here"
+
+# KV Namespace — standardised to "KV" to match shared Env type (code-review #9)
+[[kv_namespaces]]
+binding = "KV"
+id = "your-kv-namespace-id-here"
+
+# R2 Bucket
+[[r2_buckets]]
+binding = "NEXUS_R2"
+bucket_name = "nexus-storage"
+
+# Service Bindings
+[[services]]
+binding = "NEXUS_CORE"
+service = "nexus-core"
+
+[[services]]
+binding = "NEXUS_SCHEDULER"
+service = "nexus-scheduler"
+
+# Environment Variables
+[vars]
+UTM_SOURCE = "nexus"
+UTM_MEDIUM = "social"
+
+# Secrets (set via wrangler secret put)
+# TWITTER_API_KEY
+# TWITTER_API_SECRET
+# TWITTER_ACCESS_TOKEN
+# TWITTER_ACCESS_SECRET
+# LINKEDIN_CLIENT_ID
+# LINKEDIN_CLIENT_SECRET
+# LINKEDIN_ACCESS_TOKEN
+# PLAYWRIGHT_WS_ENDPOINT
+
+# Observability
+[observability]
+enabled = true

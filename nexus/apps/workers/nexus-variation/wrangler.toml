@@ -1,0 +1,19 @@
+name = "nexus-variation"
+main = "src/index.ts"
+compatibility_date = "2026-03-31"
+
+# ── Service Bindings (free internal routing) ──
+
+[[services]]
+binding = "NEXUS_AI"
+service = "nexus-ai"
+
+[[services]]
+binding = "NEXUS_STORAGE"
+service = "nexus-storage"
+
+# ── KV Namespace (fast config reads: platform rules, social channel rules) ──
+[[kv_namespaces]]
+binding = "KV"
+id = "4b1067e47d0e4cbd8c7c91592ba5238c"
+# Replace placeholder-kv-id after running: wrangler kv namespace create CACHE

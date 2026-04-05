@@ -1,0 +1,40 @@
+name = "nexus-workflow"
+main = "src/index.ts"
+compatibility_date = "2026-03-31"
+
+# ── Workers AI binding (for image generation) ──
+[ai]
+binding = "AI"
+
+# ── Service Bindings (free internal routing) ──
+
+[[services]]
+binding = "NEXUS_AI"
+service = "nexus-ai"
+
+[[services]]
+binding = "NEXUS_STORAGE"
+service = "nexus-storage"
+
+[[services]]
+binding = "NEXUS_VARIATION"
+service = "nexus-variation"
+
+# ── D1 Database (workflow state, runs, steps) ──
+[[d1_databases]]
+binding = "DB"
+database_name = "nexus-db"
+database_id = "f73cd60b-1baa-4e80-8e13-afb88960051d"
+# Replace placeholder-d1-id after running: wrangler d1 create nexus-db
+
+# ── KV Namespace (prompt templates, config cache) ──
+[[kv_namespaces]]
+binding = "KV"
+id = "4b1067e47d0e4cbd8c7c91592ba5238c"
+# Replace placeholder-kv-id after running: wrangler kv namespace create CACHE
+
+# ── CF Workflows ──
+[[workflows]]
+name = "nexus-product-workflow"
+binding = "PRODUCT_WORKFLOW"
+class_name = "NexusProductWorkflow"

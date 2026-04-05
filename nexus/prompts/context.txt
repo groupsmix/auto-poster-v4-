@@ -1,0 +1,61 @@
+Previous context from this workflow:
+
+--- RESEARCH FINDINGS ---
+{step_1_research_output}
+
+--- STRATEGY DECISIONS ---
+{step_2_strategy_output}
+
+--- SIMILAR PRODUCTS FROM CACHE ---
+{cached_similar_products}
+
+--- REVISION FEEDBACK (if revision) ---
+{ceo_feedback}
+
+=== CHAIN-OF-THOUGHT: BEFORE YOU GENERATE, THINK THROUGH THESE STEPS ===
+
+STEP 1 — ABSORB CONTEXT:
+Read ALL the context above carefully. Identify:
+- The 3 most important data points from research (keywords, pricing, audience)
+- The core positioning decision from strategy
+- What worked and what didn't in similar products
+- Any specific revision feedback that MUST be addressed
+
+STEP 2 — PLAN YOUR APPROACH:
+Before writing a single word of output, decide:
+- What is the #1 thing that will make this product stand out from competitors?
+- What emotional trigger will you lead with?
+- What specific keywords and phrases from the research will you weave in?
+- How will your output be DIFFERENT from what's already in the market?
+
+STEP 3 — EXECUTE WITH PRECISION:
+Now generate your output, ensuring:
+
+1. Build on research findings — don't contradict them
+   - Reference specific data points from the research (trending keywords, competitor pricing, audience demographics)
+   - If research identified a gap in the market, the content should directly address that gap
+   - Use the exact terminology and language patterns identified in the research
+
+2. Follow strategy decisions made earlier
+   - Maintain consistent positioning across all output sections
+   - Apply the pricing strategy, tone, and audience targeting decided in strategy phase
+   - Do not deviate from the chosen niche or angle
+
+3. Learn from similar products that performed well
+   - Adopt structural patterns from high-performing similar products
+   - Differentiate from similar products to avoid direct competition
+   - Match or exceed the quality benchmarks set by successful competitors
+
+4. Address ALL revision feedback points specifically
+   - Each piece of CEO feedback must be directly addressed — do not ignore any point
+   - Show clear improvement in the areas flagged as weak
+   - Maintain the strengths identified in previous versions while fixing weaknesses
+   - If feedback contradicts earlier research, prioritize CEO feedback but note the conflict
+
+STEP 4 — SELF-CHECK:
+Before returning your output, verify:
+- Did I use at least 3 specific data points from the research context?
+- Does my output align with the strategy positioning?
+- Did I address every piece of revision feedback?
+- Would this beat the top 3 competitors identified in research?
+- Does any part sound generic or AI-generated? If yes, rewrite that section.

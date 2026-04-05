@@ -1,0 +1,68 @@
+name = "nexus-ai"
+main = "src/index.ts"
+compatibility_date = "2026-03-31"
+
+# ── Workers AI binding (on-platform, no API key needed) ──
+[ai]
+binding = "AI"
+
+# ── AI Gateway (free logging, caching, rate limiting) ──
+# Create via: CF Dashboard → AI → AI Gateway → Create gateway "nexus-gateway"
+# Then set the gateway ID below
+[vars]
+AI_GATEWAY_ID = "nexus-gateway"
+# CF_ACCOUNT_ID is set via: wrangler secret put CF_ACCOUNT_ID
+
+# ── D1 Database (health scores, analytics) ──
+[[d1_databases]]
+binding = "DB"
+database_name = "nexus-db"
+database_id = "f73cd60b-1baa-4e80-8e13-afb88960051d"
+# Replace placeholder-d1-id after running: wrangler d1 create nexus-db
+
+# ── KV Namespace (AI response cache) ──
+[[kv_namespaces]]
+binding = "KV"
+id = "4b1067e47d0e4cbd8c7c91592ba5238c"
+# Replace placeholder-kv-id after running: wrangler kv namespace create CACHE
+
+# ── Service Binding to nexus-storage (for D1/KV writes) ──
+[[services]]
+binding = "NEXUS_STORAGE"
+service = "nexus-storage"
+
+# ── Secrets (AI API keys — set via wrangler secret put <NAME>) ──
+# Active now (free/cheap):
+#   wrangler secret put TAVILY_API_KEY
+#   wrangler secret put EXA_API_KEY
+#   wrangler secret put SERPAPI_KEY
+#   wrangler secret put DEEPSEEK_API_KEY
+#   wrangler secret put DASHSCOPE_API_KEY
+#   wrangler secret put SILICONFLOW_API_KEY
+#   wrangler secret put FIREWORKS_API_KEY
+#   wrangler secret put GROQ_API_KEY
+#   wrangler secret put HF_TOKEN
+#   wrangler secret put FAL_API_KEY
+#   wrangler secret put OPENROUTER_API_KEY
+#   wrangler secret put MOONSHOT_API_KEY
+#   wrangler secret put DATAFORSEO_KEY
+#   wrangler secret put PRINTFUL_API_KEY
+#   wrangler secret put PRINTIFY_API_KEY
+#   wrangler secret put SUNO_API_KEY
+#
+# No key needed (included in $5 plan):
+#   Workers AI — @cf/meta/llama-3.1-8b-instruct (text)
+#   Workers AI — @cf/stabilityai/stable-diffusion-xl-base-1.0 (images)
+#   Workers AI — @cf/openai/whisper (speech)
+#   AI Gateway — logging, caching, rate limiting
+#
+# Add when ready (sleeping until key added):
+#   wrangler secret put ANTHROPIC_API_KEY
+#   wrangler secret put OPENAI_API_KEY
+#   wrangler secret put GOOGLE_API_KEY
+#   wrangler secret put MIDJOURNEY_API_KEY
+#   wrangler secret put IDEOGRAM_API_KEY
+#   wrangler secret put ELEVENLABS_API_KEY
+#   wrangler secret put CARTESIA_API_KEY
+#   wrangler secret put PERPLEXITY_API_KEY
+#   wrangler secret put PLACEIT_API_KEY

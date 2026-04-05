@@ -1,0 +1,68 @@
+# ============================================================
+# NEXUS — CI Pipeline
+# ============================================================
+# Runs on every push and PR to catch issues before merging.
+# Steps: install → build → typecheck → lint → test
+# ============================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'nexus/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'nexus/**'
+  workflow_call: # Allow deploy.yml to use this as a reusable workflow
+
+jobs:
+  ci:
+    name: Build, Typecheck, Lint, Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexus
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('nexus/pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Test
+        run: npx vitest run

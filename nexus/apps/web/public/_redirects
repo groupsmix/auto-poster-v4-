@@ -1,0 +1,4 @@
+# Cloudflare Pages automatically serves 404.html for unmatched paths.
+# No wildcard rewrite needed — Next.js static export generates 404.html
+# from app/not-found.tsx, which acts as the SPA catch-all for
+# user-created domains and categories.

@@ -1,0 +1,13 @@
+Domain context: Affiliate Marketing
+Key facts:
+- Trust and authenticity drive conversions -- readers can detect insincere recommendations instantly
+- Comparison content and honest reviews with pros AND cons perform best for affiliate conversions
+- SEO is the primary traffic source for evergreen affiliate content -- target buyer-intent keywords
+- Disclosure and transparency are legally required (FTC guidelines) -- always include clear affiliate disclaimers
+- "Best [product] for [use case]" and "[Product A] vs [Product B]" are the highest-converting content formats
+- Long-form, comprehensive reviews (2000+ words) with personal experience signals outrank thin content
+- Email list building converts affiliate traffic at 3-10x the rate of one-time blog visits
+- Commission structures vary wildly: physical products (3-10%), digital products (20-50%), SaaS (20-40% recurring)
+- Seasonal buying guides and deal roundups create predictable traffic spikes during Q4 and major sales events
+- Keywords: "best [product] for [audience]", "[product] review [year]", "[product A] vs [product B]", "is [product] worth it"
+- Click-through optimization: comparison tables, pros/cons boxes, and clear CTA buttons outperform inline text links

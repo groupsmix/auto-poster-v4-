@@ -1,0 +1,192 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+
+interface UseApiQueryOptions {
+  /**
+   * Optional dependency array; the query re-runs whenever any value in
+   * this array changes (similar to useEffect deps).
+   */
+  deps?: readonly unknown[];
+  /**
+   * Re-fetch data when the browser tab regains focus.
+   * Prevents looking at stale data after switching tabs.
+   * @default true
+   */
+  refetchOnFocus?: boolean;
+  /**
+   * Polling interval in milliseconds. When set, the hook re-fetches
+   * data at this interval. Polling pauses when the tab is hidden.
+   * @default undefined (no polling)
+   */
+  pollInterval?: number;
+}
+
+interface UseApiQueryResult<T> {
+  data: T;
+  loading: boolean;
+  error: string | null;
+  isUsingMock: boolean;
+  refetch: () => void;
+}
+
+/**
+ * Centralised hook for fetching API data.
+ *
+ * When the API call fails or returns `{ success: false }`, the hook
+ * keeps `data` at the `fallback` value and sets `error` with the
+ * failure message so the UI can display a proper error state.
+ *
+ * Features:
+ * - Automatic refetch on window focus (stale-while-revalidate pattern)
+ * - Optional polling interval for near-real-time data
+ * - Dependency array support for reactive re-fetching
+ *
+ * @param fetcher  — async function that calls the API
+ * @param fallback — initial/fallback data (e.g. `[]` for lists, `null` for objects)
+ * @param depsOrOptions — dependency array (legacy) or options object
+ */
+export function useApiQuery<T>(
+  fetcher: () => Promise<{ success: boolean; data?: T; error?: string }>,
+  fallback: T,
+  depsOrOptions: readonly unknown[] | UseApiQueryOptions = {},
+): UseApiQueryResult<T> {
+  // Support legacy array-of-deps signature and new options object
+  const options: UseApiQueryOptions = Array.isArray(depsOrOptions)
+    ? { deps: depsOrOptions as readonly unknown[] }
+    : (depsOrOptions as UseApiQueryOptions);
+
+  const {
+    deps = [],
+    refetchOnFocus = true,
+    pollInterval,
+  } = options;
+
+  const [data, setData] = useState<T>(fallback);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isUsingMock, setIsUsingMock] = useState(false);
+
+  // Keep a stable reference to the fetcher so callers don't need to
+  // memoize it themselves (we still honour identity changes).
+  const fetcherRef = useRef(fetcher);
+  fetcherRef.current = fetcher;
+
+  // Stable reference to fallback — avoids recreating doFetch every render
+  // when callers pass an inline literal (e.g. `[] as Domain[]`).
+  const fallbackRef = useRef(fallback);
+  fallbackRef.current = fallback;
+
+  // Track whether we've completed at least one fetch
+  const hasLoadedRef = useRef(false);
+  // Prevent overlapping fetches from piling up requests
+  const isFetchingRef = useRef(false);
+  // Cooldown after errors to prevent rapid-fire retry loops
+  const errorCooldownRef = useRef(0);
+  // Consecutive failure counter — surfaces persistent API issues (code-review #10)
+  const consecutiveFailuresRef = useRef(0);
+
+  const doFetch = useCallback(async () => {
+    // Skip if a fetch is already in-flight to prevent request pile-up
+    if (isFetchingRef.current) return;
+
+    // Respect error cooldown — don't retry until cooldown expires
+    if (errorCooldownRef.current > Date.now()) return;
+
+    isFetchingRef.current = true;
+
+    // Only show loading spinner on the initial fetch, not on background refetches
+    if (!hasLoadedRef.current) {
+      setLoading(true);
+    }
+    setError(null);
+
+    try {
+      const response = await fetcherRef.current();
+      if (response.success && response.data) {
+        setData(response.data);
+        setIsUsingMock(false);
+        setError(null);
+        // Clear cooldown and failure counter on success
+        errorCooldownRef.current = 0;
+        consecutiveFailuresRef.current = 0;
+      } else {
+        // API returned an unsuccessful response — keep existing data if we have it,
+        // otherwise use fallback
+        if (!hasLoadedRef.current) {
+          setData(fallbackRef.current);
+        }
+        setError(response.error || "Failed to load data");
+        setIsUsingMock(true);
+        // Set cooldown: 5s after error to prevent rapid retry loops
+        errorCooldownRef.current = Date.now() + 5000;
+        consecutiveFailuresRef.current++;
+        if (consecutiveFailuresRef.current >= 3) {
+          console.warn(
+            `[NEXUS] API unreachable after ${consecutiveFailuresRef.current} consecutive failures. ` +
+            `Check that nexus-router is deployed and NEXT_PUBLIC_API_URL is correct.`
+          );
+        }
+      }
+    } catch (e) {
+      // Network / parse error — keep existing data if we have it
+      if (!hasLoadedRef.current) {
+        setData(fallbackRef.current);
+      }
+      setError(e instanceof Error ? e.message : "Network error");
+      setIsUsingMock(true);
+      // Set cooldown: 5s after error
+      errorCooldownRef.current = Date.now() + 5000;
+      consecutiveFailuresRef.current++;
+      if (consecutiveFailuresRef.current >= 3) {
+        console.warn(
+          `[NEXUS] API unreachable after ${consecutiveFailuresRef.current} consecutive failures. ` +
+          `Check that nexus-router is deployed and NEXT_PUBLIC_API_URL is correct.`
+        );
+      }
+    } finally {
+      setLoading(false);
+      hasLoadedRef.current = true;
+      isFetchingRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+
+  // Initial fetch + re-fetch when deps change
+  useEffect(() => {
+    doFetch();
+  }, [doFetch]);
+
+  // Refetch on window focus (stale-while-revalidate) — throttled to once per 30s
+  useEffect(() => {
+    if (!refetchOnFocus) return;
+
+    let lastFocusFetch = 0;
+    const FOCUS_THROTTLE_MS = 30_000;
+
+    const onFocus = () => {
+      const now = Date.now();
+      if (now - lastFocusFetch < FOCUS_THROTTLE_MS) return;
+      lastFocusFetch = now;
+      doFetch();
+    };
+
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refetchOnFocus, doFetch]);
+
+  // Optional polling interval (pauses when tab is hidden)
+  useEffect(() => {
+    if (!pollInterval || pollInterval <= 0) return;
+
+    const id = setInterval(() => {
+      if (!document.hidden) {
+        doFetch();
+      }
+    }, pollInterval);
+
+    return () => clearInterval(id);
+  }, [pollInterval, doFetch]);
+
+  return { data, loading, error, isUsingMock, refetch: doFetch };
+}

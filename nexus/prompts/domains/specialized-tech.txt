@@ -1,0 +1,12 @@
+Domain context: Specialized Technology (AI, Cybersecurity, PropTech, DeepTech)
+Key facts:
+- Buyers are technically sophisticated -- generic marketing language destroys credibility instantly
+- Domain expertise must be demonstrated through specific technical details, not buzzwords
+- AI/ML products: emphasize practical applications, integration ease, and measurable ROI over raw model performance
+- Cybersecurity products: compliance frameworks (SOC2, GDPR, HIPAA), threat models, and audit readiness sell
+- PropTech products: focus on time savings, cost reduction, regulatory compliance, and portfolio scalability
+- Technical documentation quality directly correlates with product perceived value and adoption
+- Open-source alternatives exist for most tools -- differentiation must come from UX, support, or specialization
+- B2B pricing models dominate: per-seat, usage-based, or tiered SaaS pricing with enterprise tiers
+- Case studies with quantifiable results (ROI, time saved, incidents prevented) outperform feature lists
+- Early adopters in tech niches are vocal advocates -- optimize for word-of-mouth and community building

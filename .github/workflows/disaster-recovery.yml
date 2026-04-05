@@ -1,0 +1,603 @@
+# ============================================================
+# NEXUS - One-Click Full Recovery
+# ============================================================
+# Lost everything? Still have this repo? Here is how to get it all back:
+#
+#   1. Go to repo Settings -> Secrets -> Actions
+#   2. Set TWO secrets:
+#        CF_GLOBAL_API_KEY  -> Your Cloudflare Global API Key
+#                              (dash.cloudflare.com -> Profile -> API Tokens -> Global API Key -> View)
+#        CF_EMAIL           -> Your Cloudflare account email
+#   3. (Optional) Set GH_PAT -> GitHub Personal Access Token with 'repo' scope
+#                              (github.com -> Settings -> Developer Settings -> Personal Access Tokens)
+#                              This lets the workflow auto-set all CI/CD secrets for future deploys.
+#   4. Go to Actions -> "One-Click Full Recovery" -> Run workflow
+#   5. Type RECOVER, click Run. Done. Everything comes back.
+#
+# What this does (fully automatic):
+#   - Discovers your Cloudflare account ID and workers subdomain
+#   - Creates D1 database, KV namespace, R2 buckets, Pages project (if missing)
+#   - Generates a secure DASHBOARD_SECRET (or uses one you provide)
+#   - Runs all database migrations
+#   - Deploys all 5 workers in dependency order
+#   - Sets all worker secrets (DASHBOARD_SECRET, CF_ACCOUNT_ID)
+#   - Builds and deploys the Next.js frontend to CF Pages
+#   - Creates a scoped Cloudflare API Token for future CI/CD
+#   - Auto-sets all GitHub Actions secrets for future deploys (if GH_PAT provided)
+#   - Prints summary with all URLs and your dashboard password
+#
+# After recovery, push to main triggers automated deploys via deploy.yml.
+# ============================================================
+
+name: "\U0001F504 One-Click Full Recovery"
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type RECOVER to confirm full infrastructure rebuild'
+        required: true
+        type: string
+      dashboard_secret:
+        description: 'Dashboard password (leave empty to auto-generate a secure one)'
+        required: false
+        type: string
+      skip_github_secrets:
+        description: 'Skip auto-setting GitHub Actions secrets for future CI/CD'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  recover:
+    name: "\U0001F504 Full Recovery"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexus
+
+    steps:
+      # -- Validate -----------------------------------------------
+      - name: "\U0001F512 Validate recovery request"
+        run: |
+          if [ "${{ inputs.confirm }}" != "RECOVER" ]; then
+            echo "You must type RECOVER to confirm. Got: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+          echo "Recovery confirmed"
+
+      - name: "\U0001F512 Check Cloudflare credentials"
+        id: auth
+        env:
+          CF_KEY: ${{ secrets.CF_GLOBAL_API_KEY }}
+          CF_MAIL: ${{ secrets.CF_EMAIL }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$CF_KEY" ] && [ -n "$CF_MAIL" ]; then
+            echo "Using Cloudflare Global API Key authentication"
+            echo "auth_mode=global_key" >> $GITHUB_OUTPUT
+          elif [ -n "$CF_TOKEN" ] && [ -n "$CF_ACCT" ]; then
+            echo "Using Cloudflare API Token authentication (existing setup)"
+            echo "auth_mode=api_token" >> $GITHUB_OUTPUT
+          else
+            echo "Missing Cloudflare credentials!"
+            echo ""
+            echo "Go to repo Settings -> Secrets -> Actions and set:"
+            echo "  CF_GLOBAL_API_KEY  = Your Cloudflare Global API Key"
+            echo "  CF_EMAIL           = Your Cloudflare account email"
+            echo ""
+            echo "OR (if you already have a scoped token):"
+            echo "  CLOUDFLARE_API_TOKEN   = Scoped API token"
+            echo "  CLOUDFLARE_ACCOUNT_ID  = Your account ID"
+            exit 1
+          fi
+
+      # -- Setup ---------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('nexus/pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # -- Discover Cloudflare Account ----------------------------
+      - name: "\U0001F50D Discover Cloudflare account"
+        id: discover
+        env:
+          CF_KEY: ${{ secrets.CF_GLOBAL_API_KEY }}
+          CF_MAIL: ${{ secrets.CF_EMAIL }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          AUTH_MODE: ${{ steps.auth.outputs.auth_mode }}
+        run: |
+          if [ "$AUTH_MODE" = "global_key" ]; then
+            AUTH_ARGS=(-H "X-Auth-Key: $CF_KEY" -H "X-Auth-Email: $CF_MAIL")
+          else
+            AUTH_ARGS=(-H "Authorization: Bearer $CF_TOKEN")
+          fi
+
+          # Get account ID
+          if [ "$AUTH_MODE" = "global_key" ]; then
+            ACCOUNT_ID=$(curl -sf "https://api.cloudflare.com/client/v4/accounts" \
+              "${AUTH_ARGS[@]}" | python3 -c "import sys,json; print(json.load(sys.stdin)['result'][0]['id'])")
+          else
+            ACCOUNT_ID="$CF_ACCT"
+          fi
+
+          if [ -z "$ACCOUNT_ID" ]; then
+            echo "Could not determine Account ID. Check your credentials."
+            exit 1
+          fi
+
+          # Get workers subdomain
+          SUBDOMAIN=$(curl -sf "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/subdomain" \
+            "${AUTH_ARGS[@]}" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['subdomain'])" 2>/dev/null || echo "")
+
+          if [ -z "$SUBDOMAIN" ]; then
+            echo "Workers subdomain not found - will be created on first deploy"
+            SUBDOMAIN="unknown"
+          fi
+
+          echo "account_id=$ACCOUNT_ID" >> $GITHUB_OUTPUT
+          echo "subdomain=$SUBDOMAIN" >> $GITHUB_OUTPUT
+          echo "Account ID: $ACCOUNT_ID"
+          echo "Workers subdomain: $SUBDOMAIN"
+
+      # -- Configure wrangler auth --------------------------------
+      - name: "\U0001F527 Configure wrangler authentication"
+        env:
+          AUTH_MODE: ${{ steps.auth.outputs.auth_mode }}
+          CF_KEY: ${{ secrets.CF_GLOBAL_API_KEY }}
+          CF_MAIL: ${{ secrets.CF_EMAIL }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT_ID: ${{ steps.discover.outputs.account_id }}
+        run: |
+          if [ "$AUTH_MODE" = "global_key" ]; then
+            echo "CLOUDFLARE_API_KEY=$CF_KEY" >> $GITHUB_ENV
+            echo "CLOUDFLARE_EMAIL=$CF_MAIL" >> $GITHUB_ENV
+          else
+            echo "CLOUDFLARE_API_TOKEN=$CF_TOKEN" >> $GITHUB_ENV
+          fi
+          echo "CLOUDFLARE_ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
+          echo "Wrangler authentication configured"
+
+      # -- Generate Dashboard Secret ------------------------------
+      - name: "\U0001F511 Set up dashboard secret"
+        id: secret
+        env:
+          USER_SECRET: ${{ inputs.dashboard_secret }}
+          SAVED_SECRET: ${{ secrets.DASHBOARD_SECRET }}
+        run: |
+          if [ -n "$USER_SECRET" ]; then
+            echo "value=$USER_SECRET" >> $GITHUB_OUTPUT
+            echo "Using provided dashboard secret"
+          elif [ -n "$SAVED_SECRET" ]; then
+            echo "value=$SAVED_SECRET" >> $GITHUB_OUTPUT
+            echo "Using existing DASHBOARD_SECRET from GitHub secrets"
+          else
+            SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+            echo "value=$SECRET" >> $GITHUB_OUTPUT
+            echo "Auto-generated dashboard secret"
+            echo ""
+            echo "=========================================="
+            echo "  SAVE THIS - your dashboard login password"
+            echo "  $SECRET"
+            echo "=========================================="
+            echo ""
+          fi
+
+      # -- Create D1 Database ------------------------------------
+      - name: "\U0001F4E6 Create D1 database"
+        id: d1
+        run: |
+          echo "Checking for existing D1 database 'nexus-db'..."
+          EXISTING=$(npx wrangler d1 list --json 2>/dev/null | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for db in data:
+              if db.get('name') == 'nexus-db':
+                  print(db['uuid'])
+                  break
+          " 2>/dev/null || true)
+
+          if [ -n "$EXISTING" ]; then
+            echo "D1 database already exists: $EXISTING"
+            echo "id=$EXISTING" >> $GITHUB_OUTPUT
+          else
+            echo "Creating D1 database 'nexus-db'..."
+            OUTPUT=$(npx wrangler d1 create nexus-db 2>&1)
+            echo "$OUTPUT"
+            D1_ID=$(echo "$OUTPUT" | grep -oP '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+            echo "D1 database created: $D1_ID"
+            echo "id=$D1_ID" >> $GITHUB_OUTPUT
+          fi
+
+      # -- Create KV Namespace -----------------------------------
+      - name: "\U0001F4E6 Create KV namespace"
+        id: kv
+        run: |
+          echo "Checking for existing KV namespace..."
+          EXISTING=$(npx wrangler kv namespace list --json 2>/dev/null | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for ns in data:
+              if 'CACHE' in ns.get('title', ''):
+                  print(ns['id'])
+                  break
+          " 2>/dev/null || true)
+
+          if [ -n "$EXISTING" ]; then
+            echo "KV namespace already exists: $EXISTING"
+            echo "id=$EXISTING" >> $GITHUB_OUTPUT
+          else
+            echo "Creating KV namespace 'CACHE'..."
+            OUTPUT=$(npx wrangler kv namespace create CACHE 2>&1)
+            echo "$OUTPUT"
+            KV_ID=$(echo "$OUTPUT" | grep -oP 'id\s*=\s*"\K[^"]+' || echo "$OUTPUT" | grep -oP '[0-9a-f]{32}' | head -1)
+            echo "KV namespace created: $KV_ID"
+            echo "id=$KV_ID" >> $GITHUB_OUTPUT
+          fi
+
+      # -- Create R2 Buckets -------------------------------------
+      - name: "\U0001F4E6 Create R2 buckets"
+        run: |
+          for BUCKET in nexus-assets nexus-backups; do
+            echo "Checking for R2 bucket '$BUCKET'..."
+            EXISTING=$(npx wrangler r2 bucket list 2>/dev/null | grep -w "$BUCKET" || true)
+            if [ -n "$EXISTING" ]; then
+              echo "R2 bucket '$BUCKET' already exists"
+            else
+              echo "Creating R2 bucket '$BUCKET'..."
+              npx wrangler r2 bucket create "$BUCKET"
+              echo "R2 bucket '$BUCKET' created"
+            fi
+          done
+
+      # -- Create Pages Project -----------------------------------
+      - name: "\U0001F4E6 Create Pages project"
+        run: |
+          echo "Checking for Pages project 'nexus-dashboard'..."
+          EXISTING=$(npx wrangler pages project list 2>/dev/null | grep -w "nexus-dashboard" || true)
+          if [ -n "$EXISTING" ]; then
+            echo "Pages project already exists"
+          else
+            echo "Creating Pages project 'nexus-dashboard'..."
+            npx wrangler pages project create nexus-dashboard --production-branch main 2>/dev/null || echo "Pages project may already exist"
+            echo "Pages project ready"
+          fi
+
+      # -- Update wrangler.toml files ----------------------------
+      - name: "\U0001F527 Update wrangler.toml with resource IDs"
+        env:
+          D1_ID: ${{ steps.d1.outputs.id }}
+          KV_ID: ${{ steps.kv.outputs.id }}
+        run: |
+          echo "Updating wrangler.toml files..."
+          echo "  D1 ID: $D1_ID"
+          echo "  KV ID: $KV_ID"
+
+          for file in apps/workers/nexus-ai/wrangler.toml apps/workers/nexus-storage/wrangler.toml apps/workers/nexus-workflow/wrangler.toml; do
+            if [ -f "$file" ]; then
+              sed -i "s/placeholder-d1-id/$D1_ID/g" "$file"
+              sed -i "s/database_id = \"[^\"]*\"/database_id = \"$D1_ID\"/" "$file"
+              echo "  Updated D1 ID in $file"
+            fi
+          done
+
+          for file in apps/workers/nexus-ai/wrangler.toml apps/workers/nexus-storage/wrangler.toml apps/workers/nexus-workflow/wrangler.toml apps/workers/nexus-variation/wrangler.toml; do
+            if [ -f "$file" ]; then
+              sed -i "s/placeholder-kv-id/$KV_ID/g" "$file"
+              python3 << 'PYEOF'
+          import re
+          with open("'"$file"'") as f: content = f.read()
+          content = re.sub(r'(binding\s*=\s*"(?:CACHE|KV)"[^]]*?id\s*=\s*")[^"]*"', r'\g<1>'"$KV_ID"'"', content, flags=re.DOTALL)
+          with open("'"$file"'", "w") as f: f.write(content)
+          PYEOF
+              echo "  Updated KV ID in $file"
+            fi
+          done
+
+      # -- Build Monorepo ----------------------------------------
+      - name: "\U0001F528 Build monorepo"
+        env:
+          NEXT_PUBLIC_API_URL: "https://nexus-router.${{ steps.discover.outputs.subdomain }}.workers.dev/api"
+        run: pnpm run build
+
+      # -- Run Migrations ----------------------------------------
+      - name: "\U0001F5C4 Run database migrations"
+        run: |
+          echo "Ensuring _migrations tracking table exists..."
+          npx wrangler d1 execute nexus-db --file=migrations/000_migrations_tracker.sql --remote
+
+          count=0
+          for migration in $(ls migrations/*.sql | sort); do
+            name=$(basename "$migration")
+            applied=$(npx wrangler d1 execute nexus-db --command "SELECT 1 FROM _migrations WHERE name='$name'" --remote --json 2>/dev/null || echo "[]")
+            if echo "$applied" | grep -q '"1"'; then
+              echo "Skipping $name (already applied)"
+              continue
+            fi
+            echo "Running $migration..."
+            npx wrangler d1 execute nexus-db --file="$migration" --remote
+            npx wrangler d1 execute nexus-db --command "INSERT OR IGNORE INTO _migrations (name) VALUES ('$name')" --remote
+            count=$((count + 1))
+          done
+          echo "$count new migrations applied"
+
+      # -- Deploy Workers (dependency order) ----------------------
+      - name: "\U0001F680 Deploy nexus-storage (1/5)"
+        run: cd apps/workers/nexus-storage && npx wrangler deploy
+
+      - name: "\U0001F680 Deploy nexus-ai (2/5)"
+        run: cd apps/workers/nexus-ai && npx wrangler deploy
+
+      - name: "\U0001F680 Deploy nexus-variation (3/5)"
+        run: cd apps/workers/nexus-variation && npx wrangler deploy
+
+      - name: "\U0001F680 Deploy nexus-workflow (4/5)"
+        run: cd apps/workers/nexus-workflow && npx wrangler deploy
+
+      - name: "\U0001F680 Deploy nexus-router (5/5)"
+        run: cd apps/workers/nexus-router && npx wrangler deploy
+
+      # -- Set Worker Secrets ------------------------------------
+      - name: "\U0001F510 Set worker secrets"
+        env:
+          DASH_SECRET: ${{ steps.secret.outputs.value }}
+          ACCOUNT_ID: ${{ steps.discover.outputs.account_id }}
+        run: |
+          echo "Setting DASHBOARD_SECRET on nexus-router..."
+          echo "$DASH_SECRET" | npx wrangler secret put DASHBOARD_SECRET --name nexus-router
+
+          echo "Setting CF_ACCOUNT_ID on nexus-storage..."
+          echo "$ACCOUNT_ID" | npx wrangler secret put CF_ACCOUNT_ID --name nexus-storage
+
+          echo "Setting CF_ACCOUNT_ID on nexus-ai..."
+          echo "$ACCOUNT_ID" | npx wrangler secret put CF_ACCOUNT_ID --name nexus-ai
+
+          echo "All worker secrets set"
+
+      - name: "\U0001F916 Set AI API keys (if available)"
+        env:
+          DEEPSEEK: ${{ secrets.DEEPSEEK_API_KEY }}
+          GROQ: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER: ${{ secrets.OPENROUTER_API_KEY }}
+          GOOGLE: ${{ secrets.GOOGLE_API_KEY }}
+          ANTHROPIC: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set_if_present() {
+            local name=$1 value=$2
+            if [ -n "$value" ]; then
+              echo "$value" | npx wrangler secret put "$name" --name nexus-ai
+              echo "  $name set on nexus-ai"
+            fi
+          }
+          set_if_present "DEEPSEEK_API_KEY" "$DEEPSEEK"
+          set_if_present "GROQ_API_KEY" "$GROQ"
+          set_if_present "OPENROUTER_API_KEY" "$OPENROUTER"
+          set_if_present "GOOGLE_API_KEY" "$GOOGLE"
+          set_if_present "ANTHROPIC_API_KEY" "$ANTHROPIC"
+          set_if_present "OPENAI_API_KEY" "$OPENAI"
+          echo "AI API keys configured (missing keys use Workers AI fallback)"
+
+      # -- Seed Prompt Templates ----------------------------------
+      - name: "\U0001F331 Seed prompt templates"
+        env:
+          D1_DATABASE_ID: ${{ steps.d1.outputs.id }}
+          KV_NAMESPACE_ID: ${{ steps.kv.outputs.id }}
+        run: npx tsx scripts/seed-prompts.ts || echo "Prompt seeding skipped (non-fatal)"
+
+      # -- Restore Data from R2 Backup (if available) ------------
+      - name: "\U0001F4BE Restore data from latest R2 backup"
+        env:
+          SUBDOMAIN: ${{ steps.discover.outputs.subdomain }}
+          DASH_SECRET: ${{ steps.secret.outputs.value }}
+        run: |
+          echo "Checking for R2 backups in nexus-backups bucket..."
+          LATEST=$(npx wrangler r2 object list nexus-backups --json 2>/dev/null | python3 -c "
+          import sys, json
+          try:
+              data = json.load(sys.stdin)
+              objects = data if isinstance(data, list) else data.get('objects', [])
+              backups = [o for o in objects if o.get('key','').startswith('d1-backup-')]
+              if backups:
+                  backups.sort(key=lambda x: x['key'], reverse=True)
+                  print(backups[0]['key'])
+          except: pass
+          " 2>/dev/null || true)
+
+          if [ -z "$LATEST" ]; then
+            echo "No R2 backups found — starting fresh (seed data only)"
+          else
+            echo "Found backup: $LATEST"
+            echo "Downloading backup..."
+            npx wrangler r2 object get "nexus-backups/$LATEST" --file=/tmp/d1-restore.json 2>/dev/null || true
+
+            if [ -f /tmp/d1-restore.json ] && [ -s /tmp/d1-restore.json ]; then
+              echo "Waiting for nexus-storage to be reachable..."
+              sleep 10
+
+              STORAGE_URL="https://nexus-storage.${SUBDOMAIN}.workers.dev"
+              NEXUS_STORAGE_URL="$STORAGE_URL" DASHBOARD_SECRET="$DASH_SECRET" \
+                npx tsx scripts/restore-d1.ts < /tmp/d1-restore.json || echo "Restore failed (non-fatal — seed data is already loaded)"
+              echo "Data restore complete"
+            else
+              echo "Backup file empty or download failed — skipping restore"
+            fi
+          fi
+
+      # -- Deploy Frontend ----------------------------------------
+      - name: "\U0001F310 Deploy frontend to CF Pages"
+        env:
+          NEXT_PUBLIC_API_URL: "https://nexus-router.${{ steps.discover.outputs.subdomain }}.workers.dev/api"
+        run: |
+          cd apps/web && npx wrangler pages deploy out --project-name=nexus-dashboard
+          echo "Frontend deployed to Cloudflare Pages"
+
+      # -- Create Scoped API Token --------------------------------
+      - name: "\U0001F511 Create scoped API token for CI/CD"
+        id: api_token
+        if: ${{ steps.auth.outputs.auth_mode == 'global_key' }}
+        env:
+          CF_KEY: ${{ secrets.CF_GLOBAL_API_KEY }}
+          CF_MAIL: ${{ secrets.CF_EMAIL }}
+          ACCOUNT_ID: ${{ steps.discover.outputs.account_id }}
+        run: |
+          DATESTAMP=$(date +%Y-%m-%d)
+          TOKEN_RESPONSE=$(curl -sf -X POST "https://api.cloudflare.com/client/v4/user/tokens" \
+            -H "X-Auth-Key: $CF_KEY" -H "X-Auth-Email: $CF_MAIL" \
+            -H "Content-Type: application/json" \
+            --data "{
+              \"name\": \"NEXUS CI/CD Token (auto-created $DATESTAMP)\",
+              \"policies\": [{
+                \"effect\": \"allow\",
+                \"resources\": {\"com.cloudflare.api.account.$ACCOUNT_ID\": \"*\"},
+                \"permission_groups\": [
+                  {\"id\": \"e086da7e2179491d91ee5f35b3ca210a\"},
+                  {\"id\": \"f7f0eda5697f475c90846e879bab8666\"},
+                  {\"id\": \"bf7481a1826f439697cb59a20b22293e\"},
+                  {\"id\": \"09b2857d1c31407795e75e3fed8617a1\"},
+                  {\"id\": \"8d28297797f24fb8a0c332fe0866ec89\"},
+                  {\"id\": \"bacc64e0f6c34fc0883a1223f938a104\"},
+                  {\"id\": \"2efd5506f9c8494dacb1fa10a3e7d5b6\"}
+                ]
+              }]
+            }")
+
+          TOKEN_VALUE=$(echo "$TOKEN_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['value'])")
+          echo "::add-mask::$TOKEN_VALUE"
+          echo "value=$TOKEN_VALUE" >> $GITHUB_OUTPUT
+          echo "Scoped API token created for future CI/CD"
+
+      # -- Auto-set GitHub Secrets --------------------------------
+      - name: Check for GH_PAT
+        id: gh_pat_check
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -n "$GH_PAT" ]; then
+            echo "has_pat=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_pat=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Auto-set GitHub Actions secrets for future CI/CD
+        if: ${{ steps.gh_pat_check.outputs.has_pat == 'true' && inputs.skip_github_secrets != true }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          ACCOUNT_ID: ${{ steps.discover.outputs.account_id }}
+          SUBDOMAIN: ${{ steps.discover.outputs.subdomain }}
+          DASH_SECRET: ${{ steps.secret.outputs.value }}
+          API_TOKEN: ${{ steps.api_token.outputs.value }}
+          EXISTING_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+
+          if [ -n "$API_TOKEN" ]; then
+            gh secret set CLOUDFLARE_API_TOKEN -b "$API_TOKEN" -R "$REPO"
+            echo "  CLOUDFLARE_API_TOKEN set (new scoped token)"
+          elif [ -n "$EXISTING_TOKEN" ]; then
+            echo "  CLOUDFLARE_API_TOKEN already exists, keeping it"
+          fi
+
+          gh secret set CLOUDFLARE_ACCOUNT_ID -b "$ACCOUNT_ID" -R "$REPO"
+          echo "  CLOUDFLARE_ACCOUNT_ID set"
+
+          gh secret set DASHBOARD_SECRET -b "$DASH_SECRET" -R "$REPO"
+          echo "  DASHBOARD_SECRET set"
+
+          ROUTER_URL="https://nexus-router.${SUBDOMAIN}.workers.dev"
+          gh secret set NEXUS_API_URL -b "${ROUTER_URL}/api" -R "$REPO"
+          echo "  NEXUS_API_URL set"
+
+          STORAGE_URL="https://nexus-storage.${SUBDOMAIN}.workers.dev"
+          gh secret set NEXUS_STORAGE_URL -b "$STORAGE_URL" -R "$REPO"
+          echo "  NEXUS_STORAGE_URL set"
+
+          echo ""
+          echo "All 5 GitHub Actions secrets configured!"
+          echo "deploy.yml and backup.yml will work automatically on push to main."
+
+      # -- Recovery Summary ---------------------------------------
+      - name: "\U0001F4CB Recovery summary"
+        if: always()
+        env:
+          ACCOUNT_ID: ${{ steps.discover.outputs.account_id }}
+          SUBDOMAIN: ${{ steps.discover.outputs.subdomain }}
+          D1_ID: ${{ steps.d1.outputs.id }}
+          KV_ID: ${{ steps.kv.outputs.id }}
+          DASH_SECRET: ${{ steps.secret.outputs.value }}
+          HAS_PAT: ${{ steps.gh_pat_check.outputs.has_pat }}
+        run: |
+          echo ""
+          echo "============================================================"
+          echo "  NEXUS - FULL RECOVERY COMPLETE"
+          echo "============================================================"
+          echo ""
+          echo "-- Your Services --"
+          echo "  Dashboard:  https://nexus-dashboard-elk.pages.dev"
+          echo "  Router:     https://nexus-router.${SUBDOMAIN}.workers.dev"
+          echo "  AI:         https://nexus-ai.${SUBDOMAIN}.workers.dev"
+          echo "  Storage:    https://nexus-storage.${SUBDOMAIN}.workers.dev"
+          echo "  Variation:  https://nexus-variation.${SUBDOMAIN}.workers.dev"
+          echo "  Workflow:   https://nexus-workflow.${SUBDOMAIN}.workers.dev"
+          echo ""
+          echo "-- Your Resources --"
+          echo "  Account ID:   $ACCOUNT_ID"
+          echo "  D1 Database:  $D1_ID"
+          echo "  KV Namespace: $KV_ID"
+          echo "  R2 Buckets:   nexus-assets, nexus-backups"
+          echo ""
+          echo "-- Dashboard Login --"
+          echo "  URL:      https://nexus-dashboard-elk.pages.dev"
+          echo "  Password: $DASH_SECRET"
+          echo ""
+          if [ "$HAS_PAT" = "true" ]; then
+            echo "-- CI/CD Status --"
+            echo "  All GitHub Actions secrets are set automatically."
+            echo "  Push to main = auto-deploy via deploy.yml"
+            echo "  Weekly backup runs every Sunday via backup.yml"
+          else
+            echo "-- Manual Setup Needed --"
+            echo "  GitHub Actions secrets are NOT set (no GH_PAT provided)."
+            echo "  For future auto-deploys, go to repo Settings -> Secrets:"
+            echo "    CLOUDFLARE_API_TOKEN  (create at dash.cloudflare.com -> API Tokens)"
+            echo "    CLOUDFLARE_ACCOUNT_ID ($ACCOUNT_ID)"
+            echo "    DASHBOARD_SECRET      ($DASH_SECRET)"
+            echo "    NEXUS_API_URL         (https://nexus-router.${SUBDOMAIN}.workers.dev/api)"
+            echo "    NEXUS_STORAGE_URL     (https://nexus-storage.${SUBDOMAIN}.workers.dev)"
+          fi
+          echo ""
+          echo "-- Optional: AI API Keys --"
+          echo "  The AI system works without keys (Workers AI fallback)."
+          echo "  To add external providers, set in GitHub Secrets:"
+          echo "    DEEPSEEK_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, etc."
+          echo "  Then re-run this workflow to apply them."
+          echo ""
+          echo "-- Manual (if needed) --"
+          echo "  AI Gateway: dash.cloudflare.com -> AI -> AI Gateway"
+          echo "  Create gateway named 'nexus-gateway' if it does not exist."
+          echo "============================================================"

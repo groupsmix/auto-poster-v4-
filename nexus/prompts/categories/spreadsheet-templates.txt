@@ -1,0 +1,13 @@
+Category: Spreadsheet Templates (Google Sheets / Excel)
+Specific rules:
+- Buyers want plug-and-play financial tools -- emphasize "just enter your numbers" simplicity
+- Specify compatibility: Google Sheets (free, collaborative) vs. Excel (desktop, advanced features)
+- Built-in formulas and automation are key selling points -- mention "no manual calculations needed"
+- Price range: $7-$19 for single spreadsheets, $29-$49 for financial dashboard bundles, $79-$149 for business systems
+- Visual dashboards with charts and conditional formatting dramatically increase perceived value
+- Keywords: "[niche] spreadsheet", "budget tracker", "financial dashboard", "[business] calculator", "Google Sheets template"
+- Include instructional tab or video walkthrough explaining how to use and customize the spreadsheet
+- Protected formulas (locked cells) prevent accidental breakage -- mention this as a quality feature
+- Mobile-friendly design matters for Google Sheets users who check on their phone
+- Sample data pre-loaded helps buyers understand the template immediately after opening
+- Niche-specific versions outperform generic: "Etsy seller profit tracker" beats "business profit tracker"

@@ -1,0 +1,12 @@
+Category: Notion Templates
+Specific rules:
+- Buyers are productivity-obsessed. Language: "system", "workflow", "organized", "automated"
+- Always mention: mobile-friendly, free Notion account required, instant duplicate
+- Best performers: CRM, project manager, content calendar, habit tracker, finance tracker
+- Price range that converts: $7-$27 for single templates, $37-$97 for systems/bundles
+- Keywords that drive traffic: "notion template", "notion dashboard", "notion system", "[niche] notion"
+- Screenshots must show: database views, calendar views, kanban boards, and dashboard widgets in action
+- Emphasize customizability: "Easily modify fields, views, and layouts to match your workflow"
+- Include a video walkthrough or GIF showing the template in use -- increases conversion by 30%+
+- Mention compatibility: works with Notion free plan, personal, and team workspaces
+- Upsell path: single template -> template bundle -> complete life/business operating system

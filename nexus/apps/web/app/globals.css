@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --card-bg: #141414;
+  --card-border: #262626;
+  --card-hover: #1a1a1a;
+  --sidebar-bg: #111111;
+  --sidebar-border: #1e1e1e;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --muted: #737373;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --warning: #f59e0b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-card-hover: var(--card-hover);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-muted: var(--muted);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/*
+ * Border-radius convention:
+ *   rounded-xl  → outer containers (cards, modals, panels)
+ *   rounded-lg  → interactive elements (buttons, inputs, tabs)
+ *   rounded     → small elements (badges, tags)
+ *   rounded-full → circular elements (avatars, dots, progress bars, toggles)
+ */
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+/*
+ * Theme strategy (V1):
+ * Dark mode is the default and deliberate design choice for this power-user tool.
+ * Light mode is supported via @media (prefers-color-scheme: light) below,
+ * respecting OS-level preference. A manual theme toggle may be added in a
+ * future release via a [data-theme="light"] CSS variable set + Settings UI.
+ */
+
+/* Light mode support — respects OS-level preference */
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #f8f8f8;
+    --foreground: #171717;
+    --card-bg: #ffffff;
+    --card-border: #e5e5e5;
+    --card-hover: #f5f5f5;
+    --sidebar-bg: #ffffff;
+    --sidebar-border: #e5e5e5;
+    --accent: #4f46e5;
+    --accent-hover: #6366f1;
+    --muted: #737373;
+    --danger: #dc2626;
+    --success: #16a34a;
+    --warning: #d97706;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f8f8f8;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #d4d4d4;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #a3a3a3;
+  }
+}
