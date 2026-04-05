@@ -90,7 +90,8 @@ app.use("*", async (c, next) => {
       if (
         allowed.includes(origin) ||
         origin.startsWith("http://localhost") ||
-        (customOrigin && origin === customOrigin)
+        (customOrigin && origin === customOrigin) ||
+        (origin.endsWith(".pages.dev") && origin.includes("nexus"))
       ) {
         return origin;
       }
