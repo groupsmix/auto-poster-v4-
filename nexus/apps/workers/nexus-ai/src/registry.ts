@@ -43,7 +43,7 @@ const WORKERS_AI_IMAGE: AIModelConfig = {
 // Just set the secret on nexus-ai worker → model activates instantly.
 
 const CLAUDE_SONNET: AIModelConfig = {
-  id: "claude-sonnet", name: "Claude 3.5 Sonnet", provider: "anthropic",
+  id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet", provider: "anthropic",
   apiKeyEnvName: "ANTHROPIC_API_KEY", isWorkersAI: false, isFree: false, model: "claude-3-5-sonnet-20241022",
 };
 const GPT4O: AIModelConfig = {

@@ -147,12 +147,34 @@ export default function ProductDetailPageClient({ id }: { id: string }) {
             </div>
           </div>
         </div>
-        <button
-          onClick={() => setDeleteConfirm(true)}
-          className="shrink-0 px-4 py-2 rounded-lg bg-red-600/10 border border-red-500/30 text-red-400 text-sm font-medium hover:bg-red-600/20 transition-colors"
-        >
-          Delete Product
-        </button>
+        <div className="flex gap-2">
+          {product.status === "failed" && (
+            <button
+              onClick={async () => {
+                try {
+                  const res = await api.post(`/workflow/resume/${product.workflow_run_id || id}`, {});
+                  if (res.success) {
+                    toast.success("Workflow resumed");
+                    router.refresh();
+                  } else {
+                    toast.error(res.error || "Failed to resume workflow");
+                  }
+                } catch {
+                  toast.error("Failed to resume workflow");
+                }
+              }}
+              className="shrink-0 px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
+            >
+              Resume Workflow
+            </button>
+          )}
+          <button
+            onClick={() => setDeleteConfirm(true)}
+            className="shrink-0 px-4 py-2 rounded-lg bg-red-600/10 border border-red-500/30 text-red-400 text-sm font-medium hover:bg-red-600/20 transition-colors"
+          >
+            Delete Product
+          </button>
+        </div>
       </div>
 
       <div className="space-y-6">

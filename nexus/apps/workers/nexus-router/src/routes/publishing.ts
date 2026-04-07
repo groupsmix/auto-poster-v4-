@@ -32,9 +32,7 @@ interface PlatformVariantRow {
 interface SocialVariantRow {
   product_id: string;
   channel?: string;
-  caption?: string;
-  hashtags?: string;
-  post_type?: string;
+  content?: string;
   scheduled_time?: string;
 }
 
@@ -81,11 +79,13 @@ publishing.get("/ready", async (c) => {
     // 1. Fetch approved products
     const products = await storageQuery<ProductRow[]>(
       c.env,
-      `SELECT p.id, p.name, p.status, p.ai_score,
+      `SELECT p.id, p.name, p.status,
+              COALESCE(r.ai_score, 0) as ai_score,
               d.name as domain_name, cat.name as category_name
        FROM products p
        LEFT JOIN domains d ON d.id = p.domain_id
        LEFT JOIN categories cat ON cat.id = p.category_id
+       LEFT JOIN (SELECT product_id, ai_score FROM reviews ORDER BY version DESC LIMIT 1) r ON r.product_id = p.id
        WHERE p.status = '${PRODUCT_STATUS.APPROVED}'
        ORDER BY p.updated_at DESC`
     );
@@ -103,7 +103,7 @@ publishing.get("/ready", async (c) => {
       storageQuery<PlatformVariantRow[]>(
         c.env,
         `SELECT pv.product_id, pl.slug as platform, pv.title, pv.description, pv.tags, pv.price,
-                pv.seo_score, pv.title_score, pv.tags_score
+                0 as seo_score, 0 as title_score, 0 as tags_score
          FROM platform_variants pv
          JOIN platforms pl ON pl.id = pv.platform_id
          WHERE pv.product_id IN (${placeholders})`,
@@ -111,7 +111,9 @@ publishing.get("/ready", async (c) => {
       ),
       storageQuery<SocialVariantRow[]>(
         c.env,
-        `SELECT sv.product_id, sc.slug as channel, sv.caption, sv.hashtags, sv.post_type, sv.scheduled_time
+        `SELECT sv.product_id, sc.slug as channel,
+                sv.content,
+                sv.scheduled_at as scheduled_time
          FROM social_variants sv
          JOIN social_channels sc ON sc.id = sv.channel_id
          WHERE sv.product_id IN (${placeholders})`,
@@ -149,13 +151,27 @@ publishing.get("/ready", async (c) => {
         price: pv.price ?? 0,
         scores: { seo: pv.seo_score ?? 0, title: pv.title_score ?? 0, tags: pv.tags_score ?? 0 },
       })),
-      social_variants: (svByProduct[p.id] ?? []).map((sv) => ({
-        channel: sv.channel ?? "",
-        caption: sv.caption ?? "",
-        hashtags: parseTags(sv.hashtags as string | undefined),
-        post_type: sv.post_type ?? "",
-        scheduled_time: sv.scheduled_time ?? undefined,
-      })),
+      social_variants: (svByProduct[p.id] ?? []).map((sv) => {
+        let caption = "";
+        let hashtags: string[] = [];
+        let post_type = "";
+        try {
+          const parsed = sv.content ? JSON.parse(sv.content) : {};
+          caption = parsed.caption ?? parsed.content ?? "";
+          hashtags = Array.isArray(parsed.hashtags) ? parsed.hashtags
+            : typeof parsed.hashtags === "string" ? parseTags(parsed.hashtags) : [];
+          post_type = parsed.post_type ?? "";
+        } catch {
+          caption = sv.content ?? "";
+        }
+        return {
+          channel: sv.channel ?? "",
+          caption,
+          hashtags,
+          post_type,
+          scheduled_time: sv.scheduled_time ?? undefined,
+        };
+      }),
       images: (imgByProduct[p.id] ?? []).map((img) => ({
         id: img.id,
         product_id: img.product_id,

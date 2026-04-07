@@ -107,25 +107,34 @@ export function parseAIJSON(raw: string): Record<string, unknown> {
   try {
     return JSON.parse(raw) as Record<string, unknown>;
   } catch {
-    // continue to next strategy
+    // continue
   }
 
   // Strategy 2: Extract from markdown code blocks
   const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (jsonMatch?.[1]) {
     try {
-      return JSON.parse(jsonMatch[1].trim()) as Record<string, unknown>;
+      const content = jsonMatch[1].trim();
+      return JSON.parse(content) as Record<string, unknown>;
     } catch {
-      // continue to next strategy
+      // continue to see if we can repair or find another block
     }
   }
 
-  // Strategy 3: Find balanced JSON object using bracket counting
-  const startIdx = raw.indexOf("{");
-  if (startIdx !== -1) {
+  // Strategy 3: Find balanced JSON object with bracket counting & repair
+  // This version is more robust: it tries ALL { } blocks if the first one fails
+  const allIndices: number[] = [];
+  let pos = raw.indexOf("{");
+  while (pos !== -1) {
+    allIndices.push(pos);
+    pos = raw.indexOf("{", pos + 1);
+  }
+
+  for (const startIdx of allIndices) {
     let depth = 0;
     let inString = false;
     let escape = false;
+
     for (let i = startIdx; i < raw.length; i++) {
       const ch = raw[i];
       if (escape) {
@@ -145,14 +154,41 @@ export function parseAIJSON(raw: string): Record<string, unknown> {
       else if (ch === "}") {
         depth--;
         if (depth === 0) {
+          let candidate = raw.slice(startIdx, i + 1);
           try {
-            return JSON.parse(raw.slice(startIdx, i + 1)) as Record<string, unknown>;
+            return JSON.parse(candidate) as Record<string, unknown>;
           } catch {
-            break;
+            // Attempt extreme repair: some models don't escape newlines in long strings
+            try {
+              // Replace unescaped newlines inside the JSON string (this is naive but often works)
+              const repaired = candidate.replace(/\n/g, "\\n").replace(/\r/g, "\\r");
+              return JSON.parse(repaired) as Record<string, unknown>;
+            } catch {
+              // move to next startIdx
+            }
           }
         }
       }
     }
+  }
+
+  // Strategy 4: Last resort — just try to find the biggest {} block and strip junk
+  try {
+    const firstBrace = raw.indexOf("{");
+    const lastBrace = raw.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      const block = raw.slice(firstBrace, lastBrace + 1);
+      // Clean control characters that break JSON.parse
+      const cleaned = block.replace(/[\x00-\x1F\x7F-\x9F]/g, (match) => {
+        if (match === "\n") return "\\n";
+        if (match === "\r") return "\\r";
+        if (match === "\t") return "\\t";
+        return "";
+      });
+      return JSON.parse(cleaned) as Record<string, unknown>;
+    }
+  } catch {
+    // failure
   }
 
   // All strategies failed

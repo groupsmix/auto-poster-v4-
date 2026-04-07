@@ -68,14 +68,13 @@ products.get("/:id", async (c) => {
   try {
     const id = c.req.param("id");
 
-    const queryResult = await storageQuery<{ results?: Array<Record<string, unknown>> }>(
+    const rows = await storageQuery<Record<string, unknown>[]>(
       c.env,
       "SELECT * FROM products WHERE id = ?",
       [id]
     );
 
-    const rows = queryResult?.results ?? [];
-    if (rows.length === 0) {
+    if (!rows || rows.length === 0) {
       return c.json<ApiResponse>(
         { success: false, error: "Product not found" },
         404

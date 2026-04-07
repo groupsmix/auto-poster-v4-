@@ -46,16 +46,17 @@ export default function StatusBadge({ status }: { status: AnyStatus | (string & 
   );
 }
 
-export function ScoreBadge({ score }: { score: number }) {
+export function ScoreBadge({ score }: { score?: number }) {
+  const currentScore = score ?? 0;
   const color =
-    score >= 8
+    currentScore >= 8
       ? "text-green-300 bg-green-500/10"
-      : score >= 6
+      : currentScore >= 6
         ? "text-yellow-300 bg-yellow-500/10"
         : "text-red-400 bg-red-500/10";
   return (
     <span className={`px-2 py-0.5 rounded text-xs font-bold ${color}`}>
-      {score.toFixed(1)}
+      {currentScore.toFixed(1)}
     </span>
   );
 }

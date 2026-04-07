@@ -232,6 +232,30 @@ workflows.post("/retry-from-step/:runId", async (c) => {
   }
 });
 
+// POST /api/workflow/resume/:runId — resume failed workflow
+workflows.post("/resume/:runId", async (c) => {
+  try {
+    const runId = c.req.param("runId");
+
+    if (!runId) {
+      return c.json<ApiResponse>(
+        { success: false, error: "runId is required" },
+        400
+      );
+    }
+
+    const result = await forwardToService(
+      c.env.NEXUS_WORKFLOW,
+      `/workflow/resume/${runId}`,
+      { method: "POST" }
+    );
+
+    return c.json<ApiResponse>(result, result.success ? 200 : 500);
+  } catch (err) {
+    return errorResponse(c, err);
+  }
+});
+
 // POST /api/workflow/products/:productId/regenerate-images — regenerate platform images
 workflows.post("/products/:productId/regenerate-images", async (c) => {
   try {

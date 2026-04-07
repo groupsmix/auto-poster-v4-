@@ -13,8 +13,8 @@ reviews.get("/pending", async (c) => {
     const data = await storageQuery(
       c.env,
       `SELECT p.*, wr.id as run_id, wr.status as run_status,
-              wr.started_at as run_started_at, wr.finished_at as run_finished_at,
-              wr.provider_summary_json, wr.cost_summary_json
+              wr.started_at as run_started_at, wr.completed_at as run_finished_at,
+              wr.total_tokens, wr.total_cost, wr.cache_hits
        FROM products p
        LEFT JOIN workflow_runs wr ON wr.product_id = p.id
        WHERE p.status = '${PRODUCT_STATUS.PENDING_REVIEW}'
@@ -32,8 +32,8 @@ reviews.get("/in-revision", async (c) => {
     const data = await storageQuery(
       c.env,
       `SELECT p.*, wr.id as run_id, wr.status as run_status,
-              wr.started_at as run_started_at, wr.finished_at as run_finished_at,
-              wr.provider_summary_json, wr.cost_summary_json
+              wr.started_at as run_started_at, wr.completed_at as run_finished_at,
+              wr.total_tokens, wr.total_cost, wr.cache_hits
        FROM products p
        LEFT JOIN workflow_runs wr ON wr.product_id = p.id
        WHERE p.status = '${PRODUCT_STATUS.IN_REVISION}'
@@ -51,8 +51,8 @@ reviews.get("/history", async (c) => {
     const data = await storageQuery(
       c.env,
       `SELECT p.*, wr.id as run_id, wr.status as run_status,
-              wr.started_at as run_started_at, wr.finished_at as run_finished_at,
-              wr.provider_summary_json, wr.cost_summary_json
+              wr.started_at as run_started_at, wr.completed_at as run_finished_at,
+              wr.total_tokens, wr.total_cost, wr.cache_hits
        FROM products p
        LEFT JOIN workflow_runs wr ON wr.product_id = p.id
        WHERE p.status IN ('${PRODUCT_STATUS.APPROVED}', '${PRODUCT_STATUS.REJECTED}', '${PRODUCT_STATUS.PUBLISHED}')

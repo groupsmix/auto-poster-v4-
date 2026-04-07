@@ -423,10 +423,10 @@ export default function AIManagerPage() {
                                 />
                                 <button
                                   onClick={() => handleAddKey(model.id)}
-                                  disabled={addingKey || !keyInput.value.trim()}
+                                  disabled={addingKey || !keyInput?.value.trim()}
                                   className="px-2 py-1 rounded text-xs font-medium bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-50"
                                 >
-                                  {addingKey ? "..." : "Add"}
+                                  {addingKey && keyInput?.modelId === model.id ? "..." : "Add"}
                                 </button>
                                 <button
                                   onClick={() => setKeyInput(null)}
