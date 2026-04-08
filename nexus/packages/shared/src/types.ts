@@ -153,6 +153,7 @@ export interface Product {
   language: string;
   user_input?: Record<string, unknown>;
   batch_id?: string;
+  workflow_run_id?: string;
   status: ProductStatus;
   domain_name?: string;
   category_name?: string;
