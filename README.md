@@ -1,82 +1,74 @@
-# NEXUS — Personal AI Business Engine
+# Nexus Product Studio
 
-Automated product creation pipeline powered by AI, running entirely on Cloudflare's $5/month plan. Research, generate, review, and publish digital products across multiple platforms — all from one dashboard.
+A personal end-to-end dashboard for discovering opportunities and building digital products or simple sites in one workflow.
 
-## Prerequisites
+## What this version does
 
-- **Node.js 22**
-- **pnpm 9** (`npm install -g pnpm@9`)
-- **Cloudflare account** (Workers Paid plan — $5/month)
+This replaces the mixed V4/V5 direction with one clear app:
 
-## Quick Start
+- **Opportunity Engine**: rank ideas by demand, monetization, authority value, and production speed
+- **Digital Product Pipeline**: brief -> outline -> content -> brand assets -> sales assets -> export package
+- **Site Pipeline**: brief -> page strategy -> copy -> asset prompts -> export package
+- **Project Library**: every run is stored as a project with status, artifacts, and exportable files
+- **ZIP Export**: each completed project can be downloaded as a structured ZIP
+
+## Stack
+
+- Next.js 15 App Router
+- TypeScript
+- Prisma + SQLite
+- OpenAI-compatible provider abstraction with deterministic fallback
+- Server-side workflow engine
+
+## Quick start
 
 ```bash
-# 1. Clone
-git clone https://github.com/groupsmix/auto-poster-v4-.git
-cd auto-poster-v4-/nexus
-
-# 2. Install dependencies
+cp .env.example .env
 pnpm install
-
-# 3. Set up environment variables
-cp .dev.vars.example apps/workers/nexus-router/.dev.vars
-cp .dev.vars.example apps/workers/nexus-ai/.dev.vars
-cp .dev.vars.example apps/workers/nexus-storage/.dev.vars
-# Edit each .dev.vars — see .dev.vars.example for which worker needs which vars
-
-# 4. Run the frontend
-cd apps/web
+pnpm prisma db push
+pnpm prisma db seed
 pnpm dev
 ```
 
-## Architecture
+Then open `http://localhost:3000`.
 
-NEXUS uses 5 specialized Cloudflare Workers connected via Service Bindings:
+## How the AI layer works
 
-| Worker | Role |
-|--------|------|
-| `nexus-router` | Hono.js API router, auth, request validation |
-| `nexus-ai` | AI Gateway, failover engine, model registry, response caching |
-| `nexus-workflow` | CF Workflows management, step orchestration |
-| `nexus-variation` | Platform variation engine, social adaptation |
-| `nexus-storage` | R2, D1, KV, CF Images operations |
+This code is built to work even before you wire in a real model.
 
-**Frontend:** Next.js on Cloudflare Pages (deployed via `deploy.yml`)
+- If `OPENAI_API_KEY` is set, the app calls an OpenAI-compatible endpoint.
+- If no key is configured, the app falls back to a deterministic local generator so the full workflow still runs end to end.
 
-For a deep dive, see [NEXUS-ARCHITECTURE-V4.md](./NEXUS-ARCHITECTURE-V4.md).
+That means you can push and run the full system now, then upgrade the content quality later by adding your preferred model.
 
-## Feature Status
+## Main product flow
 
-| Status | Features |
-|--------|----------|
-| **Core (Ready)** | Domains, Categories, Products, Workflows, Reviews, AI Manager, Analytics, History, Settings, Platforms, Social Channels, Prompts, Publishing |
-| **Phase 2 (In Progress)** | Scheduler, Campaigns, Revenue Tracking, AI CEO Orchestrator, Daily Briefings |
-| **Phase 3 (Planned)** | ROI Optimizer, Product Recycler, Localization, Chatbot, Project Builder |
+1. Discover an opportunity
+2. Create a project
+3. Run one-click workflow
+4. Review generated assets
+5. Export ZIP package
 
-## Scripts
+## Main folders
 
-All scripts run from the `nexus/` directory:
+- `app/` UI and API routes
+- `components/` dashboard and project UI
+- `lib/` workflow engine, AI layer, export builder, Prisma helpers
+- `prisma/` schema and seed
 
-```bash
-pnpm run build       # Build all packages
-pnpm run dev         # Start dev servers
-pnpm run typecheck   # TypeScript type checking
-pnpm run lint        # ESLint
-pnpm run test        # Vitest
-```
+## Notes
 
-## Deployment
+This code is designed for **personal use first**:
+- one operator
+- one dashboard
+- one-click runs
+- premium quality target
+- digital product and simple site outputs
 
-Push to `main` triggers CI (`.github/workflows/ci.yml`). On success, `deploy.yml` deploys workers and frontend to Cloudflare.
+## Suggested next steps after pushing
 
-## Adding a New AI Model
-
-1. Add the model to the registry in `packages/shared/src/ai/registry.ts`
-2. Set the API key as a Cloudflare secret on the `nexus-ai` worker
-3. The model activates automatically — remove the key to deactivate
-
-## Common Troubleshooting
-
-- **API errors in frontend**: Ensure `NEXT_PUBLIC_API_URL` points to your `nexus-router` worker URL when deployed
-- **AI calls failing**: Check that API keys are set on the correct worker (see `.dev.vars.example` for mapping)
-- **Workflow stuck**: Check the workflow status in History page; CF Workflows persist state across tab closes
+- Replace the fallback generator prompts with your preferred model/provider
+- Add image generation/storage provider
+- Add PDF rendering service
+- Add deploy target for generated sites
+- Add marketplace publishing once packaging is stable
