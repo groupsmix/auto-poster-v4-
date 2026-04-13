@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum ProjectStatus {
+  DRAFT
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum AssetKind {
+  BRIEF
+  OPPORTUNITY
+  PRODUCT
+  SITE
+  BRAND
+  SALES
+  EXPORT
+  SYSTEM
+}
+
+model Opportunity {
+  id                 String   @id @default(cuid())
+  title              String
+  niche              String
+  channel            String
+  summary            String
+  score              Int
+  demandScore        Int
+  authorityScore     Int
+  monetizationScore  Int
+  speedScore         Int
+  suggestedMode      String
+  createdAt          DateTime @default(now())
+}
+
+model Project {
+  id              String        @id @default(cuid())
+  title           String
+  mode            String
+  goal            String
+  niche           String
+  audience        String
+  quality         String
+  status          ProjectStatus @default(DRAFT)
+  sourceIdea      String?
+  summary         String?
+  currentStep     String?
+  progress        Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  assets          Asset[]
+  runs            WorkflowRun[]
+}
+
+model WorkflowRun {
+  id          String   @id @default(cuid())
+  projectId   String
+  status      String
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+  logsJson    String?
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Asset {
+  id          String    @id @default(cuid())
+  projectId   String
+  kind        AssetKind
+  name        String
+  content     String
+  format      String
+  metadata    String?
+  createdAt   DateTime  @default(now())
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, kind])
+}
